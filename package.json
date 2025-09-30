@@ -1,0 +1,76 @@
+{
+  "name": "gestion-proyectos",
+  "version": "1.0.0",
+  "private": true,
+  "main": "electron/main.js",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "electron": "^25.0.0",
+    "electron-builder": "^24.0.0",
+    "express": "^5.1.0",
+    "express-validator": "^7.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "sqlite3": "^5.1.6",
+    "pdfkit": "^0.17.2",
+    "sharp": "^0.34.3"
+  },
+  "scripts": {
+    "start:server": "cd server && npx nodemon app.js",
+    "start:frontend": "cd frontend && npm run dev",
+    "start:electron": "cross-env ELECTRON_DEV=true npx electron .",
+    "dev": "concurrently \"npm run start:server\" \"npm run start:frontend\" \"npm run start:electron\"",
+    "build:frontend": "cd frontend && npm run build",
+    "postinstall": "cd frontend && npm install",
+    "pack": "npm run build:frontend && electron-builder --dir",
+    "dist": "npm run build:frontend && cross-env NODE_ENV=production electron-builder --win"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.0",
+    "cross-env": "^7.0.3",
+    "nodemon": "^3.1.10"
+  },
+  "build": {
+    "appId": "com.tuempresa.gestion-proyectos",
+    "productName": "Gestion Proyectos",
+    "files": [
+      "electron/**/*",
+      "server/**/*",
+      "frontend/dist/**/*",
+      "db/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "server/",
+        "to": "server/",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "db/",
+        "to": "db/",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
