@@ -1,50 +1,58 @@
-import { useState, useEffect } from 'react';
-import { type Proyecto, getProyectos, createProyecto, deleteProyecto, calcularProgresoProyecto } from '../services/proyectos';
-import '../css/ProyectosDashboard.css';
+import { useState, useEffect } from "react";
+import {
+  type Proyecto,
+  getProyectos,
+  createProyecto,
+  deleteProyecto,
+  calcularProgresoProyecto,
+} from "../services/proyectos";
+import "../css/ProyectosDashboard.css";
 
-export default function ProyectosDashboard({ onSelectProyecto }: { 
-  onSelectProyecto?: (proyectoId: number) => void 
+export default function ProyectosDashboard({
+  onSelectProyecto,
+}: {
+  onSelectProyecto?: (proyectoId: number) => void;
 }) {
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Estado del formulario
   const [formData, setFormData] = useState({
-    nombre: '',
-    cliente: '',
-    cedula_juridica: '',
-    fecha_inicio: '',
-    fecha_fin: '',
-    descripcion: '',
-    prioridad: 'media',
+    nombre: "",
+    cliente: "",
+    cedula_juridica: "",
+    fecha_inicio: "",
+    fecha_fin: "",
+    descripcion: "",
+    prioridad: "media",
     crear_fases: {
       planificacion: true,
       ejecucion: true,
-      cierre: true
-    }
+      cierre: true,
+    },
   });
 
   // Validación del formulario
-  const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
   // Cargar proyectos
   const loadProyectos = async () => {
     try {
-      console.log('🚀 Iniciando carga de proyectos...');
+      console.log("🚀 Iniciando carga de proyectos...");
       setLoading(true);
       const data = await getProyectos(page, 12, search);
-      console.log('✅ Proyectos cargados:', data);
+      console.log("✅ Proyectos cargados:", data);
       setProyectos(data.data || []);
       setTotalPages(data.totalPages || 0);
     } catch (err: any) {
-      console.error('❌ Error cargando proyectos:', err);
-      setError(err.message || 'Error al cargar proyectos');
+      console.error("❌ Error cargando proyectos:", err);
+      setError(err.message || "Error al cargar proyectos");
     } finally {
       setLoading(false);
     }
@@ -63,25 +71,30 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
 
   // Validar formulario
   const validateForm = () => {
-    const errors: {[key: string]: string} = {};
+    const errors: { [key: string]: string } = {};
 
     if (!formData.nombre.trim()) {
-      errors.nombre = 'El nombre del proyecto es requerido';
+      errors.nombre = "El nombre del proyecto es requerido";
     }
 
     if (!formData.cliente.trim()) {
-      errors.cliente = 'El nombre del cliente es requerido';
+      errors.cliente = "El nombre del cliente es requerido";
     }
 
-    if (formData.cedula_juridica && !/^\d{9,12}$/.test(formData.cedula_juridica.replace(/[-\s]/g, ''))) {
-      errors.cedula_juridica = 'La cédula jurídica debe tener entre 9 y 12 dígitos';
+    if (
+      formData.cedula_juridica &&
+      !/^\d{9,12}$/.test(formData.cedula_juridica.replace(/[-\s]/g, ""))
+    ) {
+      errors.cedula_juridica =
+        "La cédula jurídica debe tener entre 9 y 12 dígitos";
     }
 
     if (formData.fecha_inicio && formData.fecha_fin) {
       const fechaInicio = new Date(formData.fecha_inicio);
       const fechaFin = new Date(formData.fecha_fin);
       if (fechaFin <= fechaInicio) {
-        errors.fecha_fin = 'La fecha de fin debe ser posterior a la fecha de inicio';
+        errors.fecha_fin =
+          "La fecha de fin debe ser posterior a la fecha de inicio";
       }
     }
 
@@ -92,7 +105,7 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
   // Crear proyecto
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -107,27 +120,29 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
         cedula_juridica: formData.cedula_juridica.trim() || undefined,
         fecha_inicio: formData.fecha_inicio || undefined,
         fecha_fin: formData.fecha_fin || undefined,
-        descripcion: formData.descripcion.trim() || undefined
+        descripcion: formData.descripcion.trim() || undefined,
       };
 
-      console.log('📤 Enviando datos del proyecto:', projectData);
-      
+      console.log("📤 Enviando datos del proyecto:", projectData);
+
       const nuevoProyecto = await createProyecto(projectData);
-      console.log('✅ Proyecto creado exitosamente:', nuevoProyecto);
-      
+      console.log("✅ Proyecto creado exitosamente:", nuevoProyecto);
+
       // Recargar la lista de proyectos
       await loadProyectos();
-      
+
       // Cerrar modal y resetear formulario
       setShowCreateModal(false);
       resetForm();
-      
+
       // Mostrar mensaje de éxito (opcional)
-      alert('¡Proyecto creado exitosamente!');
-      
+      alert("¡Proyecto creado exitosamente!");
     } catch (err: any) {
-      console.error('❌ Error creando proyecto:', err);
-      setError(err.message || 'Error al crear el proyecto. Por favor, intenta nuevamente.');
+      console.error("❌ Error creando proyecto:", err);
+      setError(
+        err.message ||
+          "Error al crear el proyecto. Por favor, intenta nuevamente."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -136,47 +151,47 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
   // Resetear formulario
   const resetForm = () => {
     setFormData({
-      nombre: '',
-      cliente: '',
-      cedula_juridica: '',
-      fecha_inicio: '',
-      fecha_fin: '',
-      descripcion: '',
-      prioridad: 'media',
+      nombre: "",
+      cliente: "",
+      cedula_juridica: "",
+      fecha_inicio: "",
+      fecha_fin: "",
+      descripcion: "",
+      prioridad: "media",
       crear_fases: {
         planificacion: true,
         ejecucion: true,
-        cierre: true
-      }
+        cierre: true,
+      },
     });
     setFormErrors({});
   };
 
   // Actualizar datos del formulario
   const updateFormData = (field: string, value: any) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
-    
+
     // Limpiar error del campo al modificarlo
     if (formErrors[field]) {
-      setFormErrors(prev => ({
+      setFormErrors((prev) => ({
         ...prev,
-        [field]: ''
+        [field]: "",
       }));
     }
   };
 
   // Eliminar proyecto
   const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar este proyecto?')) return;
-    
+    if (!confirm("¿Estás seguro de eliminar este proyecto?")) return;
+
     try {
       await deleteProyecto(id);
       await loadProyectos();
     } catch (err: any) {
-      setError(err.message || 'Error al eliminar proyecto');
+      setError(err.message || "Error al eliminar proyecto");
     }
   };
 
@@ -189,37 +204,42 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
   // Calcular estadísticas
   const stats = {
     total: proyectos.length,
-    enProgreso: proyectos.filter(p => {
+    enProgreso: proyectos.filter((p) => {
       const progreso = calcularProgresoProyecto(p);
       return progreso > 0 && progreso < 100;
     }).length,
-    completados: proyectos.filter(p => calcularProgresoProyecto(p) === 100).length,
-    progresoPromedio: proyectos.length > 0 
-      ? Math.round(proyectos.reduce((acc, p) => acc + calcularProgresoProyecto(p), 0) / proyectos.length)
-      : 0
+    completados: proyectos.filter((p) => calcularProgresoProyecto(p) === 100)
+      .length,
+    progresoPromedio:
+      proyectos.length > 0
+        ? Math.round(
+            proyectos.reduce((acc, p) => acc + calcularProgresoProyecto(p), 0) /
+              proyectos.length
+          )
+        : 0,
   };
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'No definida';
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
+    if (!dateString) return "No definida";
+    return new Date(dateString).toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
   };
 
   const getEstadoColor = (progreso: number) => {
-    if (progreso === 100) return 'success';
-    if (progreso > 50) return 'warning';
-    if (progreso > 0) return 'info';
-    return 'default';
+    if (progreso === 100) return "success";
+    if (progreso > 50) return "warning";
+    if (progreso > 0) return "info";
+    return "default";
   };
 
   const getEstadoText = (progreso: number) => {
-    if (progreso === 100) return 'Completado';
-    if (progreso > 50) return 'Avanzado';
-    if (progreso > 0) return 'En Progreso';
-    return 'Iniciando';
+    if (progreso === 100) return "Completado";
+    if (progreso > 50) return "Avanzado";
+    if (progreso > 0) return "En Progreso";
+    return "Iniciando";
   };
 
   if (loading) {
@@ -237,10 +257,12 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
       <div className="dashboard-header">
         <div className="dashboard-title">
           <h1>Panel de Proyectos</h1>
-          <p className="dashboard-subtitle">Gestiona y supervisa todos tus proyectos Electricos</p>
+          <p className="dashboard-subtitle">
+            Gestiona y supervisa todos tus proyectos Electricos
+          </p>
         </div>
         <div className="dashboard-actions">
-          <button 
+          <button
             className="btn btn-primary"
             onClick={() => setShowCreateModal(true)}
           >
@@ -257,21 +279,21 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
           <div className="stat-label">Total de Proyectos</div>
           <div className="stat-change positive">+12% este mes</div>
         </div>
-        
+
         <div className="stat-card stat-warning">
           <div className="stat-icon">⚡</div>
           <div className="stat-value">{stats.enProgreso}</div>
           <div className="stat-label">En Progreso</div>
           <div className="stat-change positive">+5% esta semana</div>
         </div>
-        
+
         <div className="stat-card stat-success">
           <div className="stat-icon">✅</div>
           <div className="stat-value">{stats.completados}</div>
           <div className="stat-label">Completados</div>
           <div className="stat-change positive">+8% este mes</div>
         </div>
-        
+
         <div className="stat-card">
           <div className="stat-icon">📊</div>
           <div className="stat-value">{stats.progresoPromedio}%</div>
@@ -327,9 +349,15 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
               {/* Header del proyecto */}
               <div className="proyecto-card-header">
                 <div className="proyecto-title">{proyecto.nombre}</div>
-                <div className="proyecto-description">Cliente: {proyecto.cliente}</div>
+                <div className="proyecto-description">
+                  Cliente: {proyecto.cliente}
+                </div>
                 <div className="proyecto-meta">
-                  <span className={`proyecto-estado estado-${getEstadoColor(progreso)}`}>
+                  <span
+                    className={`proyecto-estado estado-${getEstadoColor(
+                      progreso
+                    )}`}
+                  >
                     {getEstadoText(progreso)}
                   </span>
                   <span className="proyecto-fecha">
@@ -346,8 +374,8 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
                     <span className="progress-percentage">{progreso}%</span>
                   </div>
                   <div className="progress-bar">
-                    <div 
-                      className="progress-fill" 
+                    <div
+                      className="progress-fill"
                       style={{ width: `${progreso}%` }}
                     ></div>
                   </div>
@@ -356,15 +384,21 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
                 {/* Estadísticas */}
                 <div className="proyecto-stats">
                   <div className="stat-item">
-                    <div className="stat-number">{proyecto.total_fases || 0}</div>
+                    <div className="stat-number">
+                      {proyecto.total_fases || 0}
+                    </div>
                     <div className="stat-text">Fases</div>
                   </div>
                   <div className="stat-item">
-                    <div className="stat-number">{proyecto.total_tareas || 0}</div>
+                    <div className="stat-number">
+                      {proyecto.total_tareas || 0}
+                    </div>
                     <div className="stat-text">Tareas</div>
                   </div>
                   <div className="stat-item">
-                    <div className="stat-number">{proyecto.tareas_completadas || 0}</div>
+                    <div className="stat-number">
+                      {proyecto.tareas_completadas || 0}
+                    </div>
                     <div className="stat-text">Completas</div>
                   </div>
                 </div>
@@ -373,23 +407,29 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
                 <div className="proyecto-fechas">
                   <div className="fecha-item">
                     <span className="fecha-label">Inicio:</span>
-                    <span className="fecha-value">{formatDate(proyecto.fecha_inicio)}</span>
+                    <span className="fecha-value">
+                      {formatDate(proyecto.fecha_inicio)}
+                    </span>
                   </div>
                   <div className="fecha-item">
                     <span className="fecha-label">Fin:</span>
-                    <span className="fecha-value">{formatDate(proyecto.fecha_fin)}</span>
+                    <span className="fecha-value">
+                      {formatDate(proyecto.fecha_fin)}
+                    </span>
                   </div>
                 </div>
 
                 {/* Acciones */}
                 <div className="proyecto-actions">
-                  <button 
-                    onClick={() => onSelectProyecto && onSelectProyecto(proyecto.id)}
+                  <button
+                    onClick={() =>
+                      onSelectProyecto && onSelectProyecto(proyecto.id)
+                    }
                     className="btn btn-primary"
                   >
                     Ver Detalles
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDelete(proyecto.id)}
                     className="btn btn-outline btn-danger"
                   >
@@ -408,9 +448,10 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
           <div className="empty-icon">📁</div>
           <h4 className="empty-title">No hay proyectos</h4>
           <p className="empty-description">
-            Comienza creando tu primer proyecto empresarial para gestionar tareas y equipos.
+            Comienza creando tu primer proyecto Electrico para gestionar
+            tareas y equipos.
           </p>
-          <button 
+          <button
             className="btn btn-primary"
             onClick={() => setShowCreateModal(true)}
           >
@@ -422,32 +463,34 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
       {/* Paginación */}
       {totalPages > 1 && (
         <div className="pagination">
-          <button 
+          <button
             className="pagination-btn"
             disabled={page === 1}
             onClick={() => setPage(page - 1)}
           >
             ← Anterior
           </button>
-          
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
-            <button
-              key={pageNum}
-              className={`pagination-btn ${page === pageNum ? 'active' : ''}`}
-              onClick={() => setPage(pageNum)}
-            >
-              {pageNum}
-            </button>
-          ))}
-          
-          <button 
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+            (pageNum) => (
+              <button
+                key={pageNum}
+                className={`pagination-btn ${page === pageNum ? "active" : ""}`}
+                onClick={() => setPage(pageNum)}
+              >
+                {pageNum}
+              </button>
+            )
+          )}
+
+          <button
             className="pagination-btn"
             disabled={page === totalPages}
             onClick={() => setPage(page + 1)}
           >
             Siguiente →
           </button>
-          
+
           <span className="pagination-info">
             Página {page} de {totalPages}
           </span>
@@ -461,9 +504,11 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
             <div className="modal-header">
               <div className="modal-title-section">
                 <h3>Crear Nuevo Proyecto</h3>
-                <p className="modal-subtitle">Configura los detalles básicos de tu proyecto empresarial</p>
+                <p className="modal-subtitle">
+                  Configura los detalles básicos de tu proyecto electrico
+                </p>
               </div>
-              <button 
+              <button
                 className="modal-close"
                 onClick={handleCloseModal}
                 aria-label="Cerrar modal"
@@ -472,50 +517,80 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
                 ✕
               </button>
             </div>
-            
+
             <div className="modal-body">
-              <form id="create-project-form" className="create-project-form" onSubmit={handleCreateProject}>
+              <form
+                id="create-project-form"
+                className="create-project-form"
+                onSubmit={handleCreateProject}
+              >
                 {/* Información básica */}
                 <div className="form-section">
                   <div className="section-header">
                     <h4 className="section-title">📋 Información Básica</h4>
                   </div>
-                  
+
                   <div className="form-grid">
                     <div className="form-group">
-                      <label htmlFor="proyecto-nombre" className="form-label required">
+                      <label
+                        htmlFor="proyecto-nombre"
+                        className="form-label required"
+                      >
                         Nombre del Proyecto
                       </label>
                       <input
                         id="proyecto-nombre"
                         type="text"
-                        className={`form-input ${formErrors.nombre ? 'error' : ''}`}
+                        className={`form-input ${
+                          formErrors.nombre ? "error" : ""
+                        }`}
                         placeholder="Ej: Sistema de Gestión CRM"
                         value={formData.nombre}
-                        onChange={(e) => updateFormData('nombre', e.target.value)}
+                        onChange={(e) =>
+                          updateFormData("nombre", e.target.value)
+                        }
                         required
                         disabled={isSubmitting}
                       />
-                      {formErrors.nombre && <span className="field-error-message">{formErrors.nombre}</span>}
-                      <span className="form-hint">Nombre descriptivo del proyecto</span>
+                      {formErrors.nombre && (
+                        <span className="field-error-message">
+                          {formErrors.nombre}
+                        </span>
+                      )}
+                      <span className="form-hint">
+                        Nombre descriptivo del proyecto
+                      </span>
                     </div>
-                    
+
                     <div className="form-group">
-                      <label htmlFor="proyecto-cliente" className="form-label required">
+                      <label
+                        htmlFor="proyecto-cliente"
+                        className="form-label required"
+                      >
                         Cliente
                       </label>
                       <input
                         id="proyecto-cliente"
                         type="text"
-                        className={`form-input ${formErrors.cliente ? 'error' : ''}`}
+                        className={`form-input ${
+                          formErrors.cliente ? "error" : ""
+                        }`}
                         placeholder="Ej: Empresa ABC S.A."
                         value={formData.cliente}
-                        onChange={(e) => updateFormData('cliente', e.target.value)}
+                        onChange={(e) =>
+                          updateFormData("cliente", e.target.value)
+                        }
                         required
                         disabled={isSubmitting}
                       />
-                      {formErrors.cliente && <span className="field-error-message">{formErrors.cliente}</span>}
-                      <span className="form-hint">Nombre de la empresa o cliente</span>
+                      {formErrors.cliente && (
+                        <span className="field-error-message">
+                          {formErrors.cliente}
+                        </span>
+                      )}
+                      <span className="form-hint">
+                        Nombre de la empresa o cliente
+                      </span>
                     </div>
                   </div>
 
@@ -527,14 +602,24 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
                     <input
                       id="cedula-juridica"
                       type="text"
-                      className={`form-input ${formErrors.cedula_juridica ? 'error' : ''}`}
+                      className={`form-input ${
+                        formErrors.cedula_juridica ? "error" : ""
+                      }`}
                       placeholder="Ej: 3-101-123456"
                       value={formData.cedula_juridica}
-                      onChange={(e) => updateFormData('cedula_juridica', e.target.value)}
+                      onChange={(e) =>
+                        updateFormData("cedula_juridica", e.target.value)
+                      }
                       disabled={isSubmitting}
                     />
-                    {formErrors.cedula_juridica && <span className="field-error-message">{formErrors.cedula_juridica}</span>}
-                    <span className="form-hint">Cédula jurídica de la empresa (opcional)</span>
+                    {formErrors.cedula_juridica && (
+                      <span className="field-error-message">
+                        {formErrors.cedula_juridica}
+                      </span>
+                    )}
+                    <span className="form-hint">
+                      Cédula jurídica de la empresa (opcional)
+                    </span>
                   </div>
                 </div>
 
@@ -543,7 +628,7 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
                   <div className="section-header">
                     <h4 className="section-title">📅 Cronograma</h4>
                   </div>
-                  
+
                   <div className="form-grid">
                     <div className="form-group">
                       <label htmlFor="fecha-inicio" className="form-label">
@@ -554,12 +639,16 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
                         type="date"
                         className="form-input"
                         value={formData.fecha_inicio}
-                        onChange={(e) => updateFormData('fecha_inicio', e.target.value)}
+                        onChange={(e) =>
+                          updateFormData("fecha_inicio", e.target.value)
+                        }
                         disabled={isSubmitting}
                       />
-                      <span className="form-hint">Fecha estimada de inicio</span>
+                      <span className="form-hint">
+                        Fecha estimada de inicio
+                      </span>
                     </div>
-                    
+
                     <div className="form-group">
                       <label htmlFor="fecha-fin" className="form-label">
                         Fecha de Finalización
@@ -567,13 +656,23 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
                       <input
                         id="fecha-fin"
                         type="date"
-                        className={`form-input ${formErrors.fecha_fin ? 'error' : ''}`}
+                        className={`form-input ${
+                          formErrors.fecha_fin ? "error" : ""
+                        }`}
                         value={formData.fecha_fin}
-                        onChange={(e) => updateFormData('fecha_fin', e.target.value)}
+                        onChange={(e) =>
+                          updateFormData("fecha_fin", e.target.value)
+                        }
                         disabled={isSubmitting}
                       />
-                      {formErrors.fecha_fin && <span className="field-error-message">{formErrors.fecha_fin}</span>}
-                      <span className="form-hint">Fecha estimada de entrega</span>
+                      {formErrors.fecha_fin && (
+                        <span className="field-error-message">
+                          {formErrors.fecha_fin}
+                        </span>
+                      )}
+                      <span className="form-hint">
+                        Fecha estimada de entrega
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -583,9 +682,12 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
                   <div className="section-header">
                     <h4 className="section-title">📝 Descripción</h4>
                   </div>
-                  
+
                   <div className="form-group">
-                    <label htmlFor="proyecto-descripcion" className="form-label">
+                    <label
+                      htmlFor="proyecto-descripcion"
+                      className="form-label"
+                    >
                       Descripción del Proyecto
                     </label>
                     <textarea
@@ -594,10 +696,14 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
                       placeholder="Describe brevemente los objetivos, alcance y características principales del proyecto..."
                       rows={4}
                       value={formData.descripcion}
-                      onChange={(e) => updateFormData('descripcion', e.target.value)}
+                      onChange={(e) =>
+                        updateFormData("descripcion", e.target.value)
+                      }
                       disabled={isSubmitting}
                     />
-                    <span className="form-hint">Información adicional sobre el proyecto (opcional)</span>
+                    <span className="form-hint">
+                      Información adicional sobre el proyecto (opcional)
+                    </span>
                   </div>
                 </div>
 
@@ -606,78 +712,95 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
                   <div className="section-header">
                     <h4 className="section-title">⚙️ Configuración Inicial</h4>
                   </div>
-                  
+
                   <div className="form-grid">
                     <div className="form-group">
-                      <label htmlFor="proyecto-prioridad" className="form-label">
+                      <label
+                        htmlFor="proyecto-prioridad"
+                        className="form-label"
+                      >
                         Prioridad
                       </label>
-                      <select 
-                        id="proyecto-prioridad" 
+                      <select
+                        id="proyecto-prioridad"
                         className="form-select"
                         value={formData.prioridad}
-                        onChange={(e) => updateFormData('prioridad', e.target.value)}
+                        onChange={(e) =>
+                          updateFormData("prioridad", e.target.value)
+                        }
                         disabled={isSubmitting}
                       >
                         <option value="baja">🟢 Baja</option>
                         <option value="media">🟡 Media</option>
                         <option value="alta">🔴 Alta</option>
                       </select>
-                      <span className="form-hint">Nivel de prioridad del proyecto</span>
+                      <span className="form-hint">
+                        Nivel de prioridad del proyecto
+                      </span>
                     </div>
-                    
+
                     <div className="form-group">
-                      <label className="form-label">Crear Fases Predeterminadas</label>
+                      <label className="form-label">
+                        Crear Fases Predeterminadas
+                      </label>
                       <div className="checkbox-group">
                         <label className="checkbox-item">
-                          <input 
-                            type="checkbox" 
+                          <input
+                            type="checkbox"
                             checked={formData.crear_fases.planificacion}
-                            onChange={(e) => updateFormData('crear_fases', {
-                              ...formData.crear_fases,
-                              planificacion: e.target.checked
-                            })}
+                            onChange={(e) =>
+                              updateFormData("crear_fases", {
+                                ...formData.crear_fases,
+                                planificacion: e.target.checked,
+                              })
+                            }
                             disabled={isSubmitting}
                           />
                           <span className="checkbox-custom"></span>
                           <span className="checkbox-label">Planificación</span>
                         </label>
                         <label className="checkbox-item">
-                          <input 
-                            type="checkbox" 
+                          <input
+                            type="checkbox"
                             checked={formData.crear_fases.ejecucion}
-                            onChange={(e) => updateFormData('crear_fases', {
-                              ...formData.crear_fases,
-                              ejecucion: e.target.checked
-                            })}
+                            onChange={(e) =>
+                              updateFormData("crear_fases", {
+                                ...formData.crear_fases,
+                                ejecucion: e.target.checked,
+                              })
+                            }
                             disabled={isSubmitting}
                           />
                           <span className="checkbox-custom"></span>
                           <span className="checkbox-label">Ejecución</span>
                         </label>
                         <label className="checkbox-item">
-                          <input 
-                            type="checkbox" 
+                          <input
+                            type="checkbox"
                             checked={formData.crear_fases.cierre}
-                            onChange={(e) => updateFormData('crear_fases', {
-                              ...formData.crear_fases,
-                              cierre: e.target.checked
-                            })}
+                            onChange={(e) =>
+                              updateFormData("crear_fases", {
+                                ...formData.crear_fases,
+                                cierre: e.target.checked,
+                              })
+                            }
                             disabled={isSubmitting}
                           />
                           <span className="checkbox-custom"></span>
                           <span className="checkbox-label">Cierre</span>
                         </label>
                       </div>
-                      <span className="form-hint">Fases estándar para comenzar</span>
+                      <span className="form-hint">
+                        Fases estándar para comenzar
+                      </span>
                     </div>
                   </div>
                 </div>
               </form>
             </div>
-            
+
             <div className="modal-footer">
-              <button 
+              <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={handleCloseModal}
@@ -685,9 +808,9 @@ export default function ProyectosDashboard({ onSelectProyecto }: {
               >
                 Cancelar
               </button>
-              <button 
+              <button
                 type="submit"
-                className={`btn btn-primary ${isSubmitting ? 'loading' : ''}`}
+                className={`btn btn-primary ${isSubmitting ? "loading" : ""}`}
                 form="create-project-form"
                 disabled={isSubmitting}
               >
