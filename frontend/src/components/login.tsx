@@ -3,7 +3,7 @@ import { login, saveAuth } from '../services/auth';
 import '../css/login.css';
 
 export default function Login() {
-  const [username, setUsername] = useState(''); // antes email
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,11 +13,10 @@ export default function Login() {
     setError(null);
     setLoading(true);
     try {
-      const res = await login(username, password); // ahora envía identificador
+      const res = await login(username, password);
       saveAuth(res.token, res.user);
       window.location.href = '/';
     } catch (err: any) {
-      // Mostrar mensaje amigable cuando las credenciales son inválidas
       const isCredencialesInvalidas =
         err?.status === 401 ||
         /credenciales inválidas|credenciales inválidas/i.test(err?.error || '') ||
@@ -39,29 +38,48 @@ export default function Login() {
         <div className="login-logo">
           <img src="https://png.pngtree.com/element_pic/00/16/07/115783931601b5c.jpg" alt="Logo empresa" />
         </div>
-        <h2>Iniciar sesión</h2>
+        <h2>Iniciar Sesión</h2>
+        <p className="login-subtitle">Accede a tu sistema de gestión empresarial</p>
+        
         {error && <div className="login-error">{error}</div>}
+        
         <form onSubmit={handleSubmit} className="login-form">
-          <label>Usuario</label>
-          <input
-            type="text"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            required
-            placeholder="Usuario"
-          />
-          <label>Contraseña</label>
-          <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            placeholder="********"
-          />
-          <button type="submit" disabled={loading}>
-            {loading ? 'Entrando...' : 'Entrar'}
+          <div className="form-group">
+            <label htmlFor="username">Usuario</label>
+            <input
+              id="username"
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              placeholder="Ingresa tu usuario"
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="password">Contraseña</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Ingresa tu contraseña"
+              required
+            />
+          </div>
+          
+          <button 
+            type="submit" 
+            className={`login-submit ${loading ? 'loading' : ''}`}
+            disabled={loading}
+          >
+            {loading ? '' : 'Iniciar Sesión'}
           </button>
         </form>
+        
+        <div className="login-footer">
+          <p>Sistema de Gestión de Proyectos Empresarial</p>
+        </div>
       </div>
     </div>
   );
