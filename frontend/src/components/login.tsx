@@ -39,7 +39,7 @@ export default function Login() {
           <img src="https://png.pngtree.com/element_pic/00/16/07/115783931601b5c.jpg" alt="Logo empresa" />
         </div>
         <h2>Iniciar Sesión</h2>
-        <p className="login-subtitle">Accede a tu sistema de gestión empresarial</p>
+        <p className="login-subtitle">Accede a tu sistema de gestión electrico</p>
         
         {error && <div className="login-error">{error}</div>}
         
@@ -78,7 +78,7 @@ export default function Login() {
         </form>
         
         <div className="login-footer">
-          <p>Sistema de Gestión de Proyectos Empresarial</p>
+          <p>Sistema de Gestión de Proyectos Eléctricos</p>
         </div>
       </div>
     </div>

@@ -19,13 +19,17 @@
 }
 
 .proyecto-header::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--primary-blue) 0%, var(--primary-light) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--primary-blue) 0%,
+    var(--primary-light) 100%
+  );
   border-radius: 16px 16px 0 0;
 }
 
@@ -350,6 +354,49 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Corrección: forzar color legible en el selector de estado de fases */
+.proyecto-detail .fases-list .fase-card .fase-header .fase-estado-selector {
+  color: var(--text-primary) !important; /* texto legible cuando está cerrado */
+  -webkit-text-fill-color: var(--text-primary) !important; /* Safari/Chromium */
+  background: var(--bg-card) !important; /* fondo claro por seguridad */
+  border-color: var(--border-medium) !important;
+  opacity: 1 !important;
+  appearance: menulist !important; /* mantener comportamiento nativo */
+  -webkit-appearance: menulist !important;
+  -moz-appearance: menulist !important;
+}
+
+/* Opciones dentro del dropdown (mejora la legibilidad en la lista desplegable) */
+.proyecto-detail
+  .fases-list
+  .fase-card
+  .fase-header
+  .fase-estado-selector
+  option {
+  color: var(--text-primary) !important;
+  background: var(--text-white) !important;
+}
+
+/* Enfoque (más visible y sin perder el color) */
+.proyecto-detail
+  .fases-list
+  .fase-card
+  .fase-header
+  .fase-estado-selector:focus {
+  outline: none;
+  border-color: var(--primary-light) !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08) !important;
+}
+
+/* IE/Edge (valor renderizado) */
+.proyecto-detail
+  .fases-list
+  .fase-card
+  .fase-header
+  .fase-estado-selector::-ms-value {
+  color: var(--text-primary) !important;
+}
+
 .fase-progress {
   margin-bottom: var(--spacing-md);
 }
@@ -383,7 +430,11 @@
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--primary-light) 0%, var(--primary-blue) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--primary-light) 0%,
+    var(--primary-blue) 100%
+  );
   border-radius: 4px;
   transition: width 0.5s ease;
 }
@@ -549,44 +600,44 @@
   .proyecto-detail {
     padding: var(--spacing-md);
   }
-  
+
   .header-content {
     flex-direction: column;
     gap: var(--spacing-md);
   }
-  
+
   .proyecto-stats {
     justify-content: space-around;
   }
-  
+
   .proyecto-metadata {
     grid-template-columns: 1fr;
   }
-  
+
   .proyecto-tabs {
     overflow-x: auto;
   }
-  
+
   .resumen-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .fase-header {
     flex-direction: column;
     gap: var(--spacing-md);
     align-items: stretch;
   }
-  
+
   .fase-tareas {
     grid-template-columns: 1fr;
   }
-  
+
   .tarea-item {
     flex-direction: column;
     align-items: stretch;
     gap: var(--spacing-sm);
   }
-  
+
   .tarea-meta {
     justify-content: space-between;
   }
@@ -596,7 +647,7 @@
   .proyecto-info h1 {
     font-size: 24px;
   }
-  
+
   .fase-tareas {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
@@ -604,8 +655,14 @@
 
 /* Animaciones */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .proyecto-detail {

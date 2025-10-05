@@ -112,7 +112,7 @@ export default function ProyectoDetail({
       {/* Header empresarial */}
       <div className="proyecto-header">
         <div className="header-content">
-          <button onClick={onBack} className="btn btn-outline">
+          <button onClick={onBack} className="btn btn-primary">
             ← Volver al Dashboard
           </button>
           <div className="proyecto-info">
@@ -153,9 +153,7 @@ export default function ProyectoDetail({
           <div className="metadata-item">
             <span className="metadata-label">Fecha de fin</span>
             <span className="metadata-value">
-              {proyecto.fecha_fin
-                ? formatDate(proyecto.fecha_fin)
-                : "No definida"}
+              {proyecto.fecha_fin ? formatDate(proyecto.fecha_fin) : "No definida"}
             </span>
           </div>
           <div className="metadata-item">
@@ -214,9 +212,7 @@ export default function ProyectoDetail({
                     } 314.159`}
                   />
                 </svg>
-                <div className="progress-text">
-                  {proyecto.progreso_general || 0}%
-                </div>
+                <div className="progress-text">{proyecto.progreso_general || 0}%</div>
               </div>
               <div className="progress-details">
                 <p>
@@ -299,9 +295,7 @@ export default function ProyectoDetail({
 
                   <div className="fase-progress">
                     <div className="progress-header">
-                      <span className="progress-label">
-                        Progreso de la fase
-                      </span>
+                      <span className="progress-label">Progreso de la fase</span>
                       <span className="progress-percentage">
                         {getProgresoFase(fase.nombre)}%
                       </span>
@@ -318,17 +312,13 @@ export default function ProyectoDetail({
                     <div className="fecha-item">
                       <span className="fecha-label">Inicio:</span>
                       <span className="fecha-value">
-                        {fase.fecha_inicio
-                          ? formatDate(fase.fecha_inicio)
-                          : "No definida"}
+                        {fase.fecha_inicio ? formatDate(fase.fecha_inicio) : "No definida"}
                       </span>
                     </div>
                     <div className="fecha-item">
                       <span className="fecha-label">Fin:</span>
                       <span className="fecha-value">
-                        {fase.fecha_fin
-                          ? formatDate(fase.fecha_fin)
-                          : "No definida"}
+                        {fase.fecha_fin ? formatDate(fase.fecha_fin) : "No definida"}
                       </span>
                     </div>
                   </div>
@@ -377,9 +367,7 @@ export default function ProyectoDetail({
                 tareas.map((tarea) => (
                   <div key={tarea.id} className="tarea-item">
                     <div
-                      className={`tarea-checkbox ${
-                        tarea.progreso === 100 ? "completed" : ""
-                      }`}
+                      className={`tarea-checkbox ${tarea.progreso === 100 ? "completed" : ""}`}
                     >
                       {tarea.progreso === 100 && "✓"}
                     </div>
@@ -396,9 +384,7 @@ export default function ProyectoDetail({
                         )}
                       </div>
                       {tarea.descripcion && (
-                        <div className="tarea-description">
-                          {tarea.descripcion}
-                        </div>
+                        <div className="tarea-description">{tarea.descripcion}</div>
                       )}
                     </div>
                     <div className="tarea-progress-mini">

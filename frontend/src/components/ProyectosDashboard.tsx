@@ -277,28 +277,24 @@ export default function ProyectosDashboard({
           <div className="stat-icon">📁</div>
           <div className="stat-value">{stats.total}</div>
           <div className="stat-label">Total de Proyectos</div>
-          <div className="stat-change positive">+12% este mes</div>
         </div>
 
         <div className="stat-card stat-warning">
           <div className="stat-icon">⚡</div>
           <div className="stat-value">{stats.enProgreso}</div>
           <div className="stat-label">En Progreso</div>
-          <div className="stat-change positive">+5% esta semana</div>
         </div>
 
         <div className="stat-card stat-success">
           <div className="stat-icon">✅</div>
           <div className="stat-value">{stats.completados}</div>
           <div className="stat-label">Completados</div>
-          <div className="stat-change positive">+8% este mes</div>
         </div>
 
         <div className="stat-card">
           <div className="stat-icon">📊</div>
           <div className="stat-value">{stats.progresoPromedio}%</div>
           <div className="stat-label">Progreso Promedio</div>
-          <div className="stat-change positive">+3% esta semana</div>
         </div>
       </div>
 
@@ -448,8 +444,8 @@ export default function ProyectosDashboard({
           <div className="empty-icon">📁</div>
           <h4 className="empty-title">No hay proyectos</h4>
           <p className="empty-description">
-            Comienza creando tu primer proyecto Electrico para gestionar
-            tareas y equipos.
+            Comienza creando tu primer proyecto Electrico para gestionar tareas
+            y equipos.
           </p>
           <button
             className="btn btn-primary"
