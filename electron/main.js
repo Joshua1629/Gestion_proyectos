@@ -64,9 +64,26 @@ function stopBackend() {
 }
 
 function createWindow() {
+  // Resolver icono (dev vs prod)
+  let iconPath = null;
+  try {
+    const devIcon = path.join(__dirname, '..', 'frontend', 'public', 'logoapp.png');
+    const prodIcon = path.join(process.resourcesPath || __dirname, 'logoapp.png');
+    if (fs.existsSync(devIcon)) {
+      iconPath = devIcon;
+    } else if (fs.existsSync(prodIcon)) {
+      iconPath = prodIcon;
+    } else {
+      console.warn('Icono logoapp.png no encontrado en dev ni prod, se usará el icono por defecto de la plataforma');
+    }
+  } catch (e) {
+    console.error('Error al resolver icono:', e);
+  }
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: iconPath || undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
