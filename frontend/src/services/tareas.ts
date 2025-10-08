@@ -50,25 +50,32 @@ export async function getTarea(id: number): Promise<Tarea> {
 
 // Crear nueva tarea
 export async function createTarea(tarea: Partial<Tarea>): Promise<Tarea> {
+  // Asegurarse de enviar JSON válido
+  const body = JSON.stringify(tarea);
   const res = await fetch(API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(tarea)
+    body
   });
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
+  const text = await res.text();
+  let data: any;
+  try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { error: 'Invalid JSON response from server', raw: text }; }
+  if (!res.ok) throw { status: res.status, ...(data || {}), rawBodySent: body };
   return data;
 }
 
 // Actualizar tarea
 export async function updateTarea(id: number, tarea: Partial<Tarea>): Promise<Tarea> {
+  const body = JSON.stringify(tarea);
   const res = await fetch(`${API}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(tarea)
+    body
   });
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
+  const text = await res.text();
+  let data: any;
+  try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { error: 'Invalid JSON response from server', raw: text }; }
+  if (!res.ok) throw { status: res.status, ...(data || {}), rawBodySent: body };
   return data;
 }
 

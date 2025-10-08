@@ -92,10 +92,27 @@ html, body, #root {
 }
 
 .login-logo img{
-  width: 80px;
-  height: 80px;
+  width: 96px;
+  height: 96px;
+  max-width: 40%;
   object-fit: contain;
-  border-radius: 12px;
+  border-radius: 12px; /* usar 50% para circular si prefieres */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  background: transparent;
+}
+
+/* Opcional: versión circular si prefieres */
+.login-logo--circle img {
+  border-radius: 50%;
+}
+
+/* Pantallas pequeñas: reducir logo si hace falta */
+@media (max-width: 480px) {
+  .login-logo img{
+    width: 72px;
+    height: 72px;
+    max-width: 48%;
+  }
 }
 
 /* Título empresarial */

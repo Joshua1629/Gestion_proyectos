@@ -198,14 +198,16 @@ body {
 }
 
 .btn-primary {
-  background: var(--primary-blue);
-  color: var(--text-white);
+  /* Botón primario: celeste sutil (fondo pálido, texto celeste y borde) */
+  background: rgba(59, 130, 246, 0.06);
+  color: var(--primary-light);
+  border: 1px solid rgba(59, 130, 246, 0.18);
 }
 
 .btn-primary:hover {
-  background: var(--primary-dark);
+  background: rgba(59, 130, 246, 0.12);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: none;
 }
 
 .btn-secondary {
@@ -241,18 +243,39 @@ body {
 }
 
 .btn-danger {
-  background: var(--accent-red);
-  color: var(--text-white);
+  /* Botón peligro: rojo sutil */
+  background: rgba(220, 38, 38, 0.06);
+  color: var(--accent-red);
+  border: 1px solid rgba(220, 38, 38, 0.12);
 }
 
 .btn-danger:hover {
-  background: #b91c1c;
+  background: rgba(220, 38, 38, 0.12);
 }
 
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+}
+
+/* Reglas con mayor especificidad para forzar la paleta celeste / rojo en caso de sobrescritura */
+.btn.btn-primary {
+  background: rgba(59, 130, 246, 0.06) !important;
+  color: var(--primary-light) !important;
+  border: 1px solid rgba(59, 130, 246, 0.18) !important;
+}
+.btn.btn-primary:hover {
+  background: rgba(59, 130, 246, 0.12) !important;
+}
+
+.btn.btn-outline.btn-danger {
+  background: rgba(220, 38, 38, 0.06) !important;
+  color: var(--accent-red) !important;
+  border: 1px solid rgba(220, 38, 38, 0.12) !important;
+}
+.btn.btn-outline.btn-danger:hover {
+  background: rgba(220, 38, 38, 0.12) !important;
 }
 
 /* Formularios empresariales */

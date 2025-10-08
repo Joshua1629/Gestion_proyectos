@@ -36,13 +36,13 @@ export default function Login() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <img src="https://png.pngtree.com/element_pic/00/16/07/115783931601b5c.jpg" alt="Logo empresa" />
+          <img src="/logo.png" alt="Logo empresa" />
         </div>
         <h2>Iniciar Sesión</h2>
         <p className="login-subtitle">Accede a tu sistema de gestión electrico</p>
-        
+
         {error && <div className="login-error">{error}</div>}
-        
+
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
             <label htmlFor="username">Usuario</label>
@@ -55,7 +55,7 @@ export default function Login() {
               required
             />
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="password">Contraseña</label>
             <input
@@ -67,16 +67,16 @@ export default function Login() {
               required
             />
           </div>
-          
-          <button 
-            type="submit" 
+
+          <button
+            type="submit"
             className={`login-submit ${loading ? 'loading' : ''}`}
             disabled={loading}
           >
             {loading ? '' : 'Iniciar Sesión'}
           </button>
         </form>
-        
+
         <div className="login-footer">
           <p>Sistema de Gestión de Proyectos Eléctricos</p>
         </div>

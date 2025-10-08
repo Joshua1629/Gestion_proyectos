@@ -88,7 +88,57 @@ async function initializeApp() {
       optionsSuccessStatus: 200
     }));
     
-    app.use(express.json());
+    // Middleware tolerante para JSON: captura rawBody y trata de parsear incluso si faltan comillas
+    app.use((req, res, next) => {
+      // solo procesar cuerpos con tipo JSON
+      const ct = req.headers['content-type'] || '';
+      if (!ct.includes('application/json')) return next();
+
+      let data = '';
+      req.setEncoding('utf8');
+      req.on('data', (chunk) => { data += chunk; });
+      req.on('end', () => {
+        req.rawBody = data;
+        if (!data) {
+          req.body = {};
+          return next();
+        }
+
+        try {
+          req.body = JSON.parse(data);
+          return next();
+        } catch (err) {
+          // Intentar corregir objetos estilo JS (sin comillas en claves/strings)
+          function tolerantFix(s) {
+            let t = s.trim();
+            // Poner comillas en claves sin comillas: {key: -> {"key":
+            t = t.replace(/([\{,\s])([A-Za-z0-9_]+)\s*:/g, '$1"$2":');
+            // Poner comillas en valores que no esten entre comillas y no sean números, true, false o null
+            t = t.replace(/:\s*([^"\d\{\[\]\},][^,\}\]]*)(?=[,\}])/g, (m, p1) => {
+              const v = p1.trim();
+              if (/^(true|false|null)$/i.test(v)) return ':' + v;
+              if (/^[\d.+-eE]+$/.test(v)) return ':' + v; // number
+              return ':"' + v.replace(/"/g, '\\"') + '"';
+            });
+            return t;
+          }
+
+          try {
+            const fixed = tolerantFix(data);
+            req.body = JSON.parse(fixed);
+            console.warn('Parsed malformed JSON by tolerantFix. original=', data, 'fixed=', fixed);
+            return next();
+          } catch (err2) {
+            // No se pudo parsear; devolver error de JSON mal formado
+            console.error('JSON parse error original:', err && err.message, 'rawBody=', data);
+            // pasar el error hacia el manejador global para que incluya rawBody
+            const e = new SyntaxError('Malformed JSON');
+            e.originalError = err;
+            return next(e);
+          }
+        }
+      });
+    });
 
     // Middleware de logging para debug
     app.use((req, res, next) => {
@@ -103,7 +153,11 @@ async function initializeApp() {
 
     // manejador de errores simple
     app.use((err, req, res, next) => {
-      console.error(err);
+      console.error(err && err.stack ? err.stack : err);
+      // En desarrollo incluimos detalle y stack para facilitar debugging (no usar en producción)
+      if (process.env.NODE_ENV !== 'production') {
+        return res.status(500).json({ error: 'Error del servidor', detail: err && err.message ? err.message : String(err), rawBody: req && req.rawBody ? req.rawBody : undefined, stack: err && err.stack ? err.stack : undefined });
+      }
       res.status(500).json({ error: 'Error del servidor' });
     });
 

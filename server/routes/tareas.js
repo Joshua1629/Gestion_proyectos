@@ -112,23 +112,29 @@ router.post(
   [
     body('proyecto_id').isInt({ min: 1 }),
     body('nombre').isString().trim().isLength({ min: 1, max: 100 }),
+    body('descripcion').optional().isString().trim().isLength({ max: 1000 }),
     body('responsable').optional().isInt({ min: 1 }),
     body('prioridad').optional().isString().isIn(['Baja', 'Media', 'Alta']),
-    body('fecha_limite').optional().isISO8601().toDate(),
+    body('fase').optional().isString().isIn(['Planificación','Ejecución','Cierre']),
+  // aceptar cadena vacía como "opcional" para que inputs de fecha vacíos no fallen la validación
+  body('fecha_limite').optional({ checkFalsy: true }).isISO8601().toDate(),
     body('progreso').optional().isInt({ min: 0, max: 100 })
   ],
   checkValidation,
   async (req, res) => {
-    const { proyecto_id, nombre, responsable, prioridad, fecha_limite, progreso } = req.body;
+  const { proyecto_id, nombre, descripcion, responsable, prioridad, fase, fecha_limite, progreso } = req.body;
+    console.log('POST /api/tareas payload:', { proyecto_id, nombre, descripcion, responsable, prioridad, fase, fecha_limite, progreso });
     
     try {
+      console.log('Verificando existencia de proyecto id=', proyecto_id);
       // Verificar que el proyecto existe
       const [proyectoRows] = await pool.query('SELECT id FROM proyectos WHERE id = ?', [proyecto_id]);
+      console.log('proyectoRows:', proyectoRows && proyectoRows.length ? proyectoRows[0] : proyectoRows);
       if (proyectoRows.length === 0) return res.status(400).json({ error: 'Proyecto no encontrado' });
       
       const [result] = await pool.query(
-        'INSERT INTO tareas (proyecto_id, nombre, responsable, prioridad, fecha_limite, progreso) VALUES (?, ?, ?, ?, ?, ?)',
-        [proyecto_id, nombre, responsable || null, prioridad || 'Media', fecha_limite || null, progreso || 0]
+        'INSERT INTO tareas (proyecto_id, nombre, descripcion, responsable, prioridad, fase, fecha_limite, progreso) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [proyecto_id, nombre, descripcion || null, responsable || null, prioridad || 'Media', fase || 'Planificación', fecha_limite || null, progreso || 0]
       );
       
       // Obtener tarea completa
@@ -144,8 +150,9 @@ router.post(
       
       res.status(201).json(rows[0]);
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Error al crear tarea' });
+      console.error(err && err.stack ? err.stack : err);
+      // En desarrollo devolvemos más detalle para depuración (no recomendable en producción)
+      res.status(500).json({ error: 'Error al crear tarea', detail: err && err.message ? err.message : String(err) });
     }
   }
 );
@@ -156,20 +163,22 @@ router.put(
   [
     param('id').isInt({ min: 1 }).toInt(),
     body('nombre').optional().isString().trim().isLength({ min: 1, max: 100 }),
+    body('descripcion').optional().isString().trim().isLength({ max: 1000 }),
     body('responsable').optional().isInt({ min: 1 }),
     body('prioridad').optional().isString().isIn(['Baja', 'Media', 'Alta']),
-    body('fecha_limite').optional().isISO8601().toDate(),
+    body('fase').optional().isString().isIn(['Planificación','Ejecución','Cierre']),
+  body('fecha_limite').optional({ checkFalsy: true }).isISO8601().toDate(),
     body('progreso').optional().isInt({ min: 0, max: 100 })
   ],
   checkValidation,
   async (req, res) => {
     const { id } = req.params;
-    const { nombre, responsable, prioridad, fecha_limite, progreso } = req.body;
+  const { nombre, descripcion, responsable, prioridad, fase, fecha_limite, progreso } = req.body;
     
     try {
       const [result] = await pool.query(
-        'UPDATE tareas SET nombre = COALESCE(?, nombre), responsable = COALESCE(?, responsable), prioridad = COALESCE(?, prioridad), fecha_limite = COALESCE(?, fecha_limite), progreso = COALESCE(?, progreso) WHERE id = ?',
-        [nombre, responsable, prioridad, fecha_limite, progreso, id]
+        'UPDATE tareas SET nombre = COALESCE(?, nombre), descripcion = COALESCE(?, descripcion), responsable = COALESCE(?, responsable), prioridad = COALESCE(?, prioridad), fase = COALESCE(?, fase), fecha_limite = COALESCE(?, fecha_limite), progreso = COALESCE(?, progreso) WHERE id = ?',
+        [nombre, descripcion || null, responsable, prioridad, fase, fecha_limite, progreso, id]
       );
       
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
@@ -187,8 +196,8 @@ router.put(
       
       res.json(rows[0]);
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Error al actualizar tarea' });
+      console.error(err && err.stack ? err.stack : err);
+      res.status(500).json({ error: 'Error al actualizar tarea', detail: err && err.message ? err.message : String(err) });
     }
   }
 );
@@ -306,7 +315,7 @@ router.get(
 // Obtener lista de usuarios para asignación
 router.get('/usuarios/lista', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT id, nombre, email FROM usuarios ORDER BY nombre');
+    const [rows] = await pool.query('SELECT id, nombre, usuario, email FROM usuarios ORDER BY nombre');
     res.json(rows);
   } catch (err) {
     console.error(err);

@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS usuarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT,
+    usuario TEXT UNIQUE,
     email TEXT UNIQUE,
     password TEXT,
     rol TEXT DEFAULT 'usuario' CHECK (rol IN ('admin', 'usuario'))
@@ -35,8 +36,10 @@ CREATE TABLE IF NOT EXISTS tareas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     proyecto_id INTEGER,
     nombre TEXT,
+    descripcion TEXT,
     responsable INTEGER,
     prioridad TEXT DEFAULT 'Media' CHECK (prioridad IN ('Baja', 'Media', 'Alta')),
+    fase TEXT DEFAULT 'Planificación' CHECK (fase IN ('Planificación', 'Ejecución', 'Cierre')),
     fecha_limite DATE,
     progreso INTEGER DEFAULT 0,
     FOREIGN KEY (proyecto_id) REFERENCES proyectos(id) ON DELETE CASCADE,
@@ -89,6 +92,7 @@ CREATE TABLE IF NOT EXISTS logs_actividad (
 
 -- Índices para mejorar performance
 CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);
+CREATE INDEX IF NOT EXISTS idx_usuarios_usuario ON usuarios(usuario);
 CREATE INDEX IF NOT EXISTS idx_fases_proyecto ON fases(proyecto_id);
 CREATE INDEX IF NOT EXISTS idx_tareas_proyecto ON tareas(proyecto_id);
 CREATE INDEX IF NOT EXISTS idx_tareas_responsable ON tareas(responsable);
@@ -98,5 +102,5 @@ CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(usuario_
 CREATE INDEX IF NOT EXISTS idx_logs_usuario ON logs_actividad(usuario_id);
 
 -- Insertar usuario administrador por defecto (password: admin123)
-INSERT OR IGNORE INTO usuarios (id, nombre, email, password, rol) 
-VALUES (1, 'Administrador', 'admin@gestion.com', '$2b$10$zbrD390ESjaH0lD5l83vsu7jmpOmQPXffQOz.QXxXihphpDDg5lNe', 'admin');
+INSERT OR IGNORE INTO usuarios (id, nombre, usuario, email, password, rol) 
+VALUES (1, 'Administrador', 'admin', 'admin@gestion.com', '$2b$10$zbrD390ESjaH0lD5l83vsu7jmpOmQPXffQOz.QXxXihphpDDg5lNe', 'admin');
