@@ -36,13 +36,17 @@ router.get(
       const [rows] = await pool.query(`
         SELECT 
           p.*,
+          -- Si el proyecto no tiene fecha, tomar la mínima/máxima fecha de sus fases
+          COALESCE(p.fecha_inicio, MIN(f.fecha_inicio)) as fecha_inicio,
+          COALESCE(p.fecha_fin, MAX(f.fecha_fin)) as fecha_fin,
           COALESCE(AVG(t.progreso), 0) as progreso_general,
           COUNT(t.id) as total_tareas,
           COUNT(CASE WHEN t.progreso = 100 THEN 1 END) as tareas_completadas,
-          (SELECT COUNT(*) FROM fases f WHERE f.proyecto_id = p.id) as total_fases,
-          (SELECT COUNT(*) FROM fases f WHERE f.proyecto_id = p.id AND f.estado = 'Completado') as fases_completadas
+          (SELECT COUNT(*) FROM fases f2 WHERE f2.proyecto_id = p.id) as total_fases,
+          (SELECT COUNT(*) FROM fases f2 WHERE f2.proyecto_id = p.id AND f2.estado = 'Completado') as fases_completadas
         FROM proyectos p 
         LEFT JOIN tareas t ON p.id = t.proyecto_id 
+        LEFT JOIN fases f ON p.id = f.proyecto_id
         WHERE p.nombre LIKE ? OR p.cliente LIKE ? 
         GROUP BY p.id 
         ORDER BY p.id DESC 
@@ -97,6 +101,30 @@ router.get(
       
       proyecto.fases = fasesRows;
       proyecto.tareas = tareasRows;
+
+      // Si el proyecto no tiene fechas, intentar derivarlas desde las fases (mínima inicio, máxima fin)
+      try {
+        if ((!proyecto.fecha_inicio || proyecto.fecha_inicio === '') && Array.isArray(fasesRows) && fasesRows.length > 0) {
+          const inicio = fasesRows.reduce((acc, f) => {
+            if (!f || !f.fecha_inicio) return acc;
+            if (!acc) return f.fecha_inicio;
+            return new Date(f.fecha_inicio) < new Date(acc) ? f.fecha_inicio : acc;
+          }, null);
+          if (inicio) proyecto.fecha_inicio = inicio;
+        }
+
+        if ((!proyecto.fecha_fin || proyecto.fecha_fin === '') && Array.isArray(fasesRows) && fasesRows.length > 0) {
+          const fin = fasesRows.reduce((acc, f) => {
+            if (!f || !f.fecha_fin) return acc;
+            if (!acc) return f.fecha_fin;
+            return new Date(f.fecha_fin) > new Date(acc) ? f.fecha_fin : acc;
+          }, null);
+          if (fin) proyecto.fecha_fin = fin;
+        }
+      } catch (err) {
+        // Si algo falla al parsear fechas no obstructamos la respuesta
+        console.warn('Error deriving project dates from fases:', err && err.message ? err.message : err);
+      }
       
       res.json(proyecto);
     } catch (err) {

@@ -38,6 +38,7 @@ export default function ProyectoDetail({
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Tarea | null>(null);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [updatingIds, setUpdatingIds] = useState<number[]>([]);
 
   useEffect(() => {
     loadProyectoData();
@@ -73,6 +74,22 @@ export default function ProyectoDetail({
     }
   };
 
+  const handleToggleComplete = async (tarea: Tarea, checked: boolean) => {
+    if (!tarea || typeof tarea.id === 'undefined') return;
+    if (updatingIds.includes(tarea.id)) return;
+    setUpdatingIds((s) => [...s, tarea.id]);
+    try {
+      // Set progreso to 100 when checked, or 0 when unchecked
+      await updateTarea(tarea.id, { progreso: checked ? 100 : 0 });
+      // Refresh data to keep proyecto aggregates in sync
+      await loadProyectoData();
+    } catch (err: any) {
+      setError((err && (err.detail || err.message)) || 'Error al actualizar tarea');
+    } finally {
+      setUpdatingIds((s) => s.filter((id) => id !== tarea.id));
+    }
+  };
+
   const handleUpdateFase = async (faseId: number, estado: Fase["estado"]) => {
     if (!proyecto) return;
 
@@ -93,15 +110,25 @@ export default function ProyectoDetail({
     );
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateInput?: string | number | null) => {
+    if (dateInput === null || dateInput === undefined || dateInput === '') return 'No definida';
+
     try {
-      return new Date(dateString).toLocaleDateString("es-ES", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-    } catch {
-      return dateString;
+      // Si es un número o una cadena que contiene solo dígitos, interpretarlo como timestamp
+      if (typeof dateInput === 'number' || (/^\d+$/.test(String(dateInput)))) {
+        let n = Number(dateInput);
+        // Si parece estar en segundos (10 dígitos), convertir a ms
+        if (String(n).length === 10) n = n * 1000;
+        const dnum = new Date(n);
+        if (!isNaN(dnum.getTime())) return dnum.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+      }
+
+      // Intentar parsear como ISO u otros formatos reconocidos
+      const d = new Date(String(dateInput));
+      if (!isNaN(d.getTime())) return d.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+      return 'No definida';
+    } catch (e) {
+      return 'No definida';
     }
   };
 
@@ -248,7 +275,15 @@ export default function ProyectoDetail({
               {Array.isArray(tareas) && tareas.length > 0 ? (
                 tareas.map((tarea) => (
                   <div key={tarea.id} className="tarea-item">
-                    <div className={`tarea-checkbox ${tarea.progreso === 100 ? 'completed' : ''}`}>{tarea.progreso === 100 ? '✓' : null}</div>
+                        <div className={`tarea-checkbox ${tarea.progreso === 100 ? 'completed' : ''}`}>
+                          <input
+                            type="checkbox"
+                            aria-label={`Marcar tarea ${tarea.nombre} como completada`}
+                            checked={tarea.progreso === 100}
+                            disabled={updatingIds.includes(tarea.id)}
+                            onChange={(e) => { void handleToggleComplete(tarea, e.target.checked); }}
+                          />
+                        </div>
 
                     <div className="tarea-info">
                       <div className="tarea-title">{tarea.nombre}</div>

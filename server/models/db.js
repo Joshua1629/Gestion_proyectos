@@ -50,7 +50,34 @@ const dbWrapper = {
           if (err) {
             reject(err);
           } else {
-            resolve([rows, null]); // Formato compatible con mysql2
+            // Procesar las filas para asegurar que las fechas sean strings válidos
+            const processedRows = rows.map(row => {
+              const processedRow = { ...row };
+              
+              // Convertir campos de fecha a strings válidos o vacíos si son null
+              ['fecha_limite', 'fecha_inicio', 'fecha_fin'].forEach(dateField => {
+                if (processedRow[dateField] !== undefined) {
+                  if (processedRow[dateField] === null || processedRow[dateField] === undefined) {
+                    // Devolver null para fechas no definidas (más semántico que cadena vacía)
+                    processedRow[dateField] = null;
+                  } else {
+                    // Asegurar que sea un string válido
+                    processedRow[dateField] = String(processedRow[dateField]);
+                  }
+                }
+              });
+              
+              // Convertir campos booleanos para compatibilidad
+              ['completada', 'activo'].forEach(boolField => {
+                if (processedRow[boolField] !== undefined) {
+                  processedRow[boolField] = Boolean(processedRow[boolField]);
+                }
+              });
+              
+              return processedRow;
+            });
+            
+            resolve([processedRows, null]); // Formato compatible con mysql2
           }
         });
       } else {

@@ -219,13 +219,21 @@ export default function ProyectosDashboard({
         : 0,
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "No definida";
-    return new Date(dateString).toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+  const formatDate = (dateInput?: string | number | null) => {
+    if (dateInput === null || dateInput === undefined || dateInput === '') return 'No definida';
+    try {
+      if (typeof dateInput === 'number' || (/^\d+$/.test(String(dateInput)))) {
+        let n = Number(dateInput);
+        if (String(n).length === 10) n = n * 1000;
+        const dnum = new Date(n);
+        if (!isNaN(dnum.getTime())) return dnum.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+      }
+      const d = new Date(String(dateInput));
+      if (!isNaN(d.getTime())) return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+      return 'No definida';
+    } catch (e) {
+      return 'No definida';
+    }
   };
 
   const getEstadoColor = (progreso: number) => {
