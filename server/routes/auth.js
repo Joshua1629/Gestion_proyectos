@@ -9,9 +9,21 @@ const JWT_SECRET = process.env.JWT_SECRET || 'cambiame_en_produccion';
 
 const checkValidation = (req, res, next) => {
   const errors = validationResult(req);
-  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+  if (!errors.isEmpty()) {
+    const details = errors.array();
+    console.warn('Auth validation failed:', {
+      body: req.body,
+      errors: details
+    });
+    return res.status(400).json({ error: 'Datos inválidos', errors: details });
+  }
   next();
 };
+
+// GET /api/auth/health
+router.get('/health', (req, res) => {
+  res.json({ ok: true, time: new Date().toISOString() });
+});
 
 // POST /api/auth/login
 router.post(

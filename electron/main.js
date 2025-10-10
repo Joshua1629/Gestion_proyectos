@@ -1,10 +1,13 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
 
 let mainWindow = null;
 let backendProcess = null;
+
+// Detect environment once and reuse
+const isDev = process.env.NODE_ENV === 'development' || process.env.ELECTRON_DEV === 'true';
 
 function resolveServerPath() {
   const devPath = path.join(__dirname, '..', 'server', 'app.js');
@@ -18,6 +21,13 @@ function startBackend() {
 
   // Ejecuta el script con el runtime actual (process.execPath)
   // Uso de comillas para rutas con espacios
+  // En dev, normalmente ya ejecutamos el backend con nodemon desde npm run dev,
+  // así que evitamos duplicarlo salvo que se fuerce con ELECTRON_START_BACKEND=true
+  if (isDev && process.env.ELECTRON_START_BACKEND !== 'true') {
+    console.log('Skip starting backend from Electron (dev mode).');
+    return;
+  }
+
   const command = `"${process.execPath}" "${serverPath}"`;
 
   // aumentar maxBuffer para evitar errores si hay mucha salida
@@ -91,11 +101,62 @@ function createWindow() {
     }
   });
 
-  const isDev = process.env.NODE_ENV === 'development' || process.env.ELECTRON_DEV === 'true';
+  // Forzar modo "direct" para evitar proxys del sistema que a veces provocan desconexiones
+  mainWindow.webContents.session.setProxy({ mode: 'direct' }).catch(() => {});
+
+  // Utilidad para asegurar red online
+  function enforceOnline() {
+    try {
+      try {
+        mainWindow.webContents.session.disableNetworkEmulation?.();
+        mainWindow.webContents.session.enableNetworkEmulation?.({ offline: false });
+      } catch {}
+      if (!mainWindow.webContents.debugger.isAttached()) {
+        mainWindow.webContents.debugger.attach('1.3');
+      }
+      mainWindow.webContents.debugger.sendCommand('Network.enable');
+      mainWindow.webContents.debugger.sendCommand('Network.emulateNetworkConditions', {
+        offline: false,
+        latency: 0,
+        downloadThroughput: -1,
+        uploadThroughput: -1
+      });
+      console.log('Forced online network conditions for renderer');
+    } catch (e) {
+      console.warn('Could not enforce online network conditions:', e && e.message ? e.message : e);
+    }
+  }
+
+  enforceOnline();
+
   if (isDev) {
     const devUrl = 'http://localhost:5173';
-    mainWindow.loadURL(devUrl).catch(err => console.error('Error loading dev URL', err));
-    mainWindow.webContents.openDevTools();
+
+    // Esperar a que el servidor de Vite esté listo antes de cargar
+    waitForUrl(devUrl, { timeoutMs: 20000, intervalMs: 300 })
+      .then(() => {
+        return mainWindow.loadURL(devUrl);
+      })
+      .then(() => {
+        mainWindow.webContents.openDevTools();
+        // Reforzar online tras abrir DevTools por si activa emulaciones
+        setTimeout(() => {
+          try { mainWindow.webContents.debugger.sendCommand('Network.enable'); } catch {}
+          try { mainWindow.webContents.debugger.sendCommand('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }); } catch {}
+        }, 300);
+      })
+      .catch((err) => {
+        console.error('No se pudo conectar al servidor de Vite en dev:', err && err.message ? err.message : err);
+        // mostrar una página de error simple para orientar al usuario
+        const html = `
+          <html>
+            <body style="font-family: sans-serif; padding: 24px;">
+              <h2>No se puede conectar al frontend (Vite) en ${devUrl}</h2>
+              <p>Asegúrate de que el servidor esté en ejecución. Revisa la consola por errores.</p>
+            </body>
+          </html>`;
+        mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+      });
   } else {
     const indexHtml = path.join(__dirname, '..', 'frontend', 'dist', 'index.html');
     mainWindow.loadFile(indexHtml).catch(err => console.error('Error loading prod file', err));
@@ -103,6 +164,16 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  // Si la carga falla por desconexión, intentar reforzar estado online y recargar
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.warn('did-fail-load', { errorCode, errorDescription, validatedURL });
+    try { mainWindow.webContents.debugger.sendCommand('Network.enable'); } catch {}
+    try { mainWindow.webContents.debugger.sendCommand('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }); } catch {}
+    if (validatedURL && /^https?:\/\//.test(validatedURL)) {
+      setTimeout(() => mainWindow.webContents.loadURL(validatedURL).catch(() => {}), 500);
+    }
   });
 }
 
@@ -142,4 +213,47 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
   stopBackend();
   process.exit();
+});
+
+// Utilidad: esperar a que una URL sea accesible (HTTP 200-399)
+async function waitForUrl(url, { timeoutMs = 15000, intervalMs = 250 } = {}) {
+  const start = Date.now();
+  // Node 18+ tiene fetch global; fallback simple usando http/https si no está
+  const doFetch = async () => {
+    if (typeof fetch === 'function') {
+      try {
+        const res = await fetch(url, { method: 'GET' });
+        return res.ok;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  };
+
+  while (Date.now() - start < timeoutMs) {
+    const ok = await doFetch();
+    if (ok) return true;
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+  throw new Error(`Timeout esperando ${url}`);
+}
+
+// IPC: proxy de fetch desde el renderer al proceso principal (usa Node fetch)
+ipcMain.handle('http:fetch', async (_event, { url, options }) => {
+  try {
+    const res = await fetch(url, options || {});
+    const contentType = res.headers.get('content-type') || '';
+    const isJson = contentType.includes('application/json');
+    const body = isJson ? await res.json().catch(() => null) : await res.text();
+    return {
+      ok: res.ok,
+      status: res.status,
+      statusText: res.statusText,
+      headers: Object.fromEntries(res.headers.entries()),
+      body
+    };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
 });

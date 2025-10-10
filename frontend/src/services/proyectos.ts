@@ -1,4 +1,6 @@
-﻿const API = (import.meta.env.VITE_API_URL ?? 'http://localhost:3001') + '/api/proyectos';
+﻿import { appFetch } from '../utils/appFetch';
+
+const API = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3001') + '/api/proyectos';
 
 export interface Proyecto {
   id: number;
@@ -48,13 +50,8 @@ export async function getProyectos(page = 1, limit = 10, search = '') {
   console.log('🔍 Llamando API proyectos:', url);
   
   try {
-    const res = await fetch(url);
-    console.log('📡 Respuesta API status:', res.status);
-    
-    const data = await res.json();
-    console.log('📦 Datos recibidos:', data);
-    
-    if (!res.ok) throw { status: res.status, ...data };
+    const data = await appFetch(url);
+    console.log(' Datos recibidos:', data);
     return data;
   } catch (error) {
     console.error('❌ Error en getProyectos:', error);
@@ -64,58 +61,41 @@ export async function getProyectos(page = 1, limit = 10, search = '') {
 
 // Obtener proyecto por ID con fases y tareas
 export async function getProyecto(id: number): Promise<Proyecto> {
-  const res = await fetch(`${API}/${id}`);
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
-  return data;
+  return appFetch(`${API}/${id}`);
 }
 
 // Crear nuevo proyecto (con fases automáticas)
 export async function createProyecto(proyecto: Partial<Proyecto>): Promise<Proyecto> {
-  const res = await fetch(API, {
+  return appFetch(API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(proyecto)
   });
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
-  return data;
 }
 
 // Actualizar proyecto
 export async function updateProyecto(id: number, proyecto: Partial<Proyecto>): Promise<Proyecto> {
-  const res = await fetch(`${API}/${id}`, {
+  return appFetch(`${API}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(proyecto)
   });
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
-  return data;
 }
 
 // Eliminar proyecto
 export async function deleteProyecto(id: number) {
-  const res = await fetch(`${API}/${id}`, {
-    method: 'DELETE'
-  });
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
-  return data;
+  return appFetch(`${API}/${id}`, { method: 'DELETE' });
 }
 
 // ===== GESTIÓN DE FASES =====
 
 // Actualizar estado de una fase
 export async function updateFase(proyectoId: number, faseId: number, fase: Partial<Fase>): Promise<Fase> {
-  const res = await fetch(`${API}/${proyectoId}/fases/${faseId}`, {
+  return appFetch(`${API}/${proyectoId}/fases/${faseId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(fase)
   });
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
-  return data;
 }
 
 // Función helper para calcular progreso de proyecto

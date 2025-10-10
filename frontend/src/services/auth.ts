@@ -1,14 +1,13 @@
-const API = (import.meta.env.VITE_API_URL ?? 'http://localhost:3001') + '/api/auth';
+import { appFetch } from '../utils/appFetch';
+
+const API = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3001') + '/api/auth';
 
 export async function login(identifier: string, password: string) {
-  const res = await fetch(`${API}/login`, {
+  return appFetch(`${API}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ identifier, password })
   });
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
-  return data;
 }
 
 export function saveAuth(token: string, user: any) {

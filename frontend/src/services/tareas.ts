@@ -1,4 +1,6 @@
-const API = (import.meta.env.VITE_API_URL ?? 'http://localhost:3001') + '/api/tareas';
+import { appFetch } from '../utils/appFetch';
+
+const API = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3001') + '/api/tareas';
 
 export interface Tarea {
   id: number;
@@ -34,87 +36,54 @@ export interface Usuario {
 
 // Obtener tareas de un proyecto
 export async function getTareasByProyecto(proyectoId: number, page = 1, limit = 20) {
-  const res = await fetch(`${API}/proyecto/${proyectoId}?page=${page}&limit=${limit}`);
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
-  return data;
+  return appFetch(`${API}/proyecto/${proyectoId}?page=${page}&limit=${limit}`);
 }
 
 // Obtener tarea por ID con comentarios
 export async function getTarea(id: number): Promise<Tarea> {
-  const res = await fetch(`${API}/${id}`);
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
-  return data;
+  return appFetch(`${API}/${id}`);
 }
 
 // Crear nueva tarea
 export async function createTarea(tarea: Partial<Tarea>): Promise<Tarea> {
-  // Asegurarse de enviar JSON válido
-  const body = JSON.stringify(tarea);
-  const res = await fetch(API, {
+  return appFetch(API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body
+    body: JSON.stringify(tarea)
   });
-  const text = await res.text();
-  let data: any;
-  try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { error: 'Invalid JSON response from server', raw: text }; }
-  if (!res.ok) throw { status: res.status, ...(data || {}), rawBodySent: body };
-  return data;
 }
 
 // Actualizar tarea
 export async function updateTarea(id: number, tarea: Partial<Tarea>): Promise<Tarea> {
-  const body = JSON.stringify(tarea);
-  const res = await fetch(`${API}/${id}`, {
+  return appFetch(`${API}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body
+    body: JSON.stringify(tarea)
   });
-  const text = await res.text();
-  let data: any;
-  try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { error: 'Invalid JSON response from server', raw: text }; }
-  if (!res.ok) throw { status: res.status, ...(data || {}), rawBodySent: body };
-  return data;
 }
 
 // Eliminar tarea
 export async function deleteTarea(id: number) {
-  const res = await fetch(`${API}/${id}`, {
-    method: 'DELETE'
-  });
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
-  return data;
+  return appFetch(`${API}/${id}`, { method: 'DELETE' });
 }
 
 // ===== COMENTARIOS =====
 
 // Agregar comentario a tarea
 export async function addComentario(tareaId: number, usuarioId: number, comentario: string): Promise<Comentario> {
-  const res = await fetch(`${API}/${tareaId}/comentarios`, {
+  return appFetch(`${API}/${tareaId}/comentarios`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ usuario_id: usuarioId, comentario })
   });
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
-  return data;
 }
 
 // Obtener comentarios de una tarea
 export async function getComentarios(tareaId: number, page = 1, limit = 20) {
-  const res = await fetch(`${API}/${tareaId}/comentarios?page=${page}&limit=${limit}`);
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
-  return data;
+  return appFetch(`${API}/${tareaId}/comentarios?page=${page}&limit=${limit}`);
 }
 
 // Obtener lista de usuarios para asignación
 export async function getUsuarios(): Promise<Usuario[]> {
-  const res = await fetch(`${API}/usuarios/lista`);
-  const data = await res.json();
-  if (!res.ok) throw { status: res.status, ...data };
-  return data;
+  return appFetch(`${API}/usuarios/lista`);
 }

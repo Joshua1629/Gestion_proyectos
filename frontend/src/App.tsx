@@ -82,6 +82,19 @@ function App() {
 
   useEffect(() => { console.log('App mounted'); }, []);
 
+  // Diagnóstico de conectividad desde el renderer (solo en desarrollo; una sola vez)
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const key = '__did_connectivity_probe__';
+    if ((window as any)[key]) return; // evitar doble ejecución por StrictMode
+    (window as any)[key] = true;
+    console.log('navigator.onLine =', navigator.onLine);
+    const base = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3001');
+    fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: 'probe', password: 'xxxx' }) })
+      .then(r => console.log('probe /api/auth/login status', r.status))
+      .catch(e => console.warn('probe failed', e?.message || e));
+  }, []);
+
   if (!user) {
     return <Login />;
   }
