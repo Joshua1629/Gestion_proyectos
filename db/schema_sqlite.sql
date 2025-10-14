@@ -101,6 +101,29 @@ CREATE INDEX IF NOT EXISTS idx_archivos_tarea ON archivos(tarea_id);
 CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_logs_usuario ON logs_actividad(usuario_id);
 
+-- Tabla de evidencias fotográficas
+CREATE TABLE IF NOT EXISTS evidencias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    proyecto_id INTEGER NOT NULL,
+    tarea_id INTEGER,
+    categoria TEXT NOT NULL CHECK (categoria IN ('OK','LEVE','CRITICO')),
+    comentario TEXT,
+    image_path TEXT NOT NULL,
+    mime_type TEXT,
+    size_bytes INTEGER,
+    created_by INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME,
+    FOREIGN KEY (proyecto_id) REFERENCES proyectos(id) ON DELETE CASCADE,
+    FOREIGN KEY (tarea_id) REFERENCES tareas(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES usuarios(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_evidencias_proyecto ON evidencias(proyecto_id);
+CREATE INDEX IF NOT EXISTS idx_evidencias_tarea ON evidencias(tarea_id);
+CREATE INDEX IF NOT EXISTS idx_evidencias_categoria ON evidencias(categoria);
+CREATE INDEX IF NOT EXISTS idx_evidencias_created_at ON evidencias(created_at);
+
 -- Insertar usuario administrador por defecto (password: admin123)
 INSERT OR IGNORE INTO usuarios (id, nombre, usuario, email, password, rol) 
 VALUES (1, 'Administrador', 'admin', 'admin@gestion.com', '$2b$10$zbrD390ESjaH0lD5l83vsu7jmpOmQPXffQOz.QXxXihphpDDg5lNe', 'admin');

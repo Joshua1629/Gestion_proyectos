@@ -83,7 +83,7 @@ function App() {
   useEffect(() => { console.log('App mounted'); }, []);
 
   // Diagnóstico de conectividad desde el renderer (solo en desarrollo; una sola vez)
-  useEffect(() => {
+ /* useEffect(() => {
     if (!import.meta.env.DEV) return;
     const key = '__did_connectivity_probe__';
     if ((window as any)[key]) return; // evitar doble ejecución por StrictMode
@@ -94,7 +94,7 @@ function App() {
       .then(r => console.log('probe /api/auth/login status', r.status))
       .catch(e => console.warn('probe failed', e?.message || e));
   }, []);
-
+*/
   if (!user) {
     return <Login />;
   }

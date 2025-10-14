@@ -257,3 +257,51 @@ ipcMain.handle('http:fetch', async (_event, { url, options }) => {
     return { ok: false, error: e && e.message ? e.message : String(e) };
   }
 });
+
+// IPC: subida multipart via main (evita problemas de red del renderer)
+ipcMain.handle('http:uploadMultipart', async (_event, payload) => {
+  try {
+    // Usar FormData global de Node 18 (undici); si no existe, fallback a paquete form-data
+    let FormDataCtor = globalThis.FormData;
+    let usingUndici = true;
+    if (typeof FormDataCtor === 'undefined') {
+      FormDataCtor = (await import('form-data')).default;
+      usingUndici = false;
+    }
+    const form = new (FormDataCtor)();
+    const { url, method = 'POST', fields = {}, files = [] } = payload || {};
+    for (const [k, v] of Object.entries(fields)) form.append(k, v);
+    for (const f of files) {
+      const buf = Buffer.from(f.buffer);
+      if (usingUndici) {
+        const blob = new Blob([buf], { type: f.type || 'application/octet-stream' });
+        // En undici, tercer parámetro filename se pasa como opción separada
+        form.append(f.fieldName, blob, f.name);
+      } else {
+        form.append(f.fieldName, buf, { filename: f.name, contentType: f.type });
+      }
+    }
+    const reqInit = usingUndici ? { method, body: form } : { method, body: form, headers: form.getHeaders() };
+    const res = await fetch(url, reqInit);
+    const contentType = res.headers.get('content-type') || '';
+    const isJson = contentType.includes('application/json');
+    const body = isJson ? await res.json().catch(() => null) : await res.text();
+    return { ok: res.ok, status: res.status, statusText: res.statusText, headers: Object.fromEntries(res.headers.entries()), body };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+// IPC: obtener binario como base64 (para imágenes) desde el proceso principal
+ipcMain.handle('http:fetchBinary', async (_event, { url }) => {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return { ok: false, status: res.status, statusText: res.statusText };
+    const buf = Buffer.from(await res.arrayBuffer());
+    const contentType = res.headers.get('content-type') || 'application/octet-stream';
+    const base64 = `data:${contentType};base64,${buf.toString('base64')}`;
+    return { ok: true, dataUrl: base64 };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});

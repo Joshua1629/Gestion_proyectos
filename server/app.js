@@ -59,6 +59,10 @@ async function initializeApp() {
       || tryRequireRouter('models', 'routes', 'tareas')
       || tryRequireRouter('server', 'routes', 'tareas');
 
+    let evidenciasRouter = tryRequireRouter('routes', 'evidencias')
+      || tryRequireRouter('models', 'routes', 'evidencias')
+      || tryRequireRouter('server', 'routes', 'evidencias');
+
     // Si no se encuentran, crear router stub para evitar crash y dejar mensajes claros
     const createStub = (name) => {
       const r = express.Router();
@@ -77,6 +81,10 @@ async function initializeApp() {
     if (!tareasRouter) {
       console.warn('Warning: tareas router not found. Using stub.');
       tareasRouter = createStub('tareas');
+    }
+    if (!evidenciasRouter) {
+      console.warn('Warning: evidencias router not found. Using stub.');
+      evidenciasRouter = createStub('evidencias');
     }
 
     const app = express();
@@ -150,6 +158,22 @@ async function initializeApp() {
     app.use('/api/proyectos', proyectosRouter);
     app.use('/api/auth', authRouter);
     app.use('/api/tareas', tareasRouter);
+    app.use('/api/evidencias', evidenciasRouter);
+
+    // Servir uploads estáticos
+    function getUploadsBase() {
+      if (process.env.NODE_ENV === 'production') {
+        const userDataPath = process.env.APPDATA || process.env.HOME || __dirname;
+        const base = path.join(userDataPath, 'GestionProyectos', 'uploads');
+        if (!fs.existsSync(base)) fs.mkdirSync(base, { recursive: true });
+        return base;
+      }
+      const base = path.join(__dirname, '..', 'data', 'uploads');
+      if (!fs.existsSync(base)) fs.mkdirSync(base, { recursive: true });
+      return base;
+    }
+    const uploadsDir = getUploadsBase();
+    app.use('/uploads', express.static(uploadsDir));
 
     // manejador de errores simple
     app.use((err, req, res, next) => {
