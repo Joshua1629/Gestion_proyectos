@@ -23,6 +23,87 @@
 	max-width: 260px;
 }
 
+/* --- Botones oscuros para filtros y selector de archivo --- */
+
+/* Selects de la barra de filtros */
+.evidencias-filtros select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: rgba(59, 130, 246, 0.06);              /* igual al primario */
+  color: var(--primary-light);                       /* #3b82f6 */
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  border-radius: 8px;
+  padding: 8px 12px;
+  height: 36px;
+  line-height: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color .15s ease, box-shadow .15s ease, transform .02s ease;
+}
+
+/* Flecha nativa suele quedar blanca/contrastada; aseguramos contraste en opciones */
+.evidencias-filtros select option {
+  color: #111;
+  background: #fff;
+}
+
+/* Hover/active/focus de los selects de filtros */
+.evidencias-filtros select:hover {
+  background: rgba(59, 130, 246, 0.12);
+  transform: translateY(-1px);
+}
+.evidencias-filtros select:active {
+  transform: translateY(1px);
+}
+.evidencias-filtros select:focus {
+  outline: none;
+  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.15);
+}
+
+/* Botón del input[type=file] (el texto “Seleccionar archivo”) */
+.evidencia-uploader input[type="file"]::-ms-browse { /* Edge (modo antiguo) */
+  background: rgba(59, 130, 246, 0.06);              /* igual al primario */
+  color: var(--primary-light);                       /* #3b82f6 */
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Estándar moderno */
+.evidencia-uploader input[type="file"]::file-selector-button {
+  background: rgba(59, 130, 246, 0.06);              /* igual al primario */
+  color: var(--primary-light);                       /* #3b82f6 */
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-right: 10px;
+  height: 36px;
+  line-height: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color .15s ease, box-shadow .15s ease, transform .02s ease;
+}
+
+.evidencia-uploader input[type="file"]::file-selector-button:hover {
+  background: rgba(59, 130, 246, 0.12);
+  transform: translateY(-1px);
+}
+.evidencia-uploader input[type="file"]::file-selector-button:active {
+  transform: translateY(1px);
+}
+.evidencia-uploader input[type="file"]::file-selector-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.15);
+}
+
+/* Mantener consistencia de tamaños con el resto de inputs */
+.evidencia-uploader input[type="file"] {
+  height: 36px;
+}
+
 .evidencia-uploader input[type="text"],
 .evidencia-uploader input:not([type="file"]) {
 	flex: 1 1 auto;
