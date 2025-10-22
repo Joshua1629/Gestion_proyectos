@@ -1,0 +1,17 @@
+.normas-panel { padding: 16px; }
+.norma-uploader .row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.normas-busqueda { display: flex; gap: 8px; margin: 12px 0; }
+.normas-secciones { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.normas-col { background: var(--panel-bg, #fff); border: 1px solid #e5e5e5; border-radius: 8px; padding: 12px; }
+.normas-list { display: flex; flex-direction: column; gap: 8px; }
+.norma-item { border: 1px solid #eee; border-radius: 8px; padding: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.norma-title { font-weight: 600; }
+.norma-desc { color: #555; font-size: 0.9rem; }
+.norma-tags { color: #2b7; font-size: 0.85rem; }
+.norma-actions { display: flex; gap: 8px; align-items: center; }
+.attach-tarea select { font-size: 0.9rem; }
+.empty-state { color: #777; font-style: italic; padding: 12px; }
+
+@media (max-width: 900px) {
+  .normas-secciones { grid-template-columns: 1fr; }
+}

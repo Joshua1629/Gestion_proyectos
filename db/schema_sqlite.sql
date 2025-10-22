@@ -124,6 +124,42 @@ CREATE INDEX IF NOT EXISTS idx_evidencias_tarea ON evidencias(tarea_id);
 CREATE INDEX IF NOT EXISTS idx_evidencias_categoria ON evidencias(categoria);
 CREATE INDEX IF NOT EXISTS idx_evidencias_created_at ON evidencias(created_at);
 
+-- Tabla de normas técnicas (PDF o texto)
+CREATE TABLE IF NOT EXISTS normas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titulo TEXT NOT NULL,
+    descripcion TEXT,
+    etiquetas TEXT, -- etiquetas separadas por coma
+    file_path TEXT NOT NULL,
+    file_name TEXT,
+    mime_type TEXT,
+    size_bytes INTEGER,
+    texto_extraido TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME
+);
+
+-- Relaciones muchas-a-muchas entre normas y proyectos/tareas
+CREATE TABLE IF NOT EXISTS proyecto_normas (
+    proyecto_id INTEGER NOT NULL,
+    norma_id INTEGER NOT NULL,
+    PRIMARY KEY (proyecto_id, norma_id),
+    FOREIGN KEY (proyecto_id) REFERENCES proyectos(id) ON DELETE CASCADE,
+    FOREIGN KEY (norma_id) REFERENCES normas(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS tarea_normas (
+    tarea_id INTEGER NOT NULL,
+    norma_id INTEGER NOT NULL,
+    PRIMARY KEY (tarea_id, norma_id),
+    FOREIGN KEY (tarea_id) REFERENCES tareas(id) ON DELETE CASCADE,
+    FOREIGN KEY (norma_id) REFERENCES normas(id) ON DELETE CASCADE
+);
+
+-- Índices para búsqueda rápida de normas
+CREATE INDEX IF NOT EXISTS idx_normas_titulo ON normas(titulo);
+CREATE INDEX IF NOT EXISTS idx_normas_etiquetas ON normas(etiquetas);
+
 -- Insertar usuario administrador por defecto (password: admin123)
 INSERT OR IGNORE INTO usuarios (id, nombre, usuario, email, password, rol) 
 VALUES (1, 'Administrador', 'admin', 'admin@gestion.com', '$2b$10$zbrD390ESjaH0lD5l83vsu7jmpOmQPXffQOz.QXxXihphpDDg5lNe', 'admin');

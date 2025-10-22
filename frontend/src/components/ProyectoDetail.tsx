@@ -15,6 +15,7 @@ import {
 } from "../services/tareas";
 import "../css/ProyectoDetail.css";
 import EvidenciasPanel from "./EvidenciasPanel";
+import NormasPanel from "./NormasPanel";
 
 interface Usuario {
   id: number;
@@ -34,7 +35,7 @@ export default function ProyectoDetail({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "resumen" | "fases" | "tareas" | "evidencias"
+    "resumen" | "fases" | "tareas" | "evidencias" | "normas"
   >("resumen");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Tarea | null>(null);
@@ -193,6 +194,18 @@ export default function ProyectoDetail({
               </span>
             </div>
           </div>
+          <div>
+            <button
+              className="btn"
+              onClick={() => {
+                const base = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:3001";
+                const url = `${base}/api/reportes/proyectos/${proyecto.id}/pdf`;
+                window.open(url, "_blank");
+              }}
+            >
+              🧾 Exportar PDF
+            </button>
+          </div>
         </div>
 
         <div className="proyecto-metadata">
@@ -247,6 +260,12 @@ export default function ProyectoDetail({
           onClick={() => setActiveTab("evidencias")}
         >
           📷 Evidencias
+        </button>
+        <button
+          className={`tab-button ${activeTab === "normas" ? "active" : ""}`}
+          onClick={() => setActiveTab("normas")}
+        >
+          📚 Normas
         </button>
       </div>
 
@@ -529,6 +548,12 @@ export default function ProyectoDetail({
         {activeTab === "evidencias" && (
           <div className="evidencias-section">
             <EvidenciasPanel proyectoId={proyecto.id} tareas={tareas} />
+          </div>
+        )}
+
+        {activeTab === "normas" && (
+          <div className="normas-section">
+            <NormasPanel proyectoId={proyecto.id} tareas={tareas} />
           </div>
         )}
       </div>

@@ -6,6 +6,7 @@ require('dotenv').config();
 
 // Importar funciones de inicialización de base de datos
 const { initializeDatabase, checkDatabaseExists } = require('./scripts/initDb');
+const { ensureExtraTables } = require('./scripts/ensureExtraTables');
 
 const tryRequireRouter = (...parts) => {
   const candidates = [
@@ -63,6 +64,14 @@ async function initializeApp() {
       || tryRequireRouter('models', 'routes', 'evidencias')
       || tryRequireRouter('server', 'routes', 'evidencias');
 
+    let normasRouter = tryRequireRouter('routes', 'normas')
+      || tryRequireRouter('models', 'routes', 'normas')
+      || tryRequireRouter('server', 'routes', 'normas');
+
+    let reportesRouter = tryRequireRouter('routes', 'reportes')
+      || tryRequireRouter('models', 'routes', 'reportes')
+      || tryRequireRouter('server', 'routes', 'reportes');
+
     // Si no se encuentran, crear router stub para evitar crash y dejar mensajes claros
     const createStub = (name) => {
       const r = express.Router();
@@ -85,6 +94,14 @@ async function initializeApp() {
     if (!evidenciasRouter) {
       console.warn('Warning: evidencias router not found. Using stub.');
       evidenciasRouter = createStub('evidencias');
+    }
+    if (!normasRouter) {
+      console.warn('Warning: normas router not found. Using stub.');
+      normasRouter = createStub('normas');
+    }
+    if (!reportesRouter) {
+      console.warn('Warning: reportes router not found. Using stub.');
+      reportesRouter = createStub('reportes');
     }
 
     const app = express();
@@ -154,11 +171,20 @@ async function initializeApp() {
       next();
     });
 
+    // Asegurar tablas adicionales (para bases ya existentes)
+    try {
+      await ensureExtraTables();
+    } catch (e) {
+      console.warn('No se pudieron asegurar tablas extra:', e && e.message ? e.message : e);
+    }
+
     // Rutas API
     app.use('/api/proyectos', proyectosRouter);
     app.use('/api/auth', authRouter);
     app.use('/api/tareas', tareasRouter);
     app.use('/api/evidencias', evidenciasRouter);
+    app.use('/api/normas', normasRouter);
+    app.use('/api/reportes', reportesRouter);
 
     // Servir uploads estáticos
     function getUploadsBase() {
