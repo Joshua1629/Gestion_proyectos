@@ -198,7 +198,8 @@ export default function ProyectoDetail({
             <button
               className="btn"
               onClick={() => {
-                const base = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:3001";
+                const base =
+                  import.meta.env.VITE_API_URL ?? "http://127.0.0.1:3001";
                 const url = `${base}/api/reportes/proyectos/${proyecto.id}/pdf`;
                 window.open(url, "_blank");
               }}

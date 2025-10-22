@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { login, saveAuth } from '../services/auth';
-import '../css/login.css';
+import React, { useState } from "react";
+import { login, saveAuth } from "../services/auth";
+import "../css/login.css";
 
 export default function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,16 +15,18 @@ export default function Login() {
     try {
       const res = await login(username, password);
       saveAuth(res.token, res.user);
-      window.location.href = '/';
+      window.location.href = "/";
     } catch (err: any) {
       const isCredencialesInvalidas =
         err?.status === 401 ||
-        /credenciales inválidas|credenciales inválidas/i.test(err?.error || '') ||
-        /invalid credentials|unauthorized/i.test(err?.error || '');
+        /credenciales inválidas|credenciales inválidas/i.test(
+          err?.error || ""
+        ) ||
+        /invalid credentials|unauthorized/i.test(err?.error || "");
 
       const msg = isCredencialesInvalidas
-        ? 'Usuario o contraseña incorrecto'
-        : (err?.error || err?.message || 'Error al iniciar sesión');
+        ? "Usuario o contraseña incorrecto"
+        : err?.error || err?.message || "Error al iniciar sesión";
 
       setError(msg);
     } finally {
@@ -39,7 +41,9 @@ export default function Login() {
           <img src="/logo.png" alt="Logo empresa" />
         </div>
         <h2>Iniciar Sesión</h2>
-        <p className="login-subtitle">Accede a tu sistema de gestión electrico</p>
+        <p className="login-subtitle">
+          Accede a tu sistema de gestión electrico
+        </p>
 
         {error && <div className="login-error">{error}</div>}
 
@@ -50,7 +54,7 @@ export default function Login() {
               id="username"
               type="text"
               value={username}
-              onChange={e => setUsername(e.target.value)}
+              onChange={(e) => setUsername(e.target.value)}
               placeholder="Ingresa tu usuario"
               required
             />
@@ -62,7 +66,7 @@ export default function Login() {
               id="password"
               type="password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="Ingresa tu contraseña"
               required
             />
@@ -70,10 +74,10 @@ export default function Login() {
 
           <button
             type="submit"
-            className={`login-submit ${loading ? 'loading' : ''}`}
+            className={`login-submit ${loading ? "loading" : ""}`}
             disabled={loading}
           >
-            {loading ? '' : 'Iniciar Sesión'}
+            {loading ? "" : "Iniciar Sesión"}
           </button>
         </form>
 
