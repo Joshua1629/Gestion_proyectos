@@ -61,7 +61,7 @@ function Dashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
         )}
         
         {appState.currentView === 'normas-repo' && (
-          <NormasRepositorio />
+          <NormasRepositorio onBack={navigateBack} />
         )}
 
         {appState.currentView === 'proyecto-detail' && appState.selectedProyectoId && (

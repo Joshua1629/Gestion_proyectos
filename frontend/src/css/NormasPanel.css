@@ -1,4 +1,5 @@
 .normas-panel { padding: 16px; }
+.normas-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .norma-uploader .row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .normas-busqueda { display: flex; gap: 8px; margin: 12px 0; }
 .normas-secciones { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -22,6 +23,24 @@
 .t-strong { font-weight: 600; }
 .muted { color: #666; }
 .small { font-size: 0.85rem; }
+
+/* Estilo para el campo de categoría en Repositorio de Normas */
+.categoria-input {
+  padding: 8px 10px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background: #3a3a3a;
+  color: #f0f0f0;
+  min-width: 240px;
+}
+.categoria-input::placeholder {
+  color: #b8b8b8;
+}
+.categoria-input:focus {
+  outline: none;
+  border-color: #6aa6ff;
+  box-shadow: 0 0 0 2px rgba(106, 166, 255, 0.25);
+}
 
 @media (max-width: 900px) {
   .normas-secciones { grid-template-columns: 1fr; }

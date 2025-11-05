@@ -8,7 +8,7 @@ export default defineConfig({
     port: 5173,
   },
   define: {
-    // Evita errores de DevTools en desarrollo
-    __REACT_DEVTOOLS_GLOBAL_HOOK__: '({ isDisabled: true })'
+    // Evita errores de DevTools en build: definir como undefined
+    __REACT_DEVTOOLS_GLOBAL_HOOK__: 'undefined'
   }
 })

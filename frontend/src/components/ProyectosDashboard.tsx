@@ -62,12 +62,7 @@ export default function ProyectosDashboard({
     loadProyectos();
   }, [page, search]);
 
-  // Buscar proyectos
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-    loadProyectos();
-  };
+  // Buscar proyectos: el input reactivo arriba actualiza automáticamente la lista
 
   // Validar formulario
   const validateForm = () => {
