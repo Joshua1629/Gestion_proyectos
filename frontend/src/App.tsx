@@ -3,9 +3,10 @@ import './App.css';
 import Login from './components/login';
 import { getCurrentUser, logout } from './services/auth';
 import ProyectosDashboard from './components/ProyectosDashboard';
+import NormasRepositorio from './components/NormasRepositorio';
 import ProyectoDetail from './components/ProyectoDetail';
 
-type ViewType = 'dashboard' | 'proyecto-detail';
+type ViewType = 'dashboard' | 'proyecto-detail' | 'normas-repo';
 
 interface AppState {
   currentView: ViewType;
@@ -30,6 +31,10 @@ function Dashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
     });
   };
 
+  const openNormasRepo = () => {
+    setAppState({ currentView: 'normas-repo' });
+  };
+
   return (
     <div className="app-container">
       {/* Header Principal */}
@@ -40,6 +45,7 @@ function Dashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
             <span className="user-info">Bienvenido, {user?.nombre || user?.email}</span>
           </div>
           <div className="header-actions">
+            <button onClick={openNormasRepo} className="btn">Repositorio de Normas</button>
             <span className="user-role">{user?.rol}</span>
             <button onClick={onLogout} className="btn btn-outline">
               Cerrar sesión
@@ -54,6 +60,10 @@ function Dashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
           <ProyectosDashboard onSelectProyecto={navigateToProyecto} />
         )}
         
+        {appState.currentView === 'normas-repo' && (
+          <NormasRepositorio />
+        )}
+
         {appState.currentView === 'proyecto-detail' && appState.selectedProyectoId && (
           <ProyectoDetail 
             proyectoId={appState.selectedProyectoId}

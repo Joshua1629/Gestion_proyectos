@@ -261,14 +261,19 @@ ipcMain.handle('http:fetch', async (_event, { url, options }) => {
 // IPC: subida multipart via main (evita problemas de red del renderer)
 ipcMain.handle('http:uploadMultipart', async (_event, payload) => {
   try {
-    // Usar FormData global de Node 18 (undici); si no existe, fallback a paquete form-data
-    let FormDataCtor = globalThis.FormData;
-    let usingUndici = true;
-    if (typeof FormDataCtor === 'undefined') {
-      FormDataCtor = (await import('form-data')).default;
-      usingUndici = false;
+    // Preferir 'form-data' en Node < 20 para evitar el ExperimentalWarning de buffer.File
+    // Usar undici (FormData/Blob nativos) solo en Node >= 20
+  // Prefer undici's native FormData/Blob when available (works best with fetch multipart)
+  // Even on Node 18 this is available; it may emit an ExperimentalWarning for File, which is harmless.
+  let usingUndici = typeof globalThis.FormData !== 'undefined';
+
+    let form;
+    if (usingUndici) {
+      form = new globalThis.FormData();
+    } else {
+      const FormDataPkg = (await import('form-data')).default;
+      form = new FormDataPkg();
     }
-    const form = new (FormDataCtor)();
     const { url, method = 'POST', fields = {}, files = [] } = payload || {};
     for (const [k, v] of Object.entries(fields)) form.append(k, v);
     for (const f of files) {
@@ -281,7 +286,22 @@ ipcMain.handle('http:uploadMultipart', async (_event, payload) => {
         form.append(f.fieldName, buf, { filename: f.name, contentType: f.type });
       }
     }
-    const reqInit = usingUndici ? { method, body: form } : { method, body: form, headers: form.getHeaders() };
+    let reqInit;
+    if (usingUndici) {
+      reqInit = { method, body: form };
+    } else {
+      // Legacy form-data needs headers and Node fetch requires duplex when piping a stream body
+      const headers = form.getHeaders();
+      // Try to compute content-length to avoid chunking issues with some servers
+      try {
+        const contentLength = await new Promise((resolve, reject) => {
+          form.getLength((err, len) => err ? reject(err) : resolve(len));
+        });
+        if (typeof contentLength === 'number' && contentLength >= 0) headers['Content-Length'] = String(contentLength);
+      } catch {}
+      headers['Accept'] = headers['Accept'] || 'application/json, */*';
+      reqInit = { method, body: form, headers, duplex: 'half' };
+    }
     const res = await fetch(url, reqInit);
     const contentType = res.headers.get('content-type') || '';
     const isJson = contentType.includes('application/json');

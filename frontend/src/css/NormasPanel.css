@@ -12,6 +12,17 @@
 .attach-tarea select { font-size: 0.9rem; }
 .empty-state { color: #777; font-style: italic; padding: 12px; }
 
+/* Vista tabla para catálogo (similar a Excel) */
+.normas-table-wrapper { margin-top: 8px; }
+.table-scroll { overflow: auto; border: 1px solid #eee; border-radius: 8px; }
+.normas-table { width: 100%; border-collapse: collapse; min-width: 720px; margin-bottom: 16px; }
+.normas-table th, .normas-table td { border: 1px solid #ddd; padding: 8px 10px; vertical-align: top; background: #fff; }
+.normas-table thead th { background: #f6f6f6; font-weight: 600; }
+.normas-table .section-header { background: #e9ecef; font-weight: 700; text-align: center; font-size: 1rem; }
+.t-strong { font-weight: 600; }
+.muted { color: #666; }
+.small { font-size: 0.85rem; }
+
 @media (max-width: 900px) {
   .normas-secciones { grid-template-columns: 1fr; }
 }

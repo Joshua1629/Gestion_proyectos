@@ -68,6 +68,10 @@ async function initializeApp() {
       || tryRequireRouter('models', 'routes', 'normas')
       || tryRequireRouter('server', 'routes', 'normas');
 
+    let normasRepoRouter = tryRequireRouter('routes', 'normas_repo')
+      || tryRequireRouter('models', 'routes', 'normas_repo')
+      || tryRequireRouter('server', 'routes', 'normas_repo');
+
     let reportesRouter = tryRequireRouter('routes', 'reportes')
       || tryRequireRouter('models', 'routes', 'reportes')
       || tryRequireRouter('server', 'routes', 'reportes');
@@ -98,6 +102,10 @@ async function initializeApp() {
     if (!normasRouter) {
       console.warn('Warning: normas router not found. Using stub.');
       normasRouter = createStub('normas');
+    }
+    if (!normasRepoRouter) {
+      console.warn('Warning: normas-repo router not found. Using stub.');
+      normasRepoRouter = createStub('normas-repo');
     }
     if (!reportesRouter) {
       console.warn('Warning: reportes router not found. Using stub.');
@@ -184,6 +192,7 @@ async function initializeApp() {
     app.use('/api/tareas', tareasRouter);
     app.use('/api/evidencias', evidenciasRouter);
     app.use('/api/normas', normasRouter);
+  app.use('/api/normas-repo', normasRepoRouter);
     app.use('/api/reportes', reportesRouter);
 
     // Servir uploads estáticos

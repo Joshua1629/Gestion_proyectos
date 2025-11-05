@@ -15,7 +15,7 @@ import {
 } from "../services/tareas";
 import "../css/ProyectoDetail.css";
 import EvidenciasPanel from "./EvidenciasPanel";
-import NormasPanel from "./NormasPanel";
+// import NormasPanel from "./NormasPanel"; // Repositorio ahora es global
 
 interface Usuario {
   id: number;
@@ -35,7 +35,7 @@ export default function ProyectoDetail({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "resumen" | "fases" | "tareas" | "evidencias" | "normas"
+    "resumen" | "fases" | "tareas" | "evidencias"
   >("resumen");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Tarea | null>(null);
@@ -261,12 +261,6 @@ export default function ProyectoDetail({
           onClick={() => setActiveTab("evidencias")}
         >
           📷 Evidencias
-        </button>
-        <button
-          className={`tab-button ${activeTab === "normas" ? "active" : ""}`}
-          onClick={() => setActiveTab("normas")}
-        >
-          📚 Normas
         </button>
       </div>
 
@@ -552,11 +546,7 @@ export default function ProyectoDetail({
           </div>
         )}
 
-        {activeTab === "normas" && (
-          <div className="normas-section">
-            <NormasPanel proyectoId={proyecto.id} tareas={tareas} />
-          </div>
-        )}
+        {/* La vista de Normas se movió a un repositorio global accesible desde el header */}
       </div>
 
       {showForm && (

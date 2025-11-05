@@ -51,6 +51,40 @@ async function ensureExtraTables() {
       );
       CREATE INDEX IF NOT EXISTS idx_normas_titulo ON normas(titulo);
       CREATE INDEX IF NOT EXISTS idx_normas_etiquetas ON normas(etiquetas);
+
+      -- Repositorio de normas/Incumplimientos (catálogo desde Excel)
+      CREATE TABLE IF NOT EXISTS normas_repo (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo TEXT,
+        titulo TEXT NOT NULL,
+        descripcion TEXT,
+        categoria TEXT,
+        subcategoria TEXT,
+        incumplimiento TEXT,
+        severidad TEXT,
+        etiquetas TEXT,
+        fuente TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME
+      );
+      CREATE INDEX IF NOT EXISTS idx_normasrepo_titulo ON normas_repo(titulo);
+      CREATE INDEX IF NOT EXISTS idx_normasrepo_codigo ON normas_repo(codigo);
+      CREATE INDEX IF NOT EXISTS idx_normasrepo_categoria ON normas_repo(categoria);
+
+      -- Evidencias asociadas a elementos del repositorio de normas
+      CREATE TABLE IF NOT EXISTS normas_repo_evidencias (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        norma_repo_id INTEGER NOT NULL,
+        comentario TEXT,
+        image_path TEXT NOT NULL,
+        thumb_path TEXT,
+        mime_type TEXT,
+        size_bytes INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME,
+        FOREIGN KEY (norma_repo_id) REFERENCES normas_repo(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_nre_norma ON normas_repo_evidencias(norma_repo_id);
       `;
 
       db.exec(ddl, (e) => {

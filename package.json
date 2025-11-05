@@ -11,12 +11,14 @@
     "electron-builder": "^24.0.0",
     "express": "^5.1.0",
     "express-validator": "^7.2.1",
+    "form-data": "^4.0.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "sqlite3": "^5.1.6",
     "pdfkit": "^0.17.2",
     "sharp": "^0.34.3",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start:server": "cd server && npx nodemon app.js",
