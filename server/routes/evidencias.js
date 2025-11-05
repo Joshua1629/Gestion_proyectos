@@ -77,7 +77,8 @@ router.post(
   [
     body('proyectoId').isInt({ min: 1 }).toInt(),
     body('tareaId').optional().isInt({ min: 1 }).toInt(),
-    body('categoria').isString().isIn(['OK', 'LEVE', 'CRITICO']),
+    // La categoría de la evidencia ya no es obligatoria; el estado se maneja por incumplimiento asociado
+    body('categoria').optional().isString().isIn(['OK', 'LEVE', 'CRITICO']),
     body('comentario').optional().isString().trim().isLength({ max: 1000 })
   ],
   checkValidation,
@@ -86,7 +87,9 @@ router.post(
       const file = req.file;
       if (!file) return res.status(400).json({ error: 'Imagen requerida' });
 
-  const { proyectoId, tareaId, categoria, comentario } = req.body;
+  const { proyectoId, tareaId, comentario } = req.body;
+  // Si viene categoria, se acepta; si no, usar 'OK' por compatibilidad con el esquema NOT NULL
+  const categoria = (req.body && req.body.categoria) ? String(req.body.categoria) : 'OK';
   const pId = Number(proyectoId);
   const tId = (tareaId === undefined || tareaId === null || tareaId === '' ? null : Number(tareaId));
   if (!Number.isInteger(pId) || pId < 1) return res.status(400).json({ error: 'proyectoId inválido' });
@@ -112,7 +115,7 @@ router.post(
 
       const [result] = await pool.query(
         'INSERT INTO evidencias (proyecto_id, tarea_id, categoria, comentario, image_path, mime_type, size_bytes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [pId, tId || null, categoria, comentario || null, imagePath, mime, size, createdBy]
+        [pId, tId || null, categoria || 'OK', comentario || null, imagePath, mime, size, createdBy]
       );
 
       const id = result.insertId;

@@ -1,28 +1,118 @@
-.normas-panel { padding: 16px; }
-.normas-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.norma-uploader .row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-.normas-busqueda { display: flex; gap: 8px; margin: 12px 0; }
-.normas-secciones { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.normas-col { background: var(--panel-bg, #fff); border: 1px solid #e5e5e5; border-radius: 8px; padding: 12px; }
-.normas-list { display: flex; flex-direction: column; gap: 8px; }
-.norma-item { border: 1px solid #eee; border-radius: 8px; padding: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.norma-title { font-weight: 600; }
-.norma-desc { color: #555; font-size: 0.9rem; }
-.norma-tags { color: #2b7; font-size: 0.85rem; }
-.norma-actions { display: flex; gap: 8px; align-items: center; }
-.attach-tarea select { font-size: 0.9rem; }
-.empty-state { color: #777; font-style: italic; padding: 12px; }
+.normas-panel {
+  padding: 16px;
+}
+.normas-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.norma-uploader .row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.normas-busqueda {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+.normas-secciones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.normas-col {
+  background: var(--panel-bg, #fff);
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 12px;
+}
+.normas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.norma-item {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.norma-title {
+  font-weight: 600;
+}
+.norma-desc {
+  color: #555;
+  font-size: 0.9rem;
+}
+.norma-tags {
+  color: #2b7;
+  font-size: 0.85rem;
+}
+.norma-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.attach-tarea select {
+  font-size: 0.9rem;
+}
+.empty-state {
+  color: #777;
+  font-style: italic;
+  padding: 12px;
+}
 
 /* Vista tabla para catálogo (similar a Excel) */
-.normas-table-wrapper { margin-top: 8px; }
-.table-scroll { overflow: auto; border: 1px solid #eee; border-radius: 8px; }
-.normas-table { width: 100%; border-collapse: collapse; min-width: 720px; margin-bottom: 16px; }
-.normas-table th, .normas-table td { border: 1px solid #ddd; padding: 8px 10px; vertical-align: top; background: #fff; }
-.normas-table thead th { background: #f6f6f6; font-weight: 600; }
-.normas-table .section-header { background: #e9ecef; font-weight: 700; text-align: center; font-size: 1rem; }
-.t-strong { font-weight: 600; }
-.muted { color: #666; }
-.small { font-size: 0.85rem; }
+.normas-table-wrapper {
+  margin-top: 8px;
+}
+.table-scroll {
+  overflow: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+.normas-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+  margin-bottom: 16px;
+}
+.normas-table th,
+.normas-table td {
+  border: 1px solid #ddd;
+  padding: 8px 10px;
+  vertical-align: top;
+  background: #fff;
+}
+.normas-table thead th {
+  background: #f6f6f6;
+  font-weight: 600;
+}
+.normas-table .section-header {
+  background: #e9ecef;
+  font-weight: 700;
+  text-align: center;
+  font-size: 1rem;
+}
+.normas-table .col-actions {
+  text-align: center;
+  white-space: nowrap;
+}
+.t-strong {
+  font-weight: 600;
+}
+.muted {
+  color: #666;
+}
+.small {
+  font-size: 0.85rem;
+}
 
 /* Estilo para el campo de categoría en Repositorio de Normas */
 .categoria-input {
@@ -42,6 +132,45 @@
   box-shadow: 0 0 0 2px rgba(106, 166, 255, 0.25);
 }
 
+/* Formulario inline para agregar norma en el repositorio */
+.normas-add-inline .row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.normas-add-inline input[type="text"] {
+  padding: 8px 10px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background: #3a3a3a;
+  color: #f0f0f0;
+}
+.normas-add-inline input[type="text"]::placeholder {
+  color: #b8b8b8;
+}
+.normas-add-inline input[type="text"]:focus {
+  outline: none;
+  border-color: #6aa6ff;
+  box-shadow: 0 0 0 2px rgba(106, 166, 255, 0.25);
+}
+
+/* Inputs dentro de la tabla para edición inline (fondo claro acorde a celdas) */
+.table-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+}
+.table-input:focus {
+  outline: none;
+  border-color: #6aa6ff;
+  box-shadow: 0 0 0 2px rgba(106, 166, 255, 0.15);
+}
+
 @media (max-width: 900px) {
-  .normas-secciones { grid-template-columns: 1fr; }
+  .normas-secciones {
+    grid-template-columns: 1fr;
+  }
 }

@@ -4,6 +4,9 @@ import {
   listNormasRepo,
   type NormaRepoItem,
   buildRepoReportUrl,
+  createNormaRepo,
+  deleteNormaRepo,
+  updateNormaRepo,
 } from "../services/normasRepo";
 import "../css/NormasPanel.css";
 
@@ -16,6 +19,14 @@ export default function NormasRepositorio({ onBack }: { onBack?: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // const [uploadingFor, setUploadingFor] = useState<number | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newCategoria, setNewCategoria] = useState("");
+  const [newDescripcion, setNewDescripcion] = useState("");
+  const [newArticulo, setNewArticulo] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editCategoria, setEditCategoria] = useState("");
+  const [editDescripcion, setEditDescripcion] = useState("");
+  const [editArticulo, setEditArticulo] = useState("");
 
   async function fetchData(p = page) {
     try {
@@ -59,9 +70,77 @@ export default function NormasRepositorio({ onBack }: { onBack?: () => void }) {
     }
   };
 
+  const startEdit = (it: NormaRepoItem) => {
+    setEditingId(it.id);
+    setEditCategoria(it.categoria || "");
+    setEditDescripcion(it.descripcion || it.titulo || "");
+    setEditArticulo((it as any).fuente || "");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditCategoria("");
+    setEditDescripcion("");
+    setEditArticulo("");
+  };
+
+  const saveEdit = async (id: number) => {
+    if (!editDescripcion.trim()) {
+      setError("La descripción es obligatoria");
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      await updateNormaRepo(id, {
+        categoria: editCategoria.trim() || null,
+        descripcion: editDescripcion.trim(),
+        titulo: editDescripcion.trim(),
+        fuente: editArticulo.trim() || null,
+      });
+      cancelEdit();
+      await fetchData(page);
+    } catch (e: any) {
+      setError(e?.detail || e?.error || e?.message || "Error actualizando");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const openReport = () => {
     const url = buildRepoReportUrl(undefined, { categoria });
     window.open(url, "_blank");
+  };
+
+  const resetAddForm = () => {
+    setNewCategoria("");
+    setNewDescripcion("");
+    setNewArticulo("");
+  };
+
+  const onCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDescripcion.trim()) {
+      setError("La descripción es obligatoria");
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      await createNormaRepo({
+        categoria: newCategoria.trim() || null,
+        descripcion: newDescripcion.trim(),
+        titulo: newDescripcion.trim(), // el backend requiere titulo
+        fuente: newArticulo.trim() || null,
+      });
+      resetAddForm();
+      setShowAdd(false);
+      await fetchData(1);
+    } catch (e: any) {
+      setError(e?.detail || e?.error || e?.message || "Error creando norma");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -103,7 +182,41 @@ export default function NormasRepositorio({ onBack }: { onBack?: () => void }) {
         <button className="btn" onClick={openReport}>
           Exportar PDF
         </button>
+        <button className="btn btn-primary" onClick={() => setShowAdd((v) => !v)}>
+          {showAdd ? "Cancelar" : "Agregar"}
+        </button>
       </div>
+
+      {showAdd && (
+        <form className="normas-add-inline" onSubmit={onCreate}>
+          <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+            <input
+              type="text"
+              placeholder="Categoría"
+              value={newCategoria}
+              onChange={(e) => setNewCategoria(e.target.value)}
+              style={{ minWidth: 180 }}
+            />
+            <input
+              type="text"
+              placeholder="Descripción del incumplimiento (requerido)"
+              value={newDescripcion}
+              onChange={(e) => setNewDescripcion(e.target.value)}
+              style={{ flex: 1, minWidth: 280 }}
+            />
+            <input
+              type="text"
+              placeholder="Artículo / Fuente"
+              value={newArticulo}
+              onChange={(e) => setNewArticulo(e.target.value)}
+              style={{ minWidth: 160 }}
+            />
+            <button className="btn btn-primary" type="submit" disabled={loading}>
+              Guardar
+            </button>
+          </div>
+        </form>
+      )}
 
       {error && <div className="error-message">{error}</div>}
 
@@ -120,25 +233,115 @@ export default function NormasRepositorio({ onBack }: { onBack?: () => void }) {
                   <th style={{ width: "28%" }}>Categoría</th>
                   <th>Descripción</th>
                   <th style={{ width: "22%" }}>Artículo</th>
+                  <th className="col-actions" style={{ width: 110 }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((it) => (
-                  <tr key={it.id}>
-                    <td>{it.categoria || ""}</td>
-                    <td>
-                      <div>
-                        <div className="t-strong">
-                          {it.descripcion || it.titulo}
-                        </div>
-                        {it.etiquetas && (
-                          <div className="muted small">{it.etiquetas}</div>
+                {items.map((it) => {
+                  const isEditing = editingId === it.id;
+                  return (
+                    <tr key={it.id}>
+                      <td>
+                        {isEditing ? (
+                          <input
+                            className="table-input"
+                            type="text"
+                            value={editCategoria}
+                            onChange={(e) => setEditCategoria(e.target.value)}
+                          />
+                        ) : (
+                          it.categoria || ""
                         )}
-                      </div>
-                    </td>
-                    <td>{(it as any).fuente || ""}</td>
-                  </tr>
-                ))}
+                      </td>
+                      <td>
+                        {isEditing ? (
+                          <input
+                            className="table-input"
+                            type="text"
+                            value={editDescripcion}
+                            onChange={(e) => setEditDescripcion(e.target.value)}
+                          />
+                        ) : (
+                          <div>
+                            <div className="t-strong">
+                              {it.descripcion || it.titulo}
+                            </div>
+                            {it.etiquetas && (
+                              <div className="muted small">{it.etiquetas}</div>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {isEditing ? (
+                          <input
+                            className="table-input"
+                            type="text"
+                            value={editArticulo}
+                            onChange={(e) => setEditArticulo(e.target.value)}
+                          />
+                        ) : (
+                          (it as any).fuente || ""
+                        )}
+                      </td>
+                      <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
+                        {isEditing ? (
+                          <>
+                            <button
+                              className="btn btn-primary"
+                              onClick={() => void saveEdit(it.id)}
+                              disabled={loading}
+                              title="Guardar cambios"
+                            >
+                              💾 Guardar
+                            </button>
+                            <button
+                              className="btn"
+                              onClick={cancelEdit}
+                              disabled={loading}
+                              title="Cancelar edición"
+                            >
+                              ✖ Cancelar
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              className="btn btn-outline"
+                              onClick={() => startEdit(it)}
+                              title="Editar"
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              className="btn btn-outline btn-danger"
+                              onClick={async () => {
+                                const ok = window.confirm(
+                                  "¿Eliminar este registro del repositorio?"
+                                );
+                                if (!ok) return;
+                                try {
+                                  setLoading(true);
+                                  await deleteNormaRepo(it.id);
+                                  await fetchData(page);
+                                } catch (e: any) {
+                                  setError(
+                                    e?.detail || e?.error || e?.message || "Error eliminando"
+                                  );
+                                } finally {
+                                  setLoading(false);
+                                }
+                              }}
+                              title="Eliminar"
+                            >
+                              🗑 Eliminar
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

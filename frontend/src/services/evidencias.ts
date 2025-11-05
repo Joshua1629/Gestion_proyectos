@@ -28,12 +28,12 @@ export interface EvidenciaNormaRepoLink {
   observacion?: string | null;
 }
 
-export async function uploadEvidencia(params: { file: File; proyectoId: number; tareaId?: number; categoria: Categoria; comentario?: string }) {
+export async function uploadEvidencia(params: { file: File; proyectoId: number; tareaId?: number; categoria?: Categoria; comentario?: string }) {
   const fd = new FormData();
   fd.append('file', params.file);
   fd.append('proyectoId', String(params.proyectoId));
   if (params.tareaId) fd.append('tareaId', String(params.tareaId));
-  fd.append('categoria', params.categoria);
+  if (params.categoria) fd.append('categoria', params.categoria);
   if (params.comentario) fd.append('comentario', params.comentario);
 
   // No seteamos Content-Type para que el navegador ponga el boundary multipart

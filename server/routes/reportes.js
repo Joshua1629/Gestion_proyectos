@@ -86,20 +86,58 @@ function severityStyle(cat) {
   }
 }
 
-function drawLegend(doc, y) {
-  const items = [
-    { label: "OK", color: "#388E3C" },
-    { label: "Leve", color: "#FFA000" },
-    { label: "Crítico", color: "#D32F2F" },
+// Fecha tipo: "Jueves 23 de Octubre del 2025."
+function formatFechaInforme(d = new Date()) {
+  const dias = [
+    "Domingo",
+    "Lunes",
+    "Martes",
+    "Miércoles",
+    "Jueves",
+    "Viernes",
+    "Sábado",
   ];
-  let x = 50;
+  const meses = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ];
+  return `${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]} del ${d.getFullYear()}.`;
+}
+
+function drawLegend(doc, y) {
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .fillColor("#000")
+    .text("Simbología:", 50, y);
+  const items = [
+    { label: "Cumplimiento → OK.", color: "#388E3C" },
+    { label: "Incumplimiento Leve → Solucionar a Mediano Plazo.", color: "#FFA000" },
+    { label: "Incumplimiento Crítico → Solucionar a Corto Plazo.", color: "#D32F2F" },
+  ];
+  let yLine = y + 16;
   items.forEach((it) => {
-    doc.rect(x, y, 8, 8).fillColor(it.color).fill();
+    // círculo de color
+    doc
+      .circle(56, yLine + 4, 4)
+      .fillColor(it.color)
+      .fill();
     doc
       .fillColor("#000")
+      .font("Helvetica")
       .fontSize(9)
-      .text(` ${it.label}`, x + 11, y - 2);
-    x += 70;
+      .text(it.label, 68, yLine - 2, { width: 477 });
+    yLine += 16;
   });
 }
 
@@ -112,6 +150,18 @@ function drawCover(doc, proyecto, coverImagePath) {
     } catch {}
   }
   doc.moveDown(1.2);
+  // Fecha de realización del informe
+  const fecha = formatFechaInforme(new Date());
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .fillColor("#000")
+    .text("Fecha Realización de Informe:", 50, 90);
+  doc
+    .font("Helvetica")
+    .fontSize(11)
+    .fillColor("#000")
+    .text(fecha, 250, 90, { width: 295, align: "left" });
   // Caja de datos del proyecto
   const boxY = 120;
   doc
@@ -177,7 +227,7 @@ function drawFinding(doc, idx, evidencia, tareaNombre, yStart, linkedNormas) {
   const imgW = 180; // imagen a la derecha
   const imgH = 120;
   const gap = 10;
-  const spec = severityStyle(evidencia.categoria);
+  // La severidad se muestra por incumplimiento, no a nivel de evidencia
 
   // Caja principal
   doc
@@ -193,17 +243,7 @@ function drawFinding(doc, idx, evidencia, tareaNombre, yStart, linkedNormas) {
     .font("Helvetica-Bold")
     .fontSize(11)
     .text(`Evidencia ${idx + 1}`, marginX + 8, yStart + 6);
-  // Badge de categoría a la derecha
-  const badgeX = marginX + 495 - 58;
-  doc
-    .rect(badgeX, yStart + 6, 10, 10)
-    .fillColor(spec.color)
-    .fill();
-  doc
-    .fillColor("#000")
-    .font("Helvetica")
-    .fontSize(10)
-    .text(spec.label, badgeX + 14, yStart + 4, { width: 40, align: "left" });
+  // Sin badge global; el estado se mostrará para cada incumplimiento
 
   // Columna izquierda: tarea y comentario
   const leftX = marginX + 12;
@@ -242,7 +282,7 @@ function drawFinding(doc, idx, evidencia, tareaNombre, yStart, linkedNormas) {
     const startY = doc.y + 2;
     let y = startY;
     linkedNormas.slice(0, 6).forEach((n) => {
-      const color = severityStyle(n.clasificacion || evidencia.categoria).color;
+      const color = severityStyle(n.clasificacion || 'LEVE').color;
       // marcador de color
       doc.rect(leftX, y + 3, 6, 6).fillColor(color).fill();
       doc
