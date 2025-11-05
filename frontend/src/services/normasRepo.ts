@@ -34,13 +34,14 @@ export async function importExcel(file: File) {
   return appFetch(`${API}/import`, { method: 'POST', body: fd, asJson: true });
 }
 
-export async function listNormasRepo(params: { search?: string; categoria?: string; severidad?: string; page?: number; limit?: number; }) {
+export async function listNormasRepo(params: { search?: string; categoria?: string; severidad?: string; page?: number; limit?: number; all?: boolean; }) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
   if (params.categoria) q.set('categoria', params.categoria);
   if (params.severidad) q.set('severidad', params.severidad);
   if (params.page) q.set('page', String(params.page));
   if (params.limit) q.set('limit', String(params.limit));
+  if (params.all) q.set('all', '1');
   return appFetch(`${API}?${q.toString()}`);
 }
 

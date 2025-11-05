@@ -171,7 +171,7 @@ function drawCover(doc, proyecto, coverImagePath) {
   drawLegend(doc, noteY + 22);
 }
 
-function drawFinding(doc, idx, evidencia, tareaNombre, yStart) {
+function drawFinding(doc, idx, evidencia, tareaNombre, yStart, linkedNormas) {
   const marginX = 50;
   const blockH = 180;
   const imgW = 180; // imagen a la derecha
@@ -231,6 +231,36 @@ function drawFinding(doc, idx, evidencia, tareaNombre, yStart) {
     .text(evidencia.comentario || "Sin comentario", leftX, leftY + 32, {
       width: leftW,
     });
+
+  // Listado de normas/incumplimientos asociados
+  if (Array.isArray(linkedNormas) && linkedNormas.length) {
+    doc.moveDown(0.3);
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text("Incumplimientos asociados:", leftX, doc.y, { width: leftW });
+    const startY = doc.y + 2;
+    let y = startY;
+    linkedNormas.slice(0, 6).forEach((n) => {
+      const color = severityStyle(n.clasificacion || evidencia.categoria).color;
+      // marcador de color
+      doc.rect(leftX, y + 3, 6, 6).fillColor(color).fill();
+      doc
+        .fillColor("#000")
+        .font("Helvetica")
+        .fontSize(9)
+        .text(` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`, leftX + 10, y, {
+          width: leftW - 12,
+        });
+      y += 14;
+    });
+    if (linkedNormas.length > 6) {
+      doc
+        .fillColor("#666")
+        .fontSize(9)
+        .text(`… y ${linkedNormas.length - 6} más`, leftX, y, { width: leftW });
+    }
+  }
 
   // Columna derecha: imagen
   const imgX = marginX + leftW + 2 * gap;
@@ -305,6 +335,26 @@ router.get(
         evidRows[0]?.image_path && fs.existsSync(evidRows[0].image_path)
           ? evidRows[0].image_path
           : null;
+
+      // Asociaciones Evidencia ⇄ Normas (catálogo)
+      let byEvid = {};
+      if (evidRows.length) {
+        const ids = evidRows.map((e) => e.id);
+        const placeholders = ids.map(() => '?').join(',');
+        const [links] = await pool.query(
+          `SELECT enr.evidencia_id, enr.norma_repo_id, enr.clasificacion, enr.observacion,
+                  nr.titulo, nr.descripcion, nr.categoria, nr.fuente
+           FROM evidencias_normas_repo enr
+           INNER JOIN normas_repo nr ON nr.id = enr.norma_repo_id
+           WHERE enr.evidencia_id IN (${placeholders})
+           ORDER BY nr.categoria, nr.titulo`,
+          ids
+        );
+        byEvid = links.reduce((acc, r) => {
+          (acc[r.evidencia_id] = acc[r.evidencia_id] || []).push(r);
+          return acc;
+        }, {});
+      }
 
       // Normas asociadas
       const [normasRows] = await pool.query(
@@ -387,12 +437,14 @@ router.get(
           drawHeader(doc, proyecto.nombre, proyecto.cliente);
           y = 120;
         }
+        const linked = byEvid[ev.id] || [];
         drawFinding(
           doc,
           i,
           ev,
           ev.tarea_id ? tareasMap[ev.tarea_id]?.nombre : null,
-          y
+          y,
+          linked
         );
         y += 230; // espacio entre bloques
       }

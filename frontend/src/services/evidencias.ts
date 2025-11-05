@@ -18,6 +18,16 @@ export interface Evidencia {
   updatedAt?: string;
 }
 
+export interface EvidenciaNormaRepoLink {
+  id: number; // norma_repo_id
+  titulo: string;
+  descripcion?: string | null;
+  categoria?: string | null;
+  fuente?: string | null;
+  clasificacion?: Categoria;
+  observacion?: string | null;
+}
+
 export async function uploadEvidencia(params: { file: File; proyectoId: number; tareaId?: number; categoria: Categoria; comentario?: string }) {
   const fd = new FormData();
   fd.append('file', params.file);
@@ -54,4 +64,17 @@ export async function updateEvidencia(id: number, payload: Partial<Pick<Evidenci
 
 export async function deleteEvidencia(id: number) {
   return appFetch(`${API}/${id}`, { method: 'DELETE', asJson: false });
+}
+
+// Asociaciones Evidencia ⇄ Normas-Repo
+export async function listNormasRepoByEvidencia(evidenciaId: number): Promise<{ items: EvidenciaNormaRepoLink[] }> {
+  return appFetch(`${API}/${evidenciaId}/normas-repo`);
+}
+
+export async function attachNormaRepoToEvidencia(evidenciaId: number, payload: { normaRepoId: number; clasificacion?: Categoria; observacion?: string }) {
+  return appFetch(`${API}/${evidenciaId}/normas-repo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+}
+
+export async function detachNormaRepoFromEvidencia(evidenciaId: number, normaRepoId: number) {
+  return appFetch(`${API}/${evidenciaId}/normas-repo/${normaRepoId}`, { method: 'DELETE', asJson: false });
 }

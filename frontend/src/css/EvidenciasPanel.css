@@ -147,7 +147,7 @@
 
 .evidencias-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 	gap: 12px;
 }
 
@@ -167,7 +167,7 @@
 
 .evidencia-thumb {
 	position: relative;
-	height: 180px;
+	height: 160px;
 	overflow: hidden;
 	background: #fafafa;
 }
@@ -261,9 +261,34 @@
 	padding: 8px;
 }
 
+/* Selector compacto para asociar normas */
+.picker {
+	margin-top: 8px;
+	padding: 8px;
+	border: 1px solid #e5e7eb;
+	border-radius: 8px;
+	background: #f9fafb;
+}
+.picker-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	margin-bottom: 6px;
+}
+.picker-select {
+	flex: 1 1 auto;
+	min-width: 0;
+	height: 34px;
+	padding: 6px 8px;
+	border: 1px solid #dcdcdc;
+	border-radius: 6px;
+	background: #fff;
+	color: #222;
+}
+
 /* Responsive tweaks */
 @media (max-width: 768px) {
 	.evidencia-uploader .row { flex-wrap: wrap; }
 	.evidencias-filtros { flex-wrap: wrap; }
-	.evidencia-thumb { height: 160px; }
+	.evidencia-thumb { height: 140px; }
 }

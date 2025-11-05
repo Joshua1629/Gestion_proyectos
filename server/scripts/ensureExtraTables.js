@@ -85,6 +85,21 @@ async function ensureExtraTables() {
         FOREIGN KEY (norma_repo_id) REFERENCES normas_repo(id) ON DELETE CASCADE
       );
       CREATE INDEX IF NOT EXISTS idx_nre_norma ON normas_repo_evidencias(norma_repo_id);
+
+      -- Relación entre evidencias del proyecto y elementos del repositorio de normas
+      CREATE TABLE IF NOT EXISTS evidencias_normas_repo (
+        evidencia_id INTEGER NOT NULL,
+        norma_repo_id INTEGER NOT NULL,
+        clasificacion TEXT DEFAULT 'LEVE' CHECK (clasificacion IN ('OK','LEVE','CRITICO')),
+        observacion TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME,
+        PRIMARY KEY (evidencia_id, norma_repo_id),
+        FOREIGN KEY (evidencia_id) REFERENCES evidencias(id) ON DELETE CASCADE,
+        FOREIGN KEY (norma_repo_id) REFERENCES normas_repo(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_enr_evidencia ON evidencias_normas_repo(evidencia_id);
+      CREATE INDEX IF NOT EXISTS idx_enr_norma ON evidencias_normas_repo(norma_repo_id);
       `;
 
       db.exec(ddl, (e) => {

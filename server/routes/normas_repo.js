@@ -520,15 +520,19 @@ router.get(
     query("categoria").optional().isString().trim(),
     query("severidad").optional().isString().trim(),
     query("page").optional().isInt({ min: 1 }).toInt(),
-    query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
+    query("limit").optional().isInt({ min: 1, max: 2000 }).toInt(),
+    query("all").optional().isString().trim(),
   ],
   checkValidation,
   async (req, res) => {
     const search = req.query.search ? String(req.query.search) : "";
     const categoria = req.query.categoria ? String(req.query.categoria) : "";
     const severidad = req.query.severidad ? String(req.query.severidad) : "";
-    const page = req.query.page || 1;
-    const limit = req.query.limit || 20;
+    let page = req.query.page || 1;
+    let limit = req.query.limit || 20;
+    const all = (req.query.all || "").toString().toLowerCase();
+    const returnAll = all === "1" || all === "true" || all === "yes";
+    if (returnAll) { page = 1; limit = 2000; }
     const offset = (page - 1) * limit;
     try {
       const where = [];
@@ -554,26 +558,46 @@ router.get(
       );
       const total = countRows[0]?.total || 0;
       // Ordenar por categoría (no nulas primero) y natural por número inicial (e.g., "2." antes de "10."), luego por título
-      const [rows] = await pool.query(
-        `SELECT * FROM normas_repo ${whereSql}
-         ORDER BY
-           (categoria IS NULL OR categoria = '') ASC,
-           CASE WHEN instr(categoria, '.') > 0
-                THEN CAST(substr(categoria, 1, instr(categoria, '.') - 1) AS INTEGER)
-                ELSE CAST(categoria AS INTEGER)
-           END ASC,
-           categoria ASC,
-           titulo ASC,
-           created_at DESC
-         LIMIT ? OFFSET ?`,
-        [...params, Number(limit), Number(offset)]
-      );
+      let rows;
+      if (returnAll) {
+        const [r] = await pool.query(
+          `SELECT * FROM normas_repo ${whereSql}
+           ORDER BY
+             (categoria IS NULL OR categoria = '') ASC,
+             CASE WHEN instr(categoria, '.') > 0
+                  THEN CAST(substr(categoria, 1, instr(categoria, '.') - 1) AS INTEGER)
+                  ELSE CAST(categoria AS INTEGER)
+             END ASC,
+             categoria ASC,
+             titulo ASC,
+             created_at DESC
+           LIMIT ?`,
+          [...params, Number(limit)]
+        );
+        rows = r;
+      } else {
+        const [r] = await pool.query(
+          `SELECT * FROM normas_repo ${whereSql}
+           ORDER BY
+             (categoria IS NULL OR categoria = '') ASC,
+             CASE WHEN instr(categoria, '.') > 0
+                  THEN CAST(substr(categoria, 1, instr(categoria, '.') - 1) AS INTEGER)
+                  ELSE CAST(categoria AS INTEGER)
+             END ASC,
+             categoria ASC,
+             titulo ASC,
+             created_at DESC
+           LIMIT ? OFFSET ?`,
+          [...params, Number(limit), Number(offset)]
+        );
+        rows = r;
+      }
       res.json({
         items: rows,
         page: Number(page),
         limit: Number(limit),
         total,
-        totalPages: Math.max(1, Math.ceil(total / limit)),
+        totalPages: returnAll ? 1 : Math.max(1, Math.ceil(total / limit)),
       });
     } catch (err) {
       console.error("list normas_repo error:", err);

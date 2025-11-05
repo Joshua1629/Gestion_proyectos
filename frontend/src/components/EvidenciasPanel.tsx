@@ -6,7 +6,12 @@ import {
   getEvidencias,
   updateEvidencia,
   uploadEvidencia,
+  listNormasRepoByEvidencia,
+  attachNormaRepoToEvidencia,
+  detachNormaRepoFromEvidencia,
+  type EvidenciaNormaRepoLink,
 } from "../services/evidencias";
+import { listNormasRepo } from "../services/normasRepo";
 import { type Tarea } from "../services/tareas";
 import "../css/EvidenciasPanel.css";
 
@@ -27,6 +32,11 @@ export default function EvidenciasPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dataUrls, setDataUrls] = useState<Record<number, string>>({});
+  const [linksByEvid, setLinksByEvid] = useState<Record<number, EvidenciaNormaRepoLink[]>>({});
+  const [pickerFor, setPickerFor] = useState<number | null>(null);
+  const [pickerResults, setPickerResults] = useState<any[]>([]);
+  const [pickerPage, setPickerPage] = useState<number>(1);
+  const [pickerTotalPages, setPickerTotalPages] = useState<number>(1);
 
   const tareasById = useMemo(
     () => Object.fromEntries((tareas || []).map((t) => [t.id, t])),
@@ -45,6 +55,22 @@ export default function EvidenciasPanel({
         limit: 50,
       });
       setItems(res.items || []);
+      // cargar asociaciones de normas para cada evidencia
+      try {
+        const pairs = await Promise.all(
+          (res.items || []).map(async (ev: any) => {
+            try {
+              const r = await listNormasRepoByEvidencia(ev.id);
+              return [ev.id, r.items || []] as const;
+            } catch {
+              return [ev.id, []] as const;
+            }
+          })
+        );
+        const map: Record<number, EvidenciaNormaRepoLink[]> = {};
+        for (const p of pairs) map[p[0]] = p[1];
+        setLinksByEvid(map);
+      } catch {}
       // Prefetch imágenes como dataURL vía IPC para evitar problemas de red del renderer
       try {
         const api: any = (globalThis as any).api;
@@ -256,6 +282,33 @@ export default function EvidenciasPanel({
                   {ev.comentario && (
                     <div className="comentario">{ev.comentario}</div>
                   )}
+                  {/* Listado de normas/incumplimientos asociados */}
+                  <div className="normas-links">
+                    {(linksByEvid[ev.id] || []).length === 0 ? (
+                      <div className="muted small">Sin normas asociadas</div>
+                    ) : (
+                      <ul className="small" style={{ margin: 0, paddingLeft: 16 }}>
+                        {(linksByEvid[ev.id] || []).map((l) => (
+                          <li key={l.id}>
+                            <span style={{ fontWeight: 600 }}>{l.categoria ? `${l.categoria} · ` : ""}</span>
+                            {l.titulo}
+                            {l.fuente ? <span className="muted"> — {l.fuente}</span> : null}
+                            <button
+                              className="btn xsmall"
+                              style={{ marginLeft: 8 }}
+                              title="Quitar"
+                              onClick={async () => {
+                                await detachNormaRepoFromEvidencia(ev.id, l.id);
+                                await load();
+                              }}
+                            >
+                              Quitar
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                   <div className="acciones">
                     <select
                       value={ev.categoria}
@@ -288,7 +341,91 @@ export default function EvidenciasPanel({
                     >
                       Eliminar
                     </button>
+                    <button
+                      className="btn small"
+                      onClick={async () => {
+                        setPickerFor(ev.id);
+                        setPickerResults([]);
+                        setPickerPage(1);
+                        setPickerTotalPages(1);
+                        try {
+                          const res = await listNormasRepo({ all: true, limit: 2000 });
+                          setPickerResults(res.items || []);
+                          setPickerPage(1);
+                          setPickerTotalPages(1);
+                        } catch {}
+                      }}
+                    >
+                      Asociar norma…
+                    </button>
                   </div>
+                  {pickerFor === ev.id && (
+                    <div className="picker">
+                      <div className="picker-row">
+                        <select
+                          className="picker-select"
+                          onFocus={() => { /* listado ya precargado */ }}
+                          onChange={() => { /* sin-op */ }}
+                        >
+                          <option>Seleccione primero la norma abajo…</option>
+                        </select>
+                        <button className="btn small" onClick={() => setPickerFor(null)}>Cerrar</button>
+                      </div>
+                      <div className="picker-row">
+                        <select id={`norma-select-${ev.id}`} className="picker-select">
+                          {pickerResults.map((it: any) => (
+                            <option key={it.id} value={it.id}>
+                              {`${it.categoria ? it.categoria + ' · ' : ''}${(it.descripcion || it.titulo || '').slice(0, 80)}${it.fuente ? ' — ' + it.fuente : ''}`}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className="btn small"
+                          onClick={async () => {
+                            const el = document.getElementById(`norma-select-${ev.id}`) as HTMLSelectElement | null;
+                            const val = el?.value ? Number(el.value) : NaN;
+                            if (!val || Number.isNaN(val)) return;
+                            await attachNormaRepoToEvidencia(ev.id, { normaRepoId: val, clasificacion: ev.categoria });
+                            setPickerFor(null);
+                            await load();
+                          }}
+                        >
+                          Asociar
+                        </button>
+                      </div>
+                      {pickerTotalPages > 1 && (
+                      <div className="picker-row" style={{ justifyContent: 'space-between' }}>
+                        <button
+                          className="btn xsmall"
+                          disabled={pickerPage <= 1}
+                          onClick={async () => {
+                            const p = Math.max(1, pickerPage - 1);
+                            const res = await listNormasRepo({ page: p, limit: 20 });
+                            setPickerResults(res.items || []);
+                            setPickerPage(res.page || p);
+                            setPickerTotalPages(res.totalPages || 1);
+                          }}
+                        >
+                          ◀ Anterior
+                        </button>
+                        <div className="muted xsmall">Página {pickerPage} de {pickerTotalPages}</div>
+                        <button
+                          className="btn xsmall"
+                          disabled={pickerPage >= pickerTotalPages}
+                          onClick={async () => {
+                            const p = Math.min(pickerTotalPages, pickerPage + 1);
+                            const res = await listNormasRepo({ page: p, limit: 20 });
+                            setPickerResults(res.items || []);
+                            setPickerPage(res.page || p);
+                            setPickerTotalPages(res.totalPages || 1);
+                          }}
+                        >
+                          Siguiente ▶
+                        </button>
+                      </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))

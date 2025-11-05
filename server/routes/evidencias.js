@@ -260,3 +260,98 @@ router.delete(
 );
 
 module.exports = router;
+ 
+// ======== Asociaciones Evidencia ⇄ Normas-Repo ========
+
+// Listar normas/incumplimientos asociados a una evidencia
+router.get(
+  '/:id/normas-repo',
+  [param('id').isInt({ min: 1 }).toInt()],
+  checkValidation,
+  async (req, res) => {
+    const { id } = req.params;
+    try {
+      const [rows] = await pool.query(
+        `SELECT enr.norma_repo_id AS id,
+                nr.titulo,
+                nr.descripcion,
+                nr.categoria,
+                nr.fuente,
+                enr.clasificacion,
+                enr.observacion
+         FROM evidencias_normas_repo enr
+         INNER JOIN normas_repo nr ON nr.id = enr.norma_repo_id
+         WHERE enr.evidencia_id = ?
+         ORDER BY nr.categoria, nr.titulo`,
+        [id]
+      );
+      res.json({ items: rows });
+    } catch (err) {
+      console.error('list evidencia normas-repo error:', err);
+      res.status(500).json({ error: 'Error obteniendo asociaciones' });
+    }
+  }
+);
+
+// Asociar/actualizar una norma del repositorio a la evidencia
+router.post(
+  '/:id/normas-repo',
+  [
+    param('id').isInt({ min: 1 }).toInt(),
+    body('normaRepoId').isInt({ min: 1 }).toInt(),
+    body('clasificacion').optional().isIn(['OK','LEVE','CRITICO']),
+    body('observacion').optional().isString().isLength({ max: 1000 })
+  ],
+  checkValidation,
+  async (req, res) => {
+    const { id } = req.params;
+    const { normaRepoId, clasificacion, observacion } = req.body;
+    try {
+      // verificar existencia
+      const [[evRows],[nrRows]] = await Promise.all([
+        pool.query('SELECT id FROM evidencias WHERE id = ?', [id]),
+        pool.query('SELECT id FROM normas_repo WHERE id = ?', [normaRepoId])
+      ]);
+      if (!evRows || evRows.length === 0) return res.status(404).json({ error: 'Evidencia no encontrada' });
+      if (!nrRows || nrRows.length === 0) return res.status(404).json({ error: 'Norma de repositorio no encontrada' });
+
+      await pool.query(
+        `INSERT INTO evidencias_normas_repo (evidencia_id, norma_repo_id, clasificacion, observacion)
+         VALUES (?, ?, COALESCE(?, 'LEVE'), COALESCE(?, NULL))
+         ON CONFLICT(evidencia_id, norma_repo_id)
+         DO UPDATE SET clasificacion = COALESCE(excluded.clasificacion, evidencias_normas_repo.clasificacion),
+                       observacion = COALESCE(excluded.observacion, evidencias_normas_repo.observacion),
+                       updated_at = CURRENT_TIMESTAMP`,
+        [id, normaRepoId, clasificacion || null, observacion || null]
+      );
+
+      const [rows] = await pool.query(
+        `SELECT enr.norma_repo_id AS id, nr.titulo, nr.descripcion, nr.categoria, nr.fuente, enr.clasificacion, enr.observacion
+         FROM evidencias_normas_repo enr INNER JOIN normas_repo nr ON nr.id = enr.norma_repo_id
+         WHERE enr.evidencia_id = ? AND enr.norma_repo_id = ?`,
+        [id, normaRepoId]
+      );
+      res.status(201).json(rows[0]);
+    } catch (err) {
+      console.error('attach evidencia norma-repo error:', err);
+      res.status(500).json({ error: 'Error asociando norma a evidencia' });
+    }
+  }
+);
+
+// Eliminar asociación
+router.delete(
+  '/:id/normas-repo/:normaRepoId',
+  [param('id').isInt({ min: 1 }).toInt(), param('normaRepoId').isInt({ min: 1 }).toInt()],
+  checkValidation,
+  async (req, res) => {
+    const { id, normaRepoId } = req.params;
+    try {
+      await pool.query('DELETE FROM evidencias_normas_repo WHERE evidencia_id = ? AND norma_repo_id = ?', [id, normaRepoId]);
+      res.status(204).send();
+    } catch (err) {
+      console.error('detach evidencia norma-repo error:', err);
+      res.status(500).json({ error: 'Error eliminando asociación' });
+    }
+  }
+);
