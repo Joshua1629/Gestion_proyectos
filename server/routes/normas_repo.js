@@ -34,6 +34,22 @@ function buildPublicUrl(absPath) {
   return `/uploads/${rel}`;
 }
 
+// Intentar localizar un logo de empresa para incrustar en reportes
+function getCompanyLogoPath() {
+  const candidates = [];
+  if (process.env.COMPANY_LOGO) candidates.push(process.env.COMPANY_LOGO);
+  // Posibles ubicaciones comunes
+  candidates.push(
+    path.join(__dirname, '..', '..', 'frontend', 'public', 'logo.png'),
+    path.join(__dirname, '..', '..', 'public', 'logo.png'),
+    path.join(getUploadsBase(), 'logo.png')
+  );
+  for (const p of candidates) {
+    try { if (p && fs.existsSync(p)) return p; } catch {}
+  }
+  return null;
+}
+
 // Storage for Excel imports
 const excelStorage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -331,8 +347,19 @@ router.get(
       const whereSql = where.length ? ('WHERE ' + where.join(' AND ')) : '';
       const [countRows] = await pool.query(`SELECT COUNT(*) as total FROM normas_repo ${whereSql}`, params);
       const total = countRows[0]?.total || 0;
+      // Ordenar por categoría (no nulas primero) y natural por número inicial (e.g., "2." antes de "10."), luego por título
       const [rows] = await pool.query(
-        `SELECT * FROM normas_repo ${whereSql} ORDER BY (updated_at IS NULL) ASC, updated_at DESC, created_at DESC LIMIT ? OFFSET ?`,
+        `SELECT * FROM normas_repo ${whereSql}
+         ORDER BY
+           (categoria IS NULL OR categoria = '') ASC,
+           CASE WHEN instr(categoria, '.') > 0
+                THEN CAST(substr(categoria, 1, instr(categoria, '.') - 1) AS INTEGER)
+                ELSE CAST(categoria AS INTEGER)
+           END ASC,
+           categoria ASC,
+           titulo ASC,
+           created_at DESC
+         LIMIT ? OFFSET ?`,
         [...params, Number(limit), Number(offset)]
       );
       res.json({ items: rows, page: Number(page), limit: Number(limit), total, totalPages: Math.max(1, Math.ceil(total / limit)) });
@@ -547,7 +574,19 @@ router.get(
         if (severidad) { where.push('severidad LIKE ?'); params.push(`%${severidad}%`); }
       }
       const whereSql = where.length ? ('WHERE ' + where.join(' AND ')) : '';
-  const [rows] = await pool.query(`SELECT * FROM normas_repo ${whereSql} ORDER BY categoria, titulo` , params);
+      // Orden natural por categoría (número inicial antes del punto), luego categoría/texto, luego título
+      const [rows] = await pool.query(
+        `SELECT * FROM normas_repo ${whereSql}
+         ORDER BY
+           (categoria IS NULL OR categoria = '') ASC,
+           CASE WHEN instr(categoria, '.') > 0
+                THEN CAST(substr(categoria, 1, instr(categoria, '.') - 1) AS INTEGER)
+                ELSE CAST(categoria AS INTEGER)
+           END ASC,
+           categoria ASC,
+           titulo ASC` ,
+        params
+      );
 
       // build PDF
       res.setHeader('Content-Type', 'application/pdf');
@@ -555,18 +594,27 @@ router.get(
       const doc = new PDFDocument({ size: 'A4', margin: 40, bufferPages: true });
       doc.pipe(res);
 
-  doc.font('Helvetica-Bold').fontSize(16).text('Catálogo de Normas / Incumplimientos', { align: 'center' });
-      doc.moveDown(0.5);
+      // Encabezado con logo y título
+      const pageWidth = doc.page.width;
+      const marginL = doc.page.margins.left;
+      const usableW = pageWidth - marginL * 2;
+      const logoPath = getCompanyLogoPath();
+      if (logoPath) {
+        try { doc.image(logoPath, marginL, marginL - 6, { fit: [64, 64] }); } catch {}
+      }
+      doc.font('Helvetica-Bold').fontSize(16).fillColor('#000').text('Catálogo de Normas / Incumplimientos', marginL, marginL, { width: usableW, align: 'center' });
       const sub = `Total: ${rows.length}`;
+      doc.moveDown(0.2);
       doc.font('Helvetica').fontSize(10).fillColor('#555').text(sub, { align: 'center' });
-      doc.moveDown(1);
+      doc.moveDown(0.8);
 
       const [evCountsRows] = await pool.query('SELECT norma_repo_id as id, COUNT(*) as c FROM normas_repo_evidencias GROUP BY norma_repo_id');
       const evCounts = Object.fromEntries(evCountsRows.map(r => [r.id, r.c]));
 
-  // Render como tabla plana: Categoria | Descripción | Artículo
-  const colX = [40, 40 + 180, 40 + 180 + 300];
-  const colW = [180, 300, 100];
+      // Render como tabla plana: Categoria | Descripción | Artículo
+      // Ajustado a márgenes (ancho usable = 515 aprox en A4 con margen 40)
+      const colW = [170, 275, 70]; // suma 515
+      const colX = [marginL, marginL + colW[0], marginL + colW[0] + colW[1]];
       let y = doc.y;
       let currentCat = null;
       const drawRow = (cells, styles = {}) => {
@@ -580,8 +628,9 @@ router.get(
           return Math.max(16, h + 6);
         });
         const rowH = Math.max(...heights);
-        // Page break
-        if (y + rowH > 800) { doc.addPage(); y = 40; }
+        // Page break dinámico según margen inferior
+        const bottomLimit = doc.page.height - doc.page.margins.bottom - 10;
+        if (y + rowH > bottomLimit) { doc.addPage(); y = doc.page.margins.top; }
         // Text
         cells.forEach((text, i) => {
           doc.text(String(text || ''), colX[i] + 3, y + 3, { width: colW[i] - 6 });
@@ -606,8 +655,20 @@ router.get(
       const range = doc.bufferedPageRange();
       for (let i = range.start; i < range.start + range.count; i++) {
         doc.switchToPage(i);
-        doc.fontSize(9).fillColor('#666').text(`Página ${i+1} de ${range.count}`, 40, 800, { width: 520, align: 'right' });
+        // Colocar el footer un poco por encima del margen inferior para evitar cualquier wrap
+        const footerY = doc.page.height - doc.page.margins.bottom - 12;
+        const prevY = doc.y, prevX = doc.x;
+        doc.fontSize(9).fillColor('#666');
+        doc.text(`Página ${i+1} de ${range.count}`,
+          marginL,
+          footerY,
+          { width: usableW - 1, align: 'right', lineBreak: false, continued: false }
+        );
+        // Restaurar cursores
+        doc.x = prevX; doc.y = prevY;
       }
+      // Asegurarnos de estar en la última página activa antes de cerrar
+      doc.switchToPage(range.start + range.count - 1);
 
       doc.end();
     } catch (err) {
