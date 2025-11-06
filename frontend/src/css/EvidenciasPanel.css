@@ -379,15 +379,7 @@
 	padding: 12px 16px;
 	overflow: auto;
 }
-.normas-list {
-	display: grid;
-	grid-template-columns: 1fr;
-	gap: 6px;
-	max-height: 55vh;
-	overflow: auto;
-	padding-right: 4px;
-	margin-top: 8px;
-}
+.normas-list { /* legacy styles removed in favor of normas-table */ display: none; }
 .norma-item {
 	display: flex;
 	align-items: center;
@@ -400,25 +392,29 @@
 }
 .norma-item:hover { background: #f9fafb; border-color: #e1e7ef; }
 .norma-item.selected { border-color: #3b82f6; background: #f5faff; box-shadow: 0 2px 8px rgba(59,130,246,0.08); }
-.norma-cat {
-	font-weight: 700;
-	font-size: 12px;
-	color: #334155;
-	background: #eef2ff;
-	border: 1px solid #e2e8f0;
-	border-radius: 999px;
-	padding: 4px 8px;
-}
+.norma-cat { font-weight: 700; font-size: 12px; color: #334155; background: #eef2ff; border: 1px solid #e2e8f0; border-radius: 999px; padding: 4px 8px; }
 .norma-title { flex: 1 1 auto; font-weight: 600; color: #111827; line-height: 1.35; }
-.norma-src { color: #6b7280; }
-
-/* Ajustes visuales de severidad y select en la lista */
 .severity-dot {
 	width: 12px;
 	height: 12px;
 	border-radius: 50%;
 	display: inline-block;
 	border: 1px solid rgba(0,0,0,0.15);
+}
+
+/* Mejorar checkbox y select en la tabla */
+.normas-table input[type="checkbox"] {
+	width: 16px; height: 16px; cursor: pointer; accent-color: #2563eb;
+}
+.normas-table .link-clasificacion-select { height: 30px; padding: 4px 8px; }
+
+/* Clamps multi-línea para descripciones largas */
+.multiline-clamp-6 {
+	display: -webkit-box;
+	-webkit-line-clamp: 6;
+	line-clamp: 6; /* estándar emergente */
+	-webkit-box-orient: vertical;
+	overflow: hidden;
 }
 .link-clasificacion-select {
 	margin-left: auto;
@@ -451,3 +447,46 @@
 	gap: 8px;
 	justify-content: flex-end;
 }
+
+/* Tabla de normas en el modal */
+.normas-table-wrapper {
+	max-height: 55vh;
+	overflow-y: auto;
+	overflow-x: hidden; /* evitar scroll lateral */
+	margin-top: 8px;
+}
+.normas-table {
+	width: 100%;
+	border-collapse: collapse;
+	background: #fff;
+	table-layout: auto;
+}
+.normas-table thead th {
+	position: sticky;
+	top: 0;
+	background: #f9fafb;
+	z-index: 1;
+	text-align: left;
+	font-size: 13px;
+	font-weight: 700;
+	color: #374151;
+	border-bottom: 1px solid #e5e7eb;
+	padding: 10px 12px;
+}
+.normas-table td {
+	border-bottom: 1px solid #e5e7eb;
+	padding: 10px 12px;
+	vertical-align: top;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+}
+.normas-table tr:hover { background: #f9fafb; }
+.normas-table tr.selected { background: #f5faff; }
+.normas-table .col-select { width: 36px; text-align: center; }
+.normas-table .col-estado { max-width: 220px; }
+.normas-table .col-estado .severity-dot { margin-right: 6px; }
+.normas-table .col-estado .link-clasificacion-select { margin-left: 4px; }
+.normas-table .col-categoria { font-weight: 600; color: #0f172a; }
+.normas-table .col-descripcion { width: auto; }
+.normas-table .col-articulo { color: #374151; }
+.nowrap { white-space: nowrap; }

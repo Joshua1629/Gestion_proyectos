@@ -29,12 +29,15 @@ export default function EvidenciasPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dataUrls, setDataUrls] = useState<Record<number, string>>({});
-  const [linksByEvid, setLinksByEvid] = useState<Record<number, EvidenciaNormaRepoLink[]>>({});
+  const [linksByEvid, setLinksByEvid] = useState<
+    Record<number, EvidenciaNormaRepoLink[]>
+  >({});
   const [pickerFor, setPickerFor] = useState<number | null>(null);
   const [pickerResults, setPickerResults] = useState<any[]>([]);
-  // buscador removido: mantenemos el estado simple
-  // Selecciones del modal: mapa normaId -> estado individual
-  const [pickerSelected, setPickerSelected] = useState<Record<number, Categoria>>({});
+
+  const [pickerSelected, setPickerSelected] = useState<
+    Record<number, Categoria>
+  >({});
 
   const tareasById = useMemo(
     () => Object.fromEntries((tareas || []).map((t) => [t.id, t])),
@@ -271,7 +274,10 @@ export default function EvidenciasPanel({
                           setPickerResults([]);
                           setPickerSelected({});
                           try {
-                            const res = await listNormasRepo({ all: true, limit: 2000 });
+                            const res = await listNormasRepo({
+                              all: true,
+                              limit: 2000,
+                            });
                             setPickerResults(res.items || []);
                           } catch {}
                         }}
@@ -286,22 +292,47 @@ export default function EvidenciasPanel({
                         {(linksByEvid[ev.id] || []).map((l) => (
                           <li key={l.id} className="incumpl-row">
                             {(() => {
-                              const c = (l.clasificacion || 'LEVE').toUpperCase();
-                              const color = c === 'CRITICO' ? '#dc3545' : c === 'OK' ? '#28a745' : '#ffc107';
-                              return <span className="severity-dot" style={{ backgroundColor: color }} />
+                              const c = (
+                                l.clasificacion || "LEVE"
+                              ).toUpperCase();
+                              const color =
+                                c === "CRITICO"
+                                  ? "#dc3545"
+                                  : c === "OK"
+                                  ? "#28a745"
+                                  : "#ffc107";
+                              return (
+                                <span
+                                  className="severity-dot"
+                                  style={{ backgroundColor: color }}
+                                />
+                              );
                             })()}
                             <div className="incumpl-text">
                               <div className="line">
-                                <strong>{l.categoria ? `${l.categoria} · ` : ''}</strong>
-                                <span className="truncate">{l.titulo}{l.fuente ? <span className="muted"> {`— ${l.fuente}`}</span> : null}</span>
+                                <strong>
+                                  {l.categoria ? `${l.categoria} · ` : ""}
+                                </strong>
+                                <span className="truncate">
+                                  {l.titulo}
+                                  {l.fuente ? (
+                                    <span className="muted">
+                                      {" "}
+                                      {`— ${l.fuente}`}
+                                    </span>
+                                  ) : null}
+                                </span>
                               </div>
                             </div>
                             <div className="incumpl-actions">
                               <select
                                 className="link-clasificacion-select"
-                                value={(l.clasificacion || 'LEVE') as Categoria}
+                                value={(l.clasificacion || "LEVE") as Categoria}
                                 onChange={async (e) => {
-                                  await attachNormaRepoToEvidencia(ev.id, { normaRepoId: l.id, clasificacion: e.target.value as Categoria });
+                                  await attachNormaRepoToEvidencia(ev.id, {
+                                    normaRepoId: l.id,
+                                    clasificacion: e.target.value as Categoria,
+                                  });
                                   await load();
                                 }}
                               >
@@ -313,7 +344,10 @@ export default function EvidenciasPanel({
                                 className="btn xsmall"
                                 title="Quitar"
                                 onClick={async () => {
-                                  await detachNormaRepoFromEvidencia(ev.id, l.id);
+                                  await detachNormaRepoFromEvidencia(
+                                    ev.id,
+                                    l.id
+                                  );
                                   await load();
                                 }}
                               >
@@ -353,61 +387,141 @@ export default function EvidenciasPanel({
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">Añadir incumplimiento</div>
-              <button className="close" onClick={() => setPickerFor(null)} aria-label="Cerrar">×</button>
+              <button
+                className="close"
+                onClick={() => setPickerFor(null)}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
             </div>
             <div className="modal-body">
-              <div className="muted xsmall">Selecciona una o más normas y define su estado individual.</div>
-              <div className="normas-list" role="listbox" aria-multiselectable="true">
-                {pickerResults.map((it: any) => {
-                  const selected = Object.prototype.hasOwnProperty.call(pickerSelected, it.id);
-                  const estado: Categoria = (selected ? pickerSelected[it.id] : 'LEVE') as Categoria;
-                  const color = (estado === 'CRITICO') ? '#dc3545' : (estado === 'OK') ? '#28a745' : '#ffc107';
-                  return (
-                    <div key={it.id} className={`norma-item${selected ? ' selected' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={(e) => {
-                          setPickerSelected(prev => {
-                            const next = { ...prev } as Record<number, Categoria>;
-                            if (e.target.checked) next[it.id] = next[it.id] || 'LEVE'; else delete next[it.id];
-                            return next;
-                          });
-                        }}
-                      />
-                      <span className="severity-dot" style={{ backgroundColor: color }} />
-                      {it.categoria ? <span className="norma-cat">{it.categoria}</span> : null}
-                      <span className="norma-title">{(it.descripcion || it.titulo || '').slice(0, 180)}</span>
-                      {it.fuente ? <span className="norma-src"> — {it.fuente}</span> : null}
-                      <select
-                        className="link-clasificacion-select"
-                        value={estado}
-                        disabled={!selected}
-                        onChange={(e) => {
-                          const val = e.target.value as Categoria;
-                          setPickerSelected(prev => ({ ...prev, [it.id]: val }));
-                        }}
-                      >
-                        <option value="OK">OK</option>
-                        <option value="LEVE">Leve</option>
-                        <option value="CRITICO">Crítico</option>
-                      </select>
-                    </div>
-                  );
-                })}
+              <div className="muted xsmall">
+                Selecciona una o más normas y define su estado individual.
+              </div>
+              <div
+                className="normas-table-wrapper"
+                role="region"
+                aria-label="Listado de normas"
+              >
+                <table
+                  className="normas-table"
+                  role="grid"
+                  aria-readonly="true"
+                >
+                  <thead>
+                    <tr>
+                      <th className="col-select" aria-label="Seleccionar"></th>
+                      <th className="col-estado">Estado</th>
+                      <th className="col-categoria">Categoría</th>
+                      <th className="col-descripcion">Descripción</th>
+                      <th className="col-articulo">Artículo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pickerResults.map((it: any) => {
+                      const selected = Object.prototype.hasOwnProperty.call(
+                        pickerSelected,
+                        it.id
+                      );
+                      const estado: Categoria = (
+                        selected ? pickerSelected[it.id] : "LEVE"
+                      ) as Categoria;
+                      const color =
+                        estado === "CRITICO"
+                          ? "#dc3545"
+                          : estado === "OK"
+                          ? "#28a745"
+                          : "#ffc107";
+                      return (
+                        <tr key={it.id} className={selected ? "selected" : ""}>
+                          <td className="col-select">
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={(e) => {
+                                setPickerSelected((prev) => {
+                                  const next = { ...prev } as Record<
+                                    number,
+                                    Categoria
+                                  >;
+                                  if (e.target.checked)
+                                    next[it.id] = next[it.id] || "LEVE";
+                                  else delete next[it.id];
+                                  return next;
+                                });
+                              }}
+                              aria-label={`Seleccionar norma ${it.id}`}
+                            />
+                          </td>
+                          <td className="col-estado">
+                            <span
+                              className="severity-dot"
+                              style={{ backgroundColor: color }}
+                            />
+                            <select
+                              className="link-clasificacion-select"
+                              value={estado}
+                              disabled={!selected}
+                              onChange={(e) => {
+                                const val = e.target.value as Categoria;
+                                setPickerSelected((prev) => ({
+                                  ...prev,
+                                  [it.id]: val,
+                                }));
+                              }}
+                              aria-label="Clasificación"
+                            >
+                              <option value="OK">OK</option>
+                              <option value="LEVE">Leve</option>
+                              <option value="CRITICO">Crítico</option>
+                            </select>
+                          </td>
+                          <td
+                            className="col-categoria"
+                            title={it.categoria || ""}
+                          >
+                            {it.categoria || "—"}
+                          </td>
+                          <td
+                            className="col-descripcion"
+                            title={it.descripcion || it.titulo || ""}
+                          >
+                            <span className="multiline-clamp-6">
+                              {it.descripcion || it.titulo || ""}
+                            </span>
+                          </td>
+                          <td
+                            className="col-articulo"
+                            title={it.codigo || it.fuente || ""}
+                          >
+                            {it.codigo || it.fuente || "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn" onClick={() => setPickerFor(null)}>Cancelar</button>
+              <button className="btn" onClick={() => setPickerFor(null)}>
+                Cancelar
+              </button>
               <button
                 className="btn btn-primary"
                 disabled={Object.keys(pickerSelected).length === 0}
                 onClick={async () => {
-                  const entries = Object.entries(pickerSelected) as Array<[string, Categoria]>;
+                  const entries = Object.entries(pickerSelected) as Array<
+                    [string, Categoria]
+                  >;
                   for (const [idStr, clasif] of entries) {
                     const nid = Number(idStr);
                     if (!nid || Number.isNaN(nid)) continue;
-                    await attachNormaRepoToEvidencia(pickerFor as number, { normaRepoId: nid, clasificacion: clasif });
+                    await attachNormaRepoToEvidencia(pickerFor as number, {
+                      normaRepoId: nid,
+                      clasificacion: clasif,
+                    });
                   }
                   setPickerFor(null);
                   await load();
