@@ -21,6 +21,20 @@ async function ensureExtraTables() {
       if (err) return reject(err);
       db.run('PRAGMA foreign_keys = ON');
 
+      // Asegurar columna cedula_juridica en proyectos
+      db.all("PRAGMA table_info(proyectos)", [], (e, rows) => {
+        if (!e) {
+          const hasCed = rows && rows.some(r => r && r.name === 'cedula_juridica');
+          if (!hasCed) {
+            db.run("ALTER TABLE proyectos ADD COLUMN cedula_juridica TEXT", [], () => {});
+          }
+          const hasFV = rows && rows.some(r => r && r.name === 'fecha_verificacion');
+          if (!hasFV) {
+            db.run("ALTER TABLE proyectos ADD COLUMN fecha_verificacion DATE", [], () => {});
+          }
+        }
+      });
+
       const ddl = `
       CREATE TABLE IF NOT EXISTS normas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

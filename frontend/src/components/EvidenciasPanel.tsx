@@ -34,6 +34,7 @@ export default function EvidenciasPanel({
   >({});
   const [pickerFor, setPickerFor] = useState<number | null>(null);
   const [pickerResults, setPickerResults] = useState<any[]>([]);
+  const [institucional, setInstitucional] = useState(false);
 
   const [pickerSelected, setPickerSelected] = useState<
     Record<number, Categoria>
@@ -118,15 +119,17 @@ export default function EvidenciasPanel({
     }
     try {
       setLoading(true);
+      const commentFinal = (institucional ? "[INSTITUCION] " : "") + (comentario.trim() || "");
       await uploadEvidencia({
         file,
         proyectoId,
         tareaId: tareaId === "" ? undefined : Number(tareaId),
-        comentario: comentario.trim() || undefined,
+        comentario: commentFinal || undefined,
       });
       setFile(null);
       setComentario("");
       setTareaId("");
+      setInstitucional(false);
       await load();
     } catch (e: any) {
       const msg =
@@ -165,6 +168,14 @@ export default function EvidenciasPanel({
               </option>
             ))}
           </select>
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={institucional}
+              onChange={(e) => setInstitucional(e.target.checked)}
+            />
+            <span className="muted small">Evidencia institucional (portada)</span>
+          </label>
         </div>
         <div className="row">
           <input
@@ -175,6 +186,9 @@ export default function EvidenciasPanel({
           <button className="btn btn-primary" type="submit" disabled={loading}>
             Subir
           </button>
+        </div>
+        <div className="muted xsmall" style={{ marginTop: 4 }}>
+          Para agrupar varias fotos en una misma evidencia del reporte, usa la misma tarea y el mismo comentario.
         </div>
       </form>
 

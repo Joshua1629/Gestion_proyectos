@@ -6,6 +6,8 @@ export interface Proyecto {
   id: number;
   nombre: string;
   cliente: string;
+  cedula_juridica: string;
+  fecha_verificacion?: string;
   fecha_inicio?: string;
   fecha_fin?: string;
   progreso_general?: number;

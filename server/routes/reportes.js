@@ -141,7 +141,7 @@ function drawLegend(doc, y) {
   });
 }
 
-function drawCover(doc, proyecto, coverImagePath) {
+function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
   // Header con logo alineado a la derecha
   const logo = getLogoPath();
   if (logo) {
@@ -149,83 +149,110 @@ function drawCover(doc, proyecto, coverImagePath) {
       doc.image(logo, 460, 55, { width: 80 });
     } catch {}
   }
+  // Quitar sello superior: usaremos la imagen institucional como foto principal de portada
   doc.moveDown(1.2);
-  // Fecha de realización del informe
-  const fecha = formatFechaInforme(new Date());
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(10)
-    .fillColor("#000")
-    .text("Fecha Realización de Informe:", 50, 90);
-  doc
-    .font("Helvetica")
-    .fontSize(11)
-    .fillColor("#000")
-    .text(fecha, 250, 90, { width: 295, align: "left" });
-  // Caja de datos del proyecto
-  const boxY = 120;
-  doc
-    .roundedRect(50, boxY, 495, 90, 6)
-    .strokeColor("#CCC")
-    .lineWidth(1)
-    .stroke();
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(9)
-    .text("NOMBRE DEL PROYECTO:", 60, boxY + 10);
-  doc
-    .font("Helvetica")
-    .text(String(proyecto.nombre || ""), 200, boxY + 10, { width: 330 });
-  doc.font("Helvetica-Bold").text("CLIENTE:", 60, boxY + 30);
-  doc
-    .font("Helvetica")
-    .text(String(proyecto.cliente || ""), 200, boxY + 30, { width: 330 });
-  doc.font("Helvetica-Bold").text("RANGO DE FECHAS:", 60, boxY + 50);
-  const rango = [proyecto.fecha_inicio || "", proyecto.fecha_fin || ""]
-    .filter(Boolean)
-    .join("  —  ");
-  doc
-    .font("Helvetica")
-    .text(rango || "No definido", 200, boxY + 50, { width: 330 });
+  // Encabezados de establecimiento centrados
+  const centerX = 50;
+  const centerW = 495;
+  const headStartY = 95;
+  let cy = headStartY;
+  function heading(label, value) {
+    doc.font("Helvetica-Bold").fontSize(10).fillColor("#444").text(label, centerX, cy, { width: centerW, align: "center" });
+    cy += 14;
+    doc.font("Helvetica").fontSize(13).fillColor("#000").text(String(value || ""), centerX, cy, { width: centerW, align: "center" });
+    cy += 20; // spacing after value
+  }
+  heading("NOMBRE DE ESTABLECIMIENTO", proyecto.nombre);
+  heading("RAZON SOCIAL", proyecto.cliente);
+  heading("CEDULA JURIDICA", proyecto.cedula_juridica);
+  // línea divisoria sutil
+  doc.moveTo(centerX + 40, cy).lineTo(centerX + centerW - 40, cy).strokeColor('#d3d3d3').lineWidth(1).stroke();
+  cy += 15;
 
-  // Foto de portada (si existe una evidencia)
-  const imgY = boxY + 110;
-  if (coverImagePath && fs.existsSync(coverImagePath)) {
+  // Foto de portada (usar institucional si existe, si no la primera normal)
+  const imgY = 205;
+  const imgX = 250; // mover un poco más a la derecha para liberar espacio a la izquierda
+  const imgW = 300;
+  const imgH = 230;
+  const mainCover = (institucionImagePath && fs.existsSync(institucionImagePath))
+    ? institucionImagePath
+    : ((coverImagePath && fs.existsSync(coverImagePath)) ? coverImagePath : null);
+  if (mainCover) {
     try {
-      doc.rect(50, imgY, 495, 250).strokeColor("#DDD").stroke();
-      doc.image(coverImagePath, 50, imgY, {
-        fit: [495, 250],
+      // sombra ligera simulada
+      doc.rect(imgX + 2, imgY + 2, imgW, imgH).fillColor('#f0f0f0').fill();
+      doc.roundedRect(imgX, imgY, imgW, imgH, 6).strokeColor("#c9c9c9").lineWidth(1).stroke();
+      doc.image(mainCover, imgX + 4, imgY + 4, {
+        fit: [imgW - 8, imgH - 8],
         align: "center",
         valign: "center",
       });
     } catch {}
   }
 
-  // Nota y leyenda
-  const noteY = imgY + 260;
+  // Columna izquierda con VERIFICADOR y fechas
+  const leftBoxX = 50;
+  const leftBoxY = 205;
+  const leftBoxW = 170;
+  const leftBoxH = 195; // space for verifier + dates
+  // fondo
+  doc.roundedRect(leftBoxX, leftBoxY, leftBoxW, leftBoxH, 6).fillColor('#fafafa').fill();
+  doc.roundedRect(leftBoxX, leftBoxY, leftBoxW, leftBoxH, 6).strokeColor('#d8d8d8').lineWidth(1).stroke();
+  let ly = leftBoxY + 12;
+  doc.font("Helvetica-Bold").fontSize(9).fillColor('#333').text("VERIFICADOR", leftBoxX + 12, ly);
+  ly += 14;
+  doc.font("Helvetica").fontSize(9).fillColor('#000')
+    .text("Ing. Luis Javier Jiménez Fernández", leftBoxX + 12, ly, { width: leftBoxW - 24 });
+  ly += 26;
+  doc.font("Helvetica").fontSize(9).text("70188-0617", leftBoxX + 12, ly); ly += 14;
+  doc.font("Helvetica").fontSize(9).text("IMI-24991", leftBoxX + 12, ly); ly += 14;
+  doc.font("Helvetica").fontSize(9).text("CAPDEE #92", leftBoxX + 12, ly); ly += 18;
+  // línea divisoria
+  doc.moveTo(leftBoxX + 12, ly).lineTo(leftBoxX + leftBoxW - 12, ly).strokeColor('#e0e0e0').lineWidth(1).stroke();
+  ly += 10;
+
+  const fechaVerif = formatFechaInforme(proyecto.fecha_verificacion ? new Date(proyecto.fecha_verificacion) : (proyecto.fecha_inicio ? new Date(proyecto.fecha_inicio) : new Date()));
+  const fechaInforme = formatFechaInforme(new Date());
+  doc.font("Helvetica-Bold").fontSize(8).fillColor('#333').text("Fecha de Verificación:", leftBoxX + 12, ly);
+  doc.font("Helvetica").fontSize(8).fillColor('#000').text(fechaVerif, leftBoxX + 12, ly + 12, { width: leftBoxW - 24 });
+  ly += 30;
+  doc.font("Helvetica-Bold").fontSize(8).fillColor('#333').text("Fecha Realización de Informe:", leftBoxX + 12, ly);
+  doc.font("Helvetica").fontSize(8).fillColor('#000').text(fechaInforme, leftBoxX + 12, ly + 12, { width: leftBoxW - 24 });
+
+  // NOTA y Simbología al pie, alineadas como en el ejemplo
+  const bottomY = doc.page.height - doc.page.margins.bottom - 120; // elevar un poco para más balance
+  // separador superior
+  doc.moveTo(50, bottomY - 15).lineTo(545, bottomY - 15).strokeColor('#d0d0d0').lineWidth(1).stroke();
+  const noteX = 330;
+  const noteY = bottomY;
+  // Caja de nota
   doc
-    .font("Helvetica-Bold")
-    .fontSize(9)
-    .fillColor("#000")
-    .text("NOTA:", 50, noteY);
+    .roundedRect(noteX - 10, noteY - 10, 225, 80, 6)
+    .strokeColor('#e5e7eb')
+    .lineWidth(1)
+    .stroke();
   doc
-    .font("Helvetica")
-    .fontSize(9)
-    .fillColor("#333")
+    .font("Helvetica-Bold").fontSize(10).fillColor("#000")
+    .text("NOTA:", noteX, noteY);
+  doc
+    .font("Helvetica").fontSize(9).fillColor("#333")
     .text(
-      "Las imágenes incluidas en este reporte corresponden a hallazgos documentados durante la inspección y están categorizadas por nivel de criticidad.",
-      90,
+      "Las fotografías son representativas del incumplimiento, un mismo incumplimiento aplica para toda la instalación eléctrica.",
+      noteX + 44,
       noteY,
-      { width: 455 }
+      { width: 175 }
     );
-  drawLegend(doc, noteY + 22);
+
+  // Simbología al mismo nivel pero a la izquierda
+  drawLegend(doc, bottomY);
 }
 
-function drawFinding(doc, idx, evidencia, tareaNombre, yStart, linkedNormas) {
+function drawFinding(doc, idx, evidencia, tareaNombre, yStart, linkedNormas, images) {
   const marginX = 50;
-  const blockH = 180;
-  const imgW = 180; // imagen a la derecha
-  const imgH = 120;
+  // Altura extendida para poder colocar varias fotos
+  const blockH = 260;
+  const imgW = 200; // zona de imágenes a la derecha
+  const imgH = 200;
   const gap = 10;
   // La severidad se muestra por incumplimiento, no a nivel de evidencia
 
@@ -302,20 +329,40 @@ function drawFinding(doc, idx, evidencia, tareaNombre, yStart, linkedNormas) {
     }
   }
 
-  // Columna derecha: imagen
+  // Columna derecha: una o más imágenes
   const imgX = marginX + leftW + 2 * gap;
   const imgY = yStart + 32;
-  if (evidencia.image_path && fs.existsSync(evidencia.image_path)) {
+  const imgs = Array.isArray(images) && images.length
+    ? images.filter((p) => p && fs.existsSync(p))
+    : (evidencia.image_path && fs.existsSync(evidencia.image_path) ? [evidencia.image_path] : []);
+  if (imgs.length) {
     try {
+      // Marco general
       doc
         .rect(imgX - 2, imgY - 2, imgW + 4, imgH + 4)
         .strokeColor("#DDD")
         .stroke();
-      doc.image(evidencia.image_path, imgX, imgY, {
-        fit: [imgW, imgH],
-        align: "center",
-        valign: "center",
-      });
+      // Distribución: hasta 3 imágenes en rejilla 2x2
+      // - 1 imagen: ocupa todo
+      // - 2-3 imágenes: dos arriba, una abajo centrada
+      if (imgs.length === 1) {
+        doc.image(imgs[0], imgX, imgY, { fit: [imgW, imgH], align: "center", valign: "center" });
+      } else {
+        const pad = 6;
+        const cellW = (imgW - pad) / 2;
+        const cellH = (imgH - pad) / 2;
+        // fila 1
+        doc.image(imgs[0], imgX + 0, imgY + 0, { fit: [cellW, cellH], align: "center", valign: "center" });
+        if (imgs[1]) doc.image(imgs[1], imgX + cellW + pad, imgY + 0, { fit: [cellW, cellH], align: "center", valign: "center" });
+        // fila 2
+        if (imgs[2]) {
+          // centrada abajo
+          const cx = imgX + (imgW - cellW) / 2;
+          doc.image(imgs[2], cx, imgY + cellH + pad, { fit: [cellW, cellH], align: "center", valign: "center" });
+        } else if (imgs.length === 2) {
+          // reusar la 1ra en grande si quieres dejar vacío; mejor nada
+        }
+      }
     } catch {}
   }
 }
@@ -371,10 +418,18 @@ router.get(
         params
       );
 
-      const coverImage =
-        evidRows[0]?.image_path && fs.existsSync(evidRows[0].image_path)
-          ? evidRows[0].image_path
-          : null;
+      // Detectar evidencia institucional (comentario con marcador)
+      const isInstitucional = (ev) => /\[(INSTITUCION|PORTADA)\]/i.test(String(ev.comentario || ""));
+      const institucional = evidRows.find(isInstitucional) || null;
+      const institucionalImage = institucional && institucional.image_path && fs.existsSync(institucional.image_path)
+        ? institucional.image_path
+        : null;
+
+      // Elegir imagen de portada (primera evidencia no institucional)
+      const firstNormal = evidRows.find((e) => !isInstitucional(e));
+      const coverImage = firstNormal && firstNormal.image_path && fs.existsSync(firstNormal.image_path)
+        ? firstNormal.image_path
+        : null;
 
       // Asociaciones Evidencia ⇄ Normas (catálogo)
       let byEvid = {};
@@ -402,7 +457,7 @@ router.get(
         [id]
       );
 
-      // Crear PDF
+  // Crear PDF
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
@@ -417,76 +472,68 @@ router.get(
 
       // PORTADA
       drawHeader(doc, proyecto.nombre, proyecto.cliente);
-      drawCover(doc, proyecto, coverImage);
+      drawCover(doc, proyecto, coverImage, institucionalImage);
       doc.addPage();
 
-      // PÁGINA 2: Resumen + Normas
-      drawHeader(doc, proyecto.nombre, proyecto.cliente);
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(14)
-        .text("Resumen del Proyecto", 50, 90);
-      doc.moveDown(0.5);
-      doc
-        .font("Helvetica")
-        .fontSize(11)
-        .list(
-          [
-            `Tareas totales: ${totalTareas}`,
-            `Tareas completadas: ${completadas}`,
-            `Tareas en progreso: ${enProgreso}`,
-          ],
-          60
-        );
-      doc.moveDown(1);
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(14)
-        .text("Fases", { underline: true });
-      if (fasesRows.length === 0) {
-        doc.font("Helvetica").fontSize(11).text("Sin fases configuradas");
-      } else {
-        fasesRows.forEach((f) =>
-          doc.font("Helvetica").fontSize(11).text(`• ${f.nombre}: ${f.estado}`)
-        );
+      // PÁGINAS DE HALLAZGOS (EVIDENCIAS)
+      // Agrupar evidencias por (tareaId + comentario) para permitir múltiples fotos por evidencia
+      function normComment(s) {
+        return String(s || "").replace(/^\s*\[(INSTITUCION|PORTADA)\]\s*/i, "").trim();
       }
-      doc.moveDown(1);
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(14)
-        .text("Normas asociadas", { underline: true });
-      if (!normasRows || normasRows.length === 0) {
-        doc.font("Helvetica").fontSize(11).text("No hay normas asociadas");
-      } else {
-        normasRows.forEach((n) =>
-          doc
-            .font("Helvetica")
-            .fontSize(11)
-            .text(`• ${n.titulo}${n.etiquetas ? " (" + n.etiquetas + ")" : ""}`)
-        );
+      const groups = [];
+      const gmap = new Map();
+      for (const ev of evidRows) {
+        if (isInstitucional(ev)) continue; // no mostrar la institucional en el listado
+        const key = `${ev.tarea_id || 0}|${normComment(ev.comentario)}`;
+        if (!gmap.has(key)) {
+          gmap.set(key, {
+            tareaId: ev.tarea_id || null,
+            comentario: normComment(ev.comentario),
+            images: [],
+            evidIds: [],
+          });
+          groups.push(gmap.get(key));
+        }
+        const g = gmap.get(key);
+        g.evidIds.push(ev.id);
+        if (ev.image_path && fs.existsSync(ev.image_path)) g.images.push(ev.image_path);
       }
 
-      // PÁGINAS DE HALLAZGOS (EVIDENCIAS)
+      // Vincular normas combinadas por grupo
+      const linkedByEvid = byEvid; // ya cargado
+      const groupsWithLinks = groups.map((g) => {
+        const links = [];
+        const seen = new Set();
+        for (const id of g.evidIds) {
+          for (const l of linkedByEvid[id] || []) {
+            const k = `${l.norma_repo_id}|${l.clasificacion}`;
+            if (seen.has(k)) continue;
+            seen.add(k);
+            links.push(l);
+          }
+        }
+        return { ...g, links };
+      });
+
       let y = Math.max(doc.y + 10, 120);
-      const perPage = 2;
-      for (let i = 0; i < evidRows.length; i++) {
-        const ev = evidRows[i];
+      for (let i = 0; i < groupsWithLinks.length; i++) {
+        const g = groupsWithLinks[i];
         // Si no hay espacio, nueva página
         if (y > 700) {
           doc.addPage();
           drawHeader(doc, proyecto.nombre, proyecto.cliente);
           y = 120;
         }
-        const linked = byEvid[ev.id] || [];
         drawFinding(
           doc,
           i,
-          ev,
-          ev.tarea_id ? tareasMap[ev.tarea_id]?.nombre : null,
+          { comentario: g.comentario, tarea_id: g.tareaId },
+          g.tareaId ? tareasMap[g.tareaId]?.nombre : null,
           y,
-          linked
+          g.links,
+          g.images.slice(0, 3)
         );
-        y += 230; // espacio entre bloques
+        y += 310; // espacio entre bloques acorde a altura
       }
 
       // Numeración de páginas (footer)

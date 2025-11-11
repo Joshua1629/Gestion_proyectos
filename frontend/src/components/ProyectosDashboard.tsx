@@ -27,6 +27,7 @@ export default function ProyectosDashboard({
     nombre: "",
     cliente: "",
     cedula_juridica: "",
+    fecha_verificacion: "",
     fecha_inicio: "",
     fecha_fin: "",
     descripcion: "",
@@ -76,12 +77,11 @@ export default function ProyectosDashboard({
       errors.cliente = "El nombre del cliente es requerido";
     }
 
-    if (
-      formData.cedula_juridica &&
-      !/^\d{9,12}$/.test(formData.cedula_juridica.replace(/[-\s]/g, ""))
-    ) {
-      errors.cedula_juridica =
-        "La cédula jurídica debe tener entre 9 y 12 dígitos";
+    // Cédula jurídica obligatoria
+    if (!formData.cedula_juridica.trim()) {
+      errors.cedula_juridica = "La cédula jurídica es obligatoria";
+    } else if (!/^\d{9,12}$/.test(formData.cedula_juridica.replace(/[-\s]/g, ""))) {
+      errors.cedula_juridica = "La cédula jurídica debe tener entre 9 y 12 dígitos";
     }
 
     if (formData.fecha_inicio && formData.fecha_fin) {
@@ -90,6 +90,14 @@ export default function ProyectosDashboard({
       if (fechaFin <= fechaInicio) {
         errors.fecha_fin =
           "La fecha de fin debe ser posterior a la fecha de inicio";
+      }
+    }
+
+    if (formData.fecha_verificacion && formData.fecha_inicio) {
+      const fv = new Date(formData.fecha_verificacion);
+      const fi = new Date(formData.fecha_inicio);
+      if (fv < fi) {
+        errors.fecha_verificacion = "La fecha de verificación no puede ser anterior a la fecha de inicio del proyecto";
       }
     }
 
@@ -112,7 +120,8 @@ export default function ProyectosDashboard({
       const projectData = {
         nombre: formData.nombre.trim(),
         cliente: formData.cliente.trim(),
-        cedula_juridica: formData.cedula_juridica.trim() || undefined,
+  cedula_juridica: formData.cedula_juridica.trim(),
+        fecha_verificacion: formData.fecha_verificacion || undefined,
         fecha_inicio: formData.fecha_inicio || undefined,
         fecha_fin: formData.fecha_fin || undefined,
         descripcion: formData.descripcion.trim() || undefined,
@@ -149,6 +158,7 @@ export default function ProyectosDashboard({
       nombre: "",
       cliente: "",
       cedula_juridica: "",
+      fecha_verificacion: "",
       fecha_inicio: "",
       fecha_fin: "",
       descripcion: "",
@@ -606,7 +616,7 @@ export default function ProyectosDashboard({
 
                   {/* Campo de cédula jurídica */}
                   <div className="form-group">
-                    <label htmlFor="cedula-juridica" className="form-label">
+                    <label htmlFor="cedula-juridica" className="form-label required">
                       Cédula Jurídica
                     </label>
                     <input
@@ -620,6 +630,7 @@ export default function ProyectosDashboard({
                       onChange={(e) =>
                         updateFormData("cedula_juridica", e.target.value)
                       }
+                      required
                       disabled={isSubmitting}
                     />
                     {formErrors.cedula_juridica && (
@@ -627,9 +638,7 @@ export default function ProyectosDashboard({
                         {formErrors.cedula_juridica}
                       </span>
                     )}
-                    <span className="form-hint">
-                      Cédula jurídica de la empresa (opcional)
-                    </span>
+                    <span className="form-hint">Identificación fiscal de la empresa</span>
                   </div>
                 </div>
 
@@ -683,6 +692,24 @@ export default function ProyectosDashboard({
                       <span className="form-hint">
                         Fecha estimada de entrega
                       </span>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="fecha-verificacion" className="form-label">
+                        Fecha de Verificación
+                      </label>
+                      <input
+                        id="fecha-verificacion"
+                        type="date"
+                        className={`form-input ${formErrors.fecha_verificacion ? 'error' : ''}`}
+                        value={formData.fecha_verificacion}
+                        onChange={(e) => updateFormData('fecha_verificacion', e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                      {formErrors.fecha_verificacion && (
+                        <span className="field-error-message">{formErrors.fecha_verificacion}</span>
+                      )}
+                      <span className="form-hint">Fecha en que se realizó la verificación en sitio</span>
                     </div>
                   </div>
                 </div>

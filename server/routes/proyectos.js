@@ -140,17 +140,19 @@ router.post(
   [
     body('nombre').isString().trim().isLength({ min: 1, max: 100 }),
     body('cliente').isString().trim().isLength({ min: 1, max: 100 }),
+    body('cedula_juridica').isString().trim().isLength({ min: 9, max: 20 }),
+    body('fecha_verificacion').optional().isISO8601().toDate(),
     body('fecha_inicio').optional().isISO8601().toDate(),
     body('fecha_fin').optional().isISO8601().toDate()
   ],
   checkValidation,
   async (req, res) => {
-    const { nombre, cliente, fecha_inicio, fecha_fin } = req.body;
+    const { nombre, cliente, cedula_juridica, fecha_verificacion, fecha_inicio, fecha_fin } = req.body;
     try {
       // Crear proyecto
       const [result] = await pool.query(
-        'INSERT INTO proyectos (nombre, cliente, fecha_inicio, fecha_fin) VALUES (?, ?, ?, ?)',
-        [nombre, cliente, fecha_inicio || null, fecha_fin || null]
+        'INSERT INTO proyectos (nombre, cliente, cedula_juridica, fecha_verificacion, fecha_inicio, fecha_fin) VALUES (?, ?, ?, ?, ?, ?)',
+        [nombre, cliente, cedula_juridica, fecha_verificacion || null, fecha_inicio || null, fecha_fin || null]
       );
       
       const proyectoId = result.insertId;
@@ -182,17 +184,19 @@ router.put(
     param('id').isInt({ min: 1 }).toInt(),
     body('nombre').optional().isString().trim().isLength({ min: 1, max: 100 }),
     body('cliente').optional().isString().trim().isLength({ min: 1, max: 100 }),
+    body('cedula_juridica').optional().isString().trim().isLength({ min: 9, max: 20 }),
+    body('fecha_verificacion').optional().isISO8601().toDate(),
     body('fecha_inicio').optional().isISO8601().toDate(),
     body('fecha_fin').optional().isISO8601().toDate()
   ],
   checkValidation,
   async (req, res) => {
     const { id } = req.params;
-    const { nombre, cliente, fecha_inicio, fecha_fin } = req.body;
+    const { nombre, cliente, cedula_juridica, fecha_verificacion, fecha_inicio, fecha_fin } = req.body;
     try {
       const [result] = await pool.query(
-        'UPDATE proyectos SET nombre = COALESCE(?, nombre), cliente = COALESCE(?, cliente), fecha_inicio = COALESCE(?, fecha_inicio), fecha_fin = COALESCE(?, fecha_fin) WHERE id = ?',
-        [nombre, cliente, fecha_inicio || null, fecha_fin || null, id]
+        'UPDATE proyectos SET nombre = COALESCE(?, nombre), cliente = COALESCE(?, cliente), cedula_juridica = COALESCE(?, cedula_juridica), fecha_verificacion = COALESCE(?, fecha_verificacion), fecha_inicio = COALESCE(?, fecha_inicio), fecha_fin = COALESCE(?, fecha_fin) WHERE id = ?',
+        [nombre, cliente, cedula_juridica || null, fecha_verificacion || null, fecha_inicio || null, fecha_fin || null, id]
       );
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
       const [rows] = await pool.query('SELECT * FROM proyectos WHERE id = ?', [id]);
