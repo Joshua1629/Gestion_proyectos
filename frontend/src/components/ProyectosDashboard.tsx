@@ -4,6 +4,7 @@ import {
   getProyectos,
   createProyecto,
   deleteProyecto,
+  updateProyecto,
   calcularProgresoProyecto,
 } from "../services/proyectos";
 import "../css/ProyectosDashboard.css";
@@ -41,6 +42,12 @@ export default function ProyectosDashboard({
 
   // Validación del formulario
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+
+  // Estado para editar solo la fecha de verificación
+  const [editingProject, setEditingProject] = useState<Proyecto | null>(null);
+  const [editFecha, setEditFecha] = useState<string>("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   // Cargar proyectos
   const loadProyectos = async () => {
@@ -448,6 +455,16 @@ export default function ProyectosDashboard({
                     className="btn btn-primary"
                   >
                     Ver Detalles
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingProject(proyecto);
+                      setEditFecha(proyecto.fecha_verificacion || "");
+                      setEditError(null);
+                    }}
+                    className="btn btn-outline btn-secondary"
+                  >
+                    Editar Fecha Verificación
                   </button>
                   <button
                     onClick={() => handleDelete(proyecto.id)}
@@ -861,6 +878,93 @@ export default function ProyectosDashboard({
                     <span className="btn-icon">💾</span>
                     Guardar Proyecto
                   </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para editar solo la fecha de verificación */}
+      {editingProject && (
+        <div className="modal-backdrop" onClick={() => { if (!isSavingEdit) setEditingProject(null); }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-section">
+                <h3>Editar Fecha de Verificación</h3>
+                <p className="modal-subtitle">Proyecto: {editingProject.nombre}</p>
+              </div>
+              <button
+                className="modal-close"
+                onClick={() => { if (!isSavingEdit) setEditingProject(null); }}
+                aria-label="Cerrar modal"
+                disabled={isSavingEdit}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="form-section">
+                <label htmlFor="edit-fecha-verificacion" className="form-label">Fecha de Verificación</label>
+                <input
+                  id="edit-fecha-verificacion"
+                  type="date"
+                  className={`form-input`}
+                  value={editFecha}
+                  onChange={(e) => setEditFecha(e.target.value)}
+                  disabled={isSavingEdit}
+                />
+                <span className="form-hint">Solo puedes modificar este dato.</span>
+                {editError && <span className="field-error-message">{editError}</span>}
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setEditingProject(null)}
+                disabled={isSavingEdit}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className={`btn btn-primary ${isSavingEdit ? "loading" : ""}`}
+                onClick={async () => {
+                  if (!editingProject) return;
+                  // Validación mínima: si existe fecha_inicio no permitir fecha anterior
+                  if (editingProject.fecha_inicio && editFecha) {
+                    const fi = new Date(editingProject.fecha_inicio);
+                    const fv = new Date(editFecha);
+                    if (fv < fi) {
+                      setEditError("La fecha de verificación no puede ser anterior a la fecha de inicio del proyecto");
+                      return;
+                    }
+                  }
+
+                  setIsSavingEdit(true);
+                  setEditError(null);
+                  try {
+                    await updateProyecto(editingProject.id, { fecha_verificacion: editFecha || undefined });
+                    await loadProyectos();
+                    setEditingProject(null);
+                  } catch (err: any) {
+                    setEditError(err?.message || "Error al guardar la fecha");
+                  } finally {
+                    setIsSavingEdit(false);
+                  }
+                }}
+                disabled={isSavingEdit}
+              >
+                {isSavingEdit ? (
+                  <>
+                    <div className="btn-spinner"></div>
+                    Guardando...
+                  </>
+                ) : (
+                  <>Guardar</>
                 )}
               </button>
             </div>
