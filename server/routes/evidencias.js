@@ -2,6 +2,8 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const crypto = require('crypto');
+const PDFDocument = require('pdfkit');
 const { body, param, query, validationResult } = require('express-validator');
 const pool = require('../models/db');
 
@@ -57,6 +59,28 @@ function buildPublicUrl(imagePathAbs) {
   return `/uploads/${rel}`;
 }
 
+// Hash de archivo para detectar duplicados (SHA256)
+function computeFileHash(absPath) {
+  try {
+    const buf = fs.readFileSync(absPath);
+    return crypto.createHash('sha256').update(buf).digest('hex');
+  } catch {
+    return null;
+  }
+}
+
+// Detectar tipo de evidencia (heurística por nombre o comentario)
+function detectEvidenceType(originalName, providedTipo, comentario) {
+  if (providedTipo && typeof providedTipo === 'string') return providedTipo.toUpperCase();
+  const name = String(originalName || '').toLowerCase();
+  const comm = String(comentario || '').toLowerCase();
+  const hay = (re) => re.test(name) || re.test(comm);
+  if (hay(/\b(institu|portada)\b/) || /^\s*\[inst/i.test(comm)) return 'INSTITUCIONAL';
+  if (hay(/\b(tecni|detalle|close(up)?|macro)\b/)) return 'TECNICA';
+  if (hay(/\b(incumpl|falla|no conform|defecto|riesgo)\b/)) return 'INCUMPLIMIENTO';
+  return 'GENERAL';
+}
+
 // Normaliza comentario para claves de grupo
 function normalizeComment(c) {
   return String(c || '')
@@ -92,7 +116,8 @@ router.post(
   [
     body('proyectoId').isInt({ min: 1 }).toInt(),
     body('tareaId').optional().isInt({ min: 1 }).toInt(),
-    // La categoría de la evidencia ya no es obligatoria; el estado se maneja por incumplimiento asociado
+    body('tipo').optional().isString().isLength({ max: 50 }),
+    // La categoría (clasificación de severidad) puede venir opcional
     body('categoria').optional().isString().isIn(['OK', 'LEVE', 'CRITICO']),
     body('comentario').optional().isString().trim().isLength({ max: 1000 })
   ],
@@ -120,7 +145,7 @@ router.post(
         if (!tar || tar.length === 0) return res.status(400).json({ error: 'La tarea no pertenece al proyecto' });
       }
 
-      const imagePath = file.path; // absoluto
+  const imagePath = file.path; // absoluto
       const mime = file.mimetype;
       const size = file.size;
       const createdBy = null; // Si implementas auth con req.user.id, reemplaza aquí
@@ -128,10 +153,19 @@ router.post(
       // Log para depuración
       console.log('EVIDENCIA INSERT payload =>', { proyectoId: pId, tareaId: tId, categoria, comentario, imagePath, mime, size, createdBy });
 
+      const evidenceType = detectEvidenceType(file.originalname, req.body.tipo, comentario);
       const groupKey = buildGroupKey(tId, comentario);
+      const fileHash = computeFileHash(imagePath);
+      // Evitar duplicados dentro del mismo grupo (mismo hash)
+      if (fileHash) {
+        const [dupRows] = await pool.query('SELECT id FROM evidencias WHERE group_key = ? AND file_hash = ?', [groupKey, fileHash]);
+        if (dupRows && dupRows.length) {
+          return res.status(409).json({ error: 'Duplicado detectado', duplicateId: dupRows[0].id });
+        }
+      }
       const [result] = await pool.query(
-        'INSERT INTO evidencias (proyecto_id, tarea_id, categoria, comentario, image_path, mime_type, size_bytes, created_by, group_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [pId, tId || null, categoria || 'OK', comentario || null, imagePath, mime, size, createdBy, groupKey]
+        'INSERT INTO evidencias (proyecto_id, tarea_id, categoria, evidence_type, comentario, image_path, file_hash, mime_type, size_bytes, created_by, group_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ,[pId, tId || null, categoria || 'OK', evidenceType, comentario || null, imagePath, fileHash, mime, size, createdBy, groupKey]
       );
 
       const id = result.insertId;
@@ -141,6 +175,7 @@ router.post(
         id,
         proyectoId: pId,
         tareaId: tId,
+        tipo: evidenceType,
         categoria,
         comentario: comentario || null,
         imageUrl: absUrl,
@@ -153,8 +188,8 @@ router.post(
       console.error('upload evidencia error:', err && err.stack ? err.stack : err);
       res.status(500).json({ error: 'Error al subir evidencia', detail: err && err.message ? err.message : String(err), code: err && err.code ? err.code : undefined });
     }
-  }
-);
+    }
+  );
 
 // POST /api/evidencias/upload-multiple  -> múltiples fotos a un mismo grupo
 router.post(
@@ -172,6 +207,7 @@ router.post(
   [
     body('proyectoId').isInt({ min: 1 }).toInt(),
     body('tareaId').optional().isInt({ min: 1 }).toInt(),
+    body('tipo').optional().isString().isLength({ max: 50 }),
     body('comentario').optional().isString().trim().isLength({ max: 1000 })
   ],
   checkValidation,
@@ -179,7 +215,7 @@ router.post(
     try {
       const files = req.files || [];
       if (!Array.isArray(files) || files.length === 0) return res.status(400).json({ error: 'Se requiere al menos una imagen' });
-      const { proyectoId, tareaId, comentario } = req.body;
+  const { proyectoId, tareaId, comentario } = req.body;
       const pId = Number(proyectoId);
       const tId = (tareaId === undefined || tareaId === null || tareaId === '' ? null : Number(tareaId));
       const categoria = 'OK';
@@ -195,14 +231,23 @@ router.post(
       const createdBy = null;
       const out = [];
       for (const f of files) {
+        const evidenceType = detectEvidenceType(f.originalname, req.body.tipo, comentario);
+        const fileHash = computeFileHash(f.path);
+        if (fileHash) {
+          const [dupRows] = await pool.query('SELECT id FROM evidencias WHERE group_key = ? AND file_hash = ?', [groupKey, fileHash]);
+          if (dupRows && dupRows.length) {
+            out.push({ duplicate: true, duplicateId: dupRows[0].id, imageOriginalName: f.originalname });
+            continue;
+          }
+        }
         const [r] = await pool.query(
-          'INSERT INTO evidencias (proyecto_id, tarea_id, categoria, comentario, image_path, mime_type, size_bytes, created_by, group_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [pId, tId || null, categoria, comentario || null, f.path, f.mimetype, f.size, createdBy, groupKey]
+          'INSERT INTO evidencias (proyecto_id, tarea_id, categoria, evidence_type, comentario, image_path, file_hash, mime_type, size_bytes, created_by, group_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          ,[pId, tId || null, categoria, evidenceType, comentario || null, f.path, fileHash, f.mimetype, f.size, createdBy, groupKey]
         );
         const id = r.insertId;
         const relUrl = buildPublicUrl(f.path);
         const absUrl = `${req.protocol}://${req.get('host')}${relUrl.startsWith('/') ? relUrl : ('/' + relUrl)}`;
-        out.push({ id, proyectoId: pId, tareaId: tId, categoria, comentario: comentario || null, imageUrl: absUrl, mimeType: f.mimetype, sizeBytes: f.size, createdBy, groupKey });
+        out.push({ id, proyectoId: pId, tareaId: tId, categoria, tipo: evidenceType, comentario: comentario || null, imageUrl: absUrl, mimeType: f.mimetype, sizeBytes: f.size, createdBy, groupKey });
       }
       res.status(201).json({ items: out, groupKey });
     } catch (err) {
@@ -218,14 +263,15 @@ router.get(
   [
     query('proyectoId').isInt({ min: 1 }).toInt(),
     query('tareaId').optional().isInt({ min: 1 }).toInt(),
-    query('categoria').optional().isIn(['OK', 'LEVE', 'CRITICO']),
+  query('categoria').optional().isIn(['OK', 'LEVE', 'CRITICO']),
+  query('tipo').optional().isString().isLength({ max: 50 }),
     query('group').optional().isIn(['true','false']),
     query('page').optional().isInt({ min: 1 }).toInt(),
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt()
   ],
   checkValidation,
   async (req, res) => {
-    const { proyectoId, tareaId, categoria } = req.query;
+  const { proyectoId, tareaId, categoria, tipo } = req.query;
     const wantGroups = String(req.query.group || 'false') === 'true';
     const page = req.query.page || 1;
     const limit = req.query.limit || 20;
@@ -235,7 +281,8 @@ router.get(
       const where = ['proyecto_id = ?'];
       const params = [proyectoId];
       if (tareaId) { where.push('tarea_id = ?'); params.push(tareaId); }
-      if (categoria) { where.push('categoria = ?'); params.push(categoria); }
+  if (categoria) { where.push('categoria = ?'); params.push(categoria); }
+  if (tipo) { where.push('evidence_type = ?'); params.push(String(tipo)); }
       const whereSql = where.length ? ('WHERE ' + where.join(' AND ')) : '';
       if (!wantGroups) {
         const [countRows] = await pool.query(`SELECT COUNT(*) as total FROM evidencias ${whereSql}`, params);
@@ -252,6 +299,7 @@ router.get(
             proyectoId: r.proyecto_id,
             tareaId: r.tarea_id,
             categoria: r.categoria,
+            tipo: r.evidence_type,
             comentario: r.comentario,
             imageUrl: absUrl,
             mimeType: r.mime_type,
@@ -267,7 +315,7 @@ router.get(
 
       // Modo agrupado
       const [rows] = await pool.query(
-        `SELECT id, proyecto_id, tarea_id, comentario, image_path, mime_type, size_bytes, created_at, group_key
+        `SELECT id, proyecto_id, tarea_id, comentario, image_path, mime_type, size_bytes, created_at, group_key, evidence_type
          FROM evidencias ${whereSql} ORDER BY created_at DESC`,
         params
       );
@@ -276,7 +324,7 @@ router.get(
         // Omitir evidencias institucionales en el modo agrupado
         if (/^\s*\[(INSTITUCION|PORTADA)\]/i.test(String(r.comentario || ''))) continue;
         const key = r.group_key || buildGroupKey(r.tarea_id, r.comentario);
-        if (!map.has(key)) map.set(key, { groupKey: key, proyectoId: r.proyecto_id, tareaId: r.tarea_id, comentario: normalizeComment(r.comentario), evidenciaIds: [], images: [] });
+        if (!map.has(key)) map.set(key, { groupKey: key, proyectoId: r.proyecto_id, tareaId: r.tarea_id, comentario: normalizeComment(r.comentario), evidenciaIds: [], images: [], tipo: r.evidence_type });
         const g = map.get(key);
         g.evidenciaIds.push(r.id);
         if (g.images.length < 3) {
@@ -316,6 +364,67 @@ router.get(
   }
 );
 
+// Nuevo endpoint agrupado por tipo de evidencia -> devuelve { tipo, groups: [...] }
+router.get('/by-tipo', [
+  query('proyectoId').isInt({ min: 1 }).toInt(),
+  query('tareaId').optional().isInt({ min: 1 }).toInt()
+], checkValidation, async (req, res) => {
+  const { proyectoId, tareaId } = req.query;
+  try {
+    const where = ['proyecto_id = ?'];
+    const params = [proyectoId];
+    if (tareaId) { where.push('tarea_id = ?'); params.push(tareaId); }
+    const whereSql = 'WHERE ' + where.join(' AND ');
+    const [rows] = await pool.query(`SELECT id, proyecto_id, tarea_id, comentario, image_path, mime_type, size_bytes, created_at, group_key, evidence_type FROM evidencias ${whereSql} ORDER BY created_at DESC`, params);
+    const byTipo = new Map();
+    for (const r of rows) {
+      const tipo = r.evidence_type || 'GENERAL';
+      const key = r.group_key || buildGroupKey(r.tarea_id, r.comentario);
+      if (!byTipo.has(tipo)) byTipo.set(tipo, new Map());
+      const tipoMap = byTipo.get(tipo);
+      if (!tipoMap.has(key)) tipoMap.set(key, { groupKey: key, proyectoId: r.proyecto_id, tareaId: r.tarea_id, comentario: normalizeComment(r.comentario), evidenciaIds: [], images: [], tipo });
+      const g = tipoMap.get(key);
+      g.evidenciaIds.push(r.id);
+      if (g.images.length < 4) { // para vista por tipo mostramos hasta 4
+        const relUrl = buildPublicUrl(r.image_path);
+        const absUrl = `${req.protocol}://${req.get('host')}${relUrl.startsWith('/') ? relUrl : ('/' + relUrl)}`;
+        g.images.push(absUrl);
+      }
+    }
+    const items = Array.from(byTipo.entries()).map(([tipo, m]) => ({ tipo, groups: Array.from(m.values()).map(g => ({ ...g, count: g.evidenciaIds.length })) }));
+    res.json({ items });
+  } catch (err) {
+    console.error('list evidencias by-tipo error:', err);
+    res.status(500).json({ error: 'Error agrupando por tipo' });
+  }
+});
+
+// Obtener todas las evidencias de un grupo
+router.get('/groups/:groupKey', [param('groupKey').isString().isLength({ min: 1 })], checkValidation, async (req, res) => {
+  const { groupKey } = req.params;
+  try {
+    const [rows] = await pool.query('SELECT * FROM evidencias WHERE group_key = ? ORDER BY created_at ASC', [groupKey]);
+    const items = rows.map(r => ({
+      id: r.id,
+      proyectoId: r.proyecto_id,
+      tareaId: r.tarea_id,
+      categoria: r.categoria,
+      tipo: r.evidence_type,
+      comentario: r.comentario,
+      imageUrl: buildPublicUrl(r.image_path),
+      mimeType: r.mime_type,
+      sizeBytes: r.size_bytes,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+      groupKey: r.group_key
+    }));
+    res.json({ items });
+  } catch (err) {
+    console.error('list evidencias by group error:', err);
+    res.status(500).json({ error: 'Error listando evidencias del grupo' });
+  }
+});
+
 // PATCH /api/evidencias/:id
 router.patch(
   '/:id',
@@ -341,6 +450,7 @@ router.patch(
         proyectoId: r.proyecto_id,
         tareaId: r.tarea_id,
         categoria: r.categoria,
+        tipo: r.evidence_type,
         comentario: r.comentario,
         imageUrl: buildPublicUrl(r.image_path),
         mimeType: r.mime_type,
@@ -381,6 +491,42 @@ router.delete(
     }
   }
 );
+
+// Exportar evidencias de un tipo a PDF
+router.get('/export/pdf', [
+  query('proyectoId').isInt({ min: 1 }).toInt(),
+  query('tipo').isString().isLength({ min: 1, max: 50 })
+], checkValidation, async (req, res) => {
+  const { proyectoId, tipo } = req.query;
+  try {
+    const [rows] = await pool.query('SELECT id, comentario, image_path, evidence_type, tarea_id FROM evidencias WHERE proyecto_id = ? AND evidence_type = ? ORDER BY created_at ASC', [proyectoId, tipo]);
+    if (!rows.length) return res.status(404).json({ error: 'Sin evidencias para ese tipo' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="evidencias_${tipo}_${proyectoId}.pdf"`);
+    const doc = new PDFDocument({ margin: 40 });
+    doc.pipe(res);
+    doc.fontSize(18).text(`Reporte de evidencias: ${tipo}`, { underline: true });
+    doc.moveDown();
+    for (const r of rows) {
+      doc.fontSize(12).text(`ID ${r.id} · Tarea: ${r.tarea_id || '—'}`);
+      if (r.comentario) doc.fontSize(10).text(r.comentario, { width: 500 });
+      try {
+        if (r.image_path && fs.existsSync(r.image_path)) {
+          const ext = path.extname(r.image_path).toLowerCase();
+            // Ajuste de ancho
+          const imgOpts = { fit: [500, 300], align: 'center' };
+          doc.image(r.image_path, imgOpts);
+        }
+      } catch {}
+      doc.moveDown();
+      if (doc.y > doc.page.height - 120) doc.addPage();
+    }
+    doc.end();
+  } catch (err) {
+    console.error('export pdf evidencias error:', err);
+    res.status(500).json({ error: 'Error exportando PDF' });
+  }
+});
 
 module.exports = router;
  

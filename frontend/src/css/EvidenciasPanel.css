@@ -435,6 +435,8 @@
 }
 .btn.btn-primary:hover { background: #1d4ed8; }
 .btn { border-radius: 8px; }
+.btn.danger { background:#dc3545; color:#fff; border:1px solid #c82333; }
+.btn.danger:hover { background:#c82333; }
 
 @media (max-width: 560px) {
 	.norma-item { align-items: flex-start; }

@@ -109,8 +109,10 @@ CREATE TABLE IF NOT EXISTS evidencias (
     proyecto_id INTEGER NOT NULL,
     tarea_id INTEGER,
     categoria TEXT NOT NULL CHECK (categoria IN ('OK','LEVE','CRITICO')),
+    evidence_type TEXT DEFAULT 'GENERAL', -- tipo de evidencia (INCUMPLIMIENTO, INSTITUCIONAL, TECNICA, GENERAL, etc.)
     comentario TEXT,
     image_path TEXT NOT NULL,
+    file_hash TEXT, -- hash SHA256 del archivo para evitar duplicados dentro de un mismo grupo
     mime_type TEXT,
     size_bytes INTEGER,
     created_by INTEGER,
@@ -125,6 +127,8 @@ CREATE INDEX IF NOT EXISTS idx_evidencias_proyecto ON evidencias(proyecto_id);
 CREATE INDEX IF NOT EXISTS idx_evidencias_tarea ON evidencias(tarea_id);
 CREATE INDEX IF NOT EXISTS idx_evidencias_categoria ON evidencias(categoria);
 CREATE INDEX IF NOT EXISTS idx_evidencias_created_at ON evidencias(created_at);
+CREATE INDEX IF NOT EXISTS idx_evidencias_file_hash ON evidencias(file_hash);
+CREATE INDEX IF NOT EXISTS idx_evidencias_evidence_type ON evidencias(evidence_type);
 
 -- Tabla de normas técnicas (PDF o texto)
 CREATE TABLE IF NOT EXISTS normas (

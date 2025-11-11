@@ -9,6 +9,7 @@ export interface Evidencia {
   proyectoId: number;
   tareaId?: number | null;
   categoria: Categoria;
+  tipo?: string; // tipo de evidencia (INCUMPLIMIENTO, INSTITUCIONAL, TECNICA, GENERAL)
   comentario?: string | null;
   imageUrl: string;
   mimeType?: string;
@@ -29,13 +30,14 @@ export interface EvidenciaNormaRepoLink {
   observacion?: string | null;
 }
 
-export async function uploadEvidencia(params: { file: File; proyectoId: number; tareaId?: number; categoria?: Categoria; comentario?: string }) {
+export async function uploadEvidencia(params: { file: File; proyectoId: number; tareaId?: number; categoria?: Categoria; comentario?: string; tipo?: string }) {
   const fd = new FormData();
   fd.append('file', params.file);
   fd.append('proyectoId', String(params.proyectoId));
   if (params.tareaId) fd.append('tareaId', String(params.tareaId));
   if (params.categoria) fd.append('categoria', params.categoria);
   if (params.comentario) fd.append('comentario', params.comentario);
+  if (params.tipo) fd.append('tipo', params.tipo);
 
   // No seteamos Content-Type para que el navegador ponga el boundary multipart
   return appFetch(`${API}/upload`, {
@@ -45,11 +47,12 @@ export async function uploadEvidencia(params: { file: File; proyectoId: number; 
   });
 }
 
-export async function getEvidencias(filters: { proyectoId: number; tareaId?: number; categoria?: Categoria; page?: number; limit?: number }) {
+export async function getEvidencias(filters: { proyectoId: number; tareaId?: number; categoria?: Categoria; tipo?: string; page?: number; limit?: number }) {
   const q = new URLSearchParams();
   q.set('proyectoId', String(filters.proyectoId));
   if (filters.tareaId) q.set('tareaId', String(filters.tareaId));
   if (filters.categoria) q.set('categoria', filters.categoria);
+  if (filters.tipo) q.set('tipo', String(filters.tipo));
   if (filters.page) q.set('page', String(filters.page));
   if (filters.limit) q.set('limit', String(filters.limit));
   return appFetch(`${API}?${q.toString()}`);
@@ -67,23 +70,42 @@ export interface EvidenciaGroup {
   count: number; // cantidad de fotos en el grupo
 }
 
-export async function getEvidenciaGroups(filters: { proyectoId: number; tareaId?: number; categoria?: Categoria }) {
+export async function getEvidenciaGroups(filters: { proyectoId: number; tareaId?: number; categoria?: Categoria; tipo?: string }) {
   const q = new URLSearchParams();
   q.set('proyectoId', String(filters.proyectoId));
   if (filters.tareaId) q.set('tareaId', String(filters.tareaId));
   if (filters.categoria) q.set('categoria', filters.categoria);
+  if (filters.tipo) q.set('tipo', String(filters.tipo));
   q.set('group', 'true');
   return appFetch(`${API}?${q.toString()}`);
 }
 
 // Subir múltiples imágenes para un mismo grupo
-export async function uploadEvidenciasMultiple(params: { files: File[]; proyectoId: number; tareaId?: number; comentario?: string }) {
+export async function uploadEvidenciasMultiple(params: { files: File[]; proyectoId: number; tareaId?: number; comentario?: string; tipo?: string }) {
   const fd = new FormData();
   for (const f of params.files) fd.append('files', f);
   fd.append('proyectoId', String(params.proyectoId));
   if (params.tareaId) fd.append('tareaId', String(params.tareaId));
   if (params.comentario) fd.append('comentario', params.comentario);
+  if (params.tipo) fd.append('tipo', params.tipo);
   return appFetch(`${API}/upload-multiple`, { method: 'POST', body: fd, asJson: true });
+}
+
+// Agrupado por tipo (devuelve items: [{ tipo, groups: [...] }])
+export async function getEvidenciasByTipo(filters: { proyectoId: number; tareaId?: number }) {
+  const q = new URLSearchParams();
+  q.set('proyectoId', String(filters.proyectoId));
+  if (filters.tareaId) q.set('tareaId', String(filters.tareaId));
+  return appFetch(`${API}/by-tipo?${q.toString()}`);
+}
+
+// Exportar PDF por tipo
+export async function exportEvidenciasPdf(proyectoId: number, tipo: string) {
+  const q = new URLSearchParams();
+  q.set('proyectoId', String(proyectoId));
+  q.set('tipo', tipo);
+  // responderá un PDF, no JSON
+  return appFetch(`${API}/export/pdf?${q.toString()}`, { asJson: false });
 }
 
 // Normas por grupo
@@ -126,4 +148,9 @@ export async function attachNormaRepoToEvidencia(evidenciaId: number, payload: {
 
 export async function detachNormaRepoFromEvidencia(evidenciaId: number, normaRepoId: number) {
   return appFetch(`${API}/${evidenciaId}/normas-repo/${normaRepoId}`, { method: 'DELETE', asJson: false });
+}
+
+// Listar evidencias por groupKey
+export async function listEvidenciasByGroup(groupKey: string) {
+  return appFetch(`${API}/groups/${encodeURIComponent(groupKey)}`);
 }
