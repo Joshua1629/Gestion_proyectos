@@ -16,6 +16,7 @@ export interface Evidencia {
   createdBy?: number | null;
   createdAt?: string;
   updatedAt?: string;
+  groupKey?: string;
 }
 
 export interface EvidenciaNormaRepoLink {
@@ -52,6 +53,54 @@ export async function getEvidencias(filters: { proyectoId: number; tareaId?: num
   if (filters.page) q.set('page', String(filters.page));
   if (filters.limit) q.set('limit', String(filters.limit));
   return appFetch(`${API}?${q.toString()}`);
+}
+
+// Obtener evidencias agrupadas (grupos)
+export interface EvidenciaGroup {
+  groupKey: string;
+  proyectoId: number;
+  tareaId?: number | null;
+  comentario?: string | null;
+  evidenciaIds: number[];
+  images: string[]; // hasta 3 urls
+  normasCount: number; // cantidad de normas únicas asociadas al grupo
+  count: number; // cantidad de fotos en el grupo
+}
+
+export async function getEvidenciaGroups(filters: { proyectoId: number; tareaId?: number; categoria?: Categoria }) {
+  const q = new URLSearchParams();
+  q.set('proyectoId', String(filters.proyectoId));
+  if (filters.tareaId) q.set('tareaId', String(filters.tareaId));
+  if (filters.categoria) q.set('categoria', filters.categoria);
+  q.set('group', 'true');
+  return appFetch(`${API}?${q.toString()}`);
+}
+
+// Subir múltiples imágenes para un mismo grupo
+export async function uploadEvidenciasMultiple(params: { files: File[]; proyectoId: number; tareaId?: number; comentario?: string }) {
+  const fd = new FormData();
+  for (const f of params.files) fd.append('files', f);
+  fd.append('proyectoId', String(params.proyectoId));
+  if (params.tareaId) fd.append('tareaId', String(params.tareaId));
+  if (params.comentario) fd.append('comentario', params.comentario);
+  return appFetch(`${API}/upload-multiple`, { method: 'POST', body: fd, asJson: true });
+}
+
+// Normas por grupo
+export async function listNormasRepoByGroup(groupKey: string): Promise<{ items: EvidenciaNormaRepoLink[] }> {
+  return appFetch(`${API}/groups/${encodeURIComponent(groupKey)}/normas-repo`);
+}
+
+export async function attachNormaRepoToGroup(groupKey: string, payload: { normaRepoId: number; clasificacion?: Categoria; observacion?: string }) {
+  return appFetch(`${API}/groups/${encodeURIComponent(groupKey)}/normas-repo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+}
+
+export async function detachNormaRepoFromGroup(groupKey: string, normaRepoId: number) {
+  return appFetch(`${API}/groups/${encodeURIComponent(groupKey)}/normas-repo/${normaRepoId}`, { method: 'DELETE', asJson: false });
+}
+
+export async function deleteEvidenciaGroup(groupKey: string) {
+  return appFetch(`${API}/groups/${encodeURIComponent(groupKey)}`, { method: 'DELETE', asJson: false });
 }
 
 export async function updateEvidencia(id: number, payload: Partial<Pick<Evidencia, 'categoria' | 'comentario'>>) {

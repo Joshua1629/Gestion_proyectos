@@ -111,7 +111,9 @@ function formatFechaInforme(d = new Date()) {
     "Noviembre",
     "Diciembre",
   ];
-  return `${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]} del ${d.getFullYear()}.`;
+  return `${dias[d.getDay()]} ${d.getDate()} de ${
+    meses[d.getMonth()]
+  } del ${d.getFullYear()}.`;
 }
 
 function drawLegend(doc, y) {
@@ -122,8 +124,14 @@ function drawLegend(doc, y) {
     .text("Simbología:", 50, y);
   const items = [
     { label: "Cumplimiento → OK.", color: "#388E3C" },
-    { label: "Incumplimiento Leve → Solucionar a Mediano Plazo.", color: "#FFA000" },
-    { label: "Incumplimiento Crítico → Solucionar a Corto Plazo.", color: "#D32F2F" },
+    {
+      label: "Incumplimiento Leve → Solucionar a Mediano Plazo.",
+      color: "#FFA000",
+    },
+    {
+      label: "Incumplimiento Crítico → Solucionar a Corto Plazo.",
+      color: "#D32F2F",
+    },
   ];
   let yLine = y + 16;
   items.forEach((it) => {
@@ -157,16 +165,32 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
   const headStartY = 95;
   let cy = headStartY;
   function heading(label, value) {
-    doc.font("Helvetica-Bold").fontSize(10).fillColor("#444").text(label, centerX, cy, { width: centerW, align: "center" });
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .fillColor("#444")
+      .text(label, centerX, cy, { width: centerW, align: "center" });
     cy += 14;
-    doc.font("Helvetica").fontSize(13).fillColor("#000").text(String(value || ""), centerX, cy, { width: centerW, align: "center" });
+    doc
+      .font("Helvetica")
+      .fontSize(13)
+      .fillColor("#000")
+      .text(String(value || ""), centerX, cy, {
+        width: centerW,
+        align: "center",
+      });
     cy += 20; // spacing after value
   }
   heading("NOMBRE DE ESTABLECIMIENTO", proyecto.nombre);
   heading("RAZON SOCIAL", proyecto.cliente);
   heading("CEDULA JURIDICA", proyecto.cedula_juridica);
   // línea divisoria sutil
-  doc.moveTo(centerX + 40, cy).lineTo(centerX + centerW - 40, cy).strokeColor('#d3d3d3').lineWidth(1).stroke();
+  doc
+    .moveTo(centerX + 40, cy)
+    .lineTo(centerX + centerW - 40, cy)
+    .strokeColor("#d3d3d3")
+    .lineWidth(1)
+    .stroke();
   cy += 15;
 
   // Foto de portada (usar institucional si existe, si no la primera normal)
@@ -174,14 +198,24 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
   const imgX = 250; // mover un poco más a la derecha para liberar espacio a la izquierda
   const imgW = 300;
   const imgH = 230;
-  const mainCover = (institucionImagePath && fs.existsSync(institucionImagePath))
-    ? institucionImagePath
-    : ((coverImagePath && fs.existsSync(coverImagePath)) ? coverImagePath : null);
+  const mainCover =
+    institucionImagePath && fs.existsSync(institucionImagePath)
+      ? institucionImagePath
+      : coverImagePath && fs.existsSync(coverImagePath)
+      ? coverImagePath
+      : null;
   if (mainCover) {
     try {
       // sombra ligera simulada
-      doc.rect(imgX + 2, imgY + 2, imgW, imgH).fillColor('#f0f0f0').fill();
-      doc.roundedRect(imgX, imgY, imgW, imgH, 6).strokeColor("#c9c9c9").lineWidth(1).stroke();
+      doc
+        .rect(imgX + 2, imgY + 2, imgW, imgH)
+        .fillColor("#f0f0f0")
+        .fill();
+      doc
+        .roundedRect(imgX, imgY, imgW, imgH, 6)
+        .strokeColor("#c9c9c9")
+        .lineWidth(1)
+        .stroke();
       doc.image(mainCover, imgX + 4, imgY + 4, {
         fit: [imgW - 8, imgH - 8],
         align: "center",
@@ -196,46 +230,110 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
   const leftBoxW = 170;
   const leftBoxH = 195; // space for verifier + dates
   // fondo
-  doc.roundedRect(leftBoxX, leftBoxY, leftBoxW, leftBoxH, 6).fillColor('#fafafa').fill();
-  doc.roundedRect(leftBoxX, leftBoxY, leftBoxW, leftBoxH, 6).strokeColor('#d8d8d8').lineWidth(1).stroke();
+  doc
+    .roundedRect(leftBoxX, leftBoxY, leftBoxW, leftBoxH, 6)
+    .fillColor("#fafafa")
+    .fill();
+  doc
+    .roundedRect(leftBoxX, leftBoxY, leftBoxW, leftBoxH, 6)
+    .strokeColor("#d8d8d8")
+    .lineWidth(1)
+    .stroke();
   let ly = leftBoxY + 12;
-  doc.font("Helvetica-Bold").fontSize(9).fillColor('#333').text("VERIFICADOR", leftBoxX + 12, ly);
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(9)
+    .fillColor("#333")
+    .text("VERIFICADOR", leftBoxX + 12, ly);
   ly += 14;
-  doc.font("Helvetica").fontSize(9).fillColor('#000')
-    .text("Ing. Luis Javier Jiménez Fernández", leftBoxX + 12, ly, { width: leftBoxW - 24 });
+  doc
+    .font("Helvetica")
+    .fontSize(9)
+    .fillColor("#000")
+    .text("Ing. Luis Javier Jiménez Fernández", leftBoxX + 12, ly, {
+      width: leftBoxW - 24,
+    });
   ly += 26;
-  doc.font("Helvetica").fontSize(9).text("70188-0617", leftBoxX + 12, ly); ly += 14;
-  doc.font("Helvetica").fontSize(9).text("IMI-24991", leftBoxX + 12, ly); ly += 14;
-  doc.font("Helvetica").fontSize(9).text("CAPDEE #92", leftBoxX + 12, ly); ly += 18;
+  doc
+    .font("Helvetica")
+    .fontSize(9)
+    .text("70188-0617", leftBoxX + 12, ly);
+  ly += 14;
+  doc
+    .font("Helvetica")
+    .fontSize(9)
+    .text("IMI-24991", leftBoxX + 12, ly);
+  ly += 14;
+  doc
+    .font("Helvetica")
+    .fontSize(9)
+    .text("CAPDEE #92", leftBoxX + 12, ly);
+  ly += 18;
   // línea divisoria
-  doc.moveTo(leftBoxX + 12, ly).lineTo(leftBoxX + leftBoxW - 12, ly).strokeColor('#e0e0e0').lineWidth(1).stroke();
+  doc
+    .moveTo(leftBoxX + 12, ly)
+    .lineTo(leftBoxX + leftBoxW - 12, ly)
+    .strokeColor("#e0e0e0")
+    .lineWidth(1)
+    .stroke();
   ly += 10;
 
-  const fechaVerif = formatFechaInforme(proyecto.fecha_verificacion ? new Date(proyecto.fecha_verificacion) : (proyecto.fecha_inicio ? new Date(proyecto.fecha_inicio) : new Date()));
+  const fechaVerif = formatFechaInforme(
+    proyecto.fecha_verificacion
+      ? new Date(proyecto.fecha_verificacion)
+      : proyecto.fecha_inicio
+      ? new Date(proyecto.fecha_inicio)
+      : new Date()
+  );
   const fechaInforme = formatFechaInforme(new Date());
-  doc.font("Helvetica-Bold").fontSize(8).fillColor('#333').text("Fecha de Verificación:", leftBoxX + 12, ly);
-  doc.font("Helvetica").fontSize(8).fillColor('#000').text(fechaVerif, leftBoxX + 12, ly + 12, { width: leftBoxW - 24 });
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(8)
+    .fillColor("#333")
+    .text("Fecha de Verificación:", leftBoxX + 12, ly);
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor("#000")
+    .text(fechaVerif, leftBoxX + 12, ly + 12, { width: leftBoxW - 24 });
   ly += 30;
-  doc.font("Helvetica-Bold").fontSize(8).fillColor('#333').text("Fecha Realización de Informe:", leftBoxX + 12, ly);
-  doc.font("Helvetica").fontSize(8).fillColor('#000').text(fechaInforme, leftBoxX + 12, ly + 12, { width: leftBoxW - 24 });
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(8)
+    .fillColor("#333")
+    .text("Fecha Realización de Informe:", leftBoxX + 12, ly);
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor("#000")
+    .text(fechaInforme, leftBoxX + 12, ly + 12, { width: leftBoxW - 24 });
 
   // NOTA y Simbología al pie, alineadas como en el ejemplo
   const bottomY = doc.page.height - doc.page.margins.bottom - 120; // elevar un poco para más balance
   // separador superior
-  doc.moveTo(50, bottomY - 15).lineTo(545, bottomY - 15).strokeColor('#d0d0d0').lineWidth(1).stroke();
+  doc
+    .moveTo(50, bottomY - 15)
+    .lineTo(545, bottomY - 15)
+    .strokeColor("#d0d0d0")
+    .lineWidth(1)
+    .stroke();
   const noteX = 330;
   const noteY = bottomY;
   // Caja de nota
   doc
     .roundedRect(noteX - 10, noteY - 10, 225, 80, 6)
-    .strokeColor('#e5e7eb')
+    .strokeColor("#e5e7eb")
     .lineWidth(1)
     .stroke();
   doc
-    .font("Helvetica-Bold").fontSize(10).fillColor("#000")
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .fillColor("#000")
     .text("NOTA:", noteX, noteY);
   doc
-    .font("Helvetica").fontSize(9).fillColor("#333")
+    .font("Helvetica")
+    .fontSize(9)
+    .fillColor("#333")
     .text(
       "Las fotografías son representativas del incumplimiento, un mismo incumplimiento aplica para toda la instalación eléctrica.",
       noteX + 44,
@@ -247,7 +345,15 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
   drawLegend(doc, bottomY);
 }
 
-function drawFinding(doc, idx, evidencia, tareaNombre, yStart, linkedNormas, images) {
+function drawFinding(
+  doc,
+  idx,
+  evidencia,
+  tareaNombre,
+  yStart,
+  linkedNormas,
+  images
+) {
   const marginX = 50;
   // Altura extendida para poder colocar varias fotos
   const blockH = 260;
@@ -309,16 +415,24 @@ function drawFinding(doc, idx, evidencia, tareaNombre, yStart, linkedNormas, ima
     const startY = doc.y + 2;
     let y = startY;
     linkedNormas.slice(0, 6).forEach((n) => {
-      const color = severityStyle(n.clasificacion || 'LEVE').color;
+      const color = severityStyle(n.clasificacion || "LEVE").color;
       // marcador de color
-      doc.rect(leftX, y + 3, 6, 6).fillColor(color).fill();
+      doc
+        .rect(leftX, y + 3, 6, 6)
+        .fillColor(color)
+        .fill();
       doc
         .fillColor("#000")
         .font("Helvetica")
         .fontSize(9)
-        .text(` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`, leftX + 10, y, {
-          width: leftW - 12,
-        });
+        .text(
+          ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`,
+          leftX + 10,
+          y,
+          {
+            width: leftW - 12,
+          }
+        );
       y += 14;
     });
     if (linkedNormas.length > 6) {
@@ -332,9 +446,12 @@ function drawFinding(doc, idx, evidencia, tareaNombre, yStart, linkedNormas, ima
   // Columna derecha: una o más imágenes
   const imgX = marginX + leftW + 2 * gap;
   const imgY = yStart + 32;
-  const imgs = Array.isArray(images) && images.length
-    ? images.filter((p) => p && fs.existsSync(p))
-    : (evidencia.image_path && fs.existsSync(evidencia.image_path) ? [evidencia.image_path] : []);
+  const imgs =
+    Array.isArray(images) && images.length
+      ? images.filter((p) => p && fs.existsSync(p))
+      : evidencia.image_path && fs.existsSync(evidencia.image_path)
+      ? [evidencia.image_path]
+      : [];
   if (imgs.length) {
     try {
       // Marco general
@@ -346,19 +463,36 @@ function drawFinding(doc, idx, evidencia, tareaNombre, yStart, linkedNormas, ima
       // - 1 imagen: ocupa todo
       // - 2-3 imágenes: dos arriba, una abajo centrada
       if (imgs.length === 1) {
-        doc.image(imgs[0], imgX, imgY, { fit: [imgW, imgH], align: "center", valign: "center" });
+        doc.image(imgs[0], imgX, imgY, {
+          fit: [imgW, imgH],
+          align: "center",
+          valign: "center",
+        });
       } else {
         const pad = 6;
         const cellW = (imgW - pad) / 2;
         const cellH = (imgH - pad) / 2;
         // fila 1
-        doc.image(imgs[0], imgX + 0, imgY + 0, { fit: [cellW, cellH], align: "center", valign: "center" });
-        if (imgs[1]) doc.image(imgs[1], imgX + cellW + pad, imgY + 0, { fit: [cellW, cellH], align: "center", valign: "center" });
+        doc.image(imgs[0], imgX + 0, imgY + 0, {
+          fit: [cellW, cellH],
+          align: "center",
+          valign: "center",
+        });
+        if (imgs[1])
+          doc.image(imgs[1], imgX + cellW + pad, imgY + 0, {
+            fit: [cellW, cellH],
+            align: "center",
+            valign: "center",
+          });
         // fila 2
         if (imgs[2]) {
           // centrada abajo
           const cx = imgX + (imgW - cellW) / 2;
-          doc.image(imgs[2], cx, imgY + cellH + pad, { fit: [cellW, cellH], align: "center", valign: "center" });
+          doc.image(imgs[2], cx, imgY + cellH + pad, {
+            fit: [cellW, cellH],
+            align: "center",
+            valign: "center",
+          });
         } else if (imgs.length === 2) {
           // reusar la 1ra en grande si quieres dejar vacío; mejor nada
         }
@@ -419,23 +553,30 @@ router.get(
       );
 
       // Detectar evidencia institucional (comentario con marcador)
-      const isInstitucional = (ev) => /\[(INSTITUCION|PORTADA)\]/i.test(String(ev.comentario || ""));
+      const isInstitucional = (ev) =>
+        /\[(INSTITUCION|PORTADA)\]/i.test(String(ev.comentario || ""));
       const institucional = evidRows.find(isInstitucional) || null;
-      const institucionalImage = institucional && institucional.image_path && fs.existsSync(institucional.image_path)
-        ? institucional.image_path
-        : null;
+      const institucionalImage =
+        institucional &&
+        institucional.image_path &&
+        fs.existsSync(institucional.image_path)
+          ? institucional.image_path
+          : null;
 
       // Elegir imagen de portada (primera evidencia no institucional)
       const firstNormal = evidRows.find((e) => !isInstitucional(e));
-      const coverImage = firstNormal && firstNormal.image_path && fs.existsSync(firstNormal.image_path)
-        ? firstNormal.image_path
-        : null;
+      const coverImage =
+        firstNormal &&
+        firstNormal.image_path &&
+        fs.existsSync(firstNormal.image_path)
+          ? firstNormal.image_path
+          : null;
 
       // Asociaciones Evidencia ⇄ Normas (catálogo)
       let byEvid = {};
       if (evidRows.length) {
         const ids = evidRows.map((e) => e.id);
-        const placeholders = ids.map(() => '?').join(',');
+        const placeholders = ids.map(() => "?").join(",");
         const [links] = await pool.query(
           `SELECT enr.evidencia_id, enr.norma_repo_id, enr.clasificacion, enr.observacion,
                   nr.titulo, nr.descripcion, nr.categoria, nr.fuente
@@ -457,7 +598,7 @@ router.get(
         [id]
       );
 
-  // Crear PDF
+      // Crear PDF
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
@@ -478,7 +619,9 @@ router.get(
       // PÁGINAS DE HALLAZGOS (EVIDENCIAS)
       // Agrupar evidencias por (tareaId + comentario) para permitir múltiples fotos por evidencia
       function normComment(s) {
-        return String(s || "").replace(/^\s*\[(INSTITUCION|PORTADA)\]\s*/i, "").trim();
+        return String(s || "")
+          .replace(/^\s*\[(INSTITUCION|PORTADA)\]\s*/i, "")
+          .trim();
       }
       const groups = [];
       const gmap = new Map();
@@ -496,7 +639,8 @@ router.get(
         }
         const g = gmap.get(key);
         g.evidIds.push(ev.id);
-        if (ev.image_path && fs.existsSync(ev.image_path)) g.images.push(ev.image_path);
+        if (ev.image_path && fs.existsSync(ev.image_path))
+          g.images.push(ev.image_path);
       }
 
       // Vincular normas combinadas por grupo

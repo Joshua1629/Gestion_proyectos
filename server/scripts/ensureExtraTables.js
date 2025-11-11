@@ -1,17 +1,18 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+const sqlite3 = require("sqlite3").verbose();
+const path = require("path");
+const fs = require("fs");
 
 function getDatabasePath() {
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === "production") {
     const userDataPath = process.env.APPDATA || process.env.HOME || __dirname;
-    const appDataDir = path.join(userDataPath, 'GestionProyectos');
-    if (!fs.existsSync(appDataDir)) fs.mkdirSync(appDataDir, { recursive: true });
-    return path.join(appDataDir, 'gestion_proyectos.db');
+    const appDataDir = path.join(userDataPath, "GestionProyectos");
+    if (!fs.existsSync(appDataDir))
+      fs.mkdirSync(appDataDir, { recursive: true });
+    return path.join(appDataDir, "gestion_proyectos.db");
   }
-  const dataDir = path.join(__dirname, '..', '..', 'data');
+  const dataDir = path.join(__dirname, "..", "..", "data");
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-  return path.join(dataDir, 'gestion_proyectos.db');
+  return path.join(dataDir, "gestion_proyectos.db");
 }
 
 async function ensureExtraTables() {
@@ -19,18 +20,28 @@ async function ensureExtraTables() {
   await new Promise((resolve, reject) => {
     const db = new sqlite3.Database(dbPath, (err) => {
       if (err) return reject(err);
-      db.run('PRAGMA foreign_keys = ON');
+      db.run("PRAGMA foreign_keys = ON");
 
       // Asegurar columna cedula_juridica en proyectos
       db.all("PRAGMA table_info(proyectos)", [], (e, rows) => {
         if (!e) {
-          const hasCed = rows && rows.some(r => r && r.name === 'cedula_juridica');
+          const hasCed =
+            rows && rows.some((r) => r && r.name === "cedula_juridica");
           if (!hasCed) {
-            db.run("ALTER TABLE proyectos ADD COLUMN cedula_juridica TEXT", [], () => {});
+            db.run(
+              "ALTER TABLE proyectos ADD COLUMN cedula_juridica TEXT",
+              [],
+              () => {}
+            );
           }
-          const hasFV = rows && rows.some(r => r && r.name === 'fecha_verificacion');
+          const hasFV =
+            rows && rows.some((r) => r && r.name === "fecha_verificacion");
           if (!hasFV) {
-            db.run("ALTER TABLE proyectos ADD COLUMN fecha_verificacion DATE", [], () => {});
+            db.run(
+              "ALTER TABLE proyectos ADD COLUMN fecha_verificacion DATE",
+              [],
+              () => {}
+            );
           }
         }
       });
@@ -118,7 +129,39 @@ async function ensureExtraTables() {
 
       db.exec(ddl, (e) => {
         if (e) return reject(e);
-        db.close(() => resolve());
+        // Asegurar columna de agrupación en evidencias para manejar grupos con múltiples fotos
+        db.all("PRAGMA table_info(evidencias)", [], (e2, rows) => {
+          if (e2) {
+            // cerrar de todas formas
+            return db.close(() => resolve());
+          }
+          const hasGroupKey = rows && rows.some((r) => r && r.name === 'group_key');
+          const ensureIndex = () => {
+            db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_group_key ON evidencias(group_key)", [], () => db.close(() => resolve()));
+          };
+          if (!hasGroupKey) {
+            db.run("ALTER TABLE evidencias ADD COLUMN group_key TEXT", [], () => {
+              // Backfill básico: calcular group_key como t{tarea_id||0}|{comentario_normalizado}
+              db.all("SELECT id, tarea_id, comentario FROM evidencias WHERE group_key IS NULL OR group_key = ''", [], (e3, evRows) => {
+                if (e3 || !Array.isArray(evRows) || evRows.length === 0) return ensureIndex();
+                const norm = (s) => String(s || '')
+                  .replace(/\^?\s*\[(INSTITUCION|PORTADA)\]\s*/gi, '')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+                const stmt = db.prepare("UPDATE evidencias SET group_key = ? WHERE id = ?");
+                evRows.forEach((r) => {
+                  try {
+                    const key = `t${r.tarea_id || 0}|c${norm(r.comentario)}`;
+                    stmt.run([key, r.id]);
+                  } catch {}
+                });
+                stmt.finalize(() => ensureIndex());
+              });
+            });
+          } else {
+            ensureIndex();
+          }
+        });
       });
     });
   });
