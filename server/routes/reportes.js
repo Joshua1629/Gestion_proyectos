@@ -345,6 +345,64 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
   drawLegend(doc, bottomY);
 }
 
+// Página 2: Equipos de Seguridad y Verificación
+function drawEquiposPage(doc) {
+  const marginX = 50;
+  const fullW = 495;
+  const boxW = fullW; // una columna, dos cajas apiladas
+  let y = 100;
+
+  function drawListBox(title, items) {
+    const boxH = 20 + items.length * 18 + 20;
+    doc
+      .roundedRect(marginX, y, boxW, boxH, 6)
+      .strokeColor("#CFCFCF")
+      .lineWidth(1)
+      .stroke();
+
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(11)
+      .fillColor("#000")
+      .text(title, marginX + 10, y + 8);
+
+    let ly = y + 28;
+    items.forEach((t) => {
+      // punto verde
+      doc
+        .circle(marginX + 12, ly + 4, 4)
+        .fillColor("#43A047")
+        .fill();
+      doc
+        .font("Helvetica")
+        .fontSize(10)
+        .fillColor("#000")
+        .text(t, marginX + 26, ly - 2, { width: boxW - 36 });
+      ly += 18;
+    });
+
+    y += boxH + 16; // espacio entre cajas
+  }
+
+  drawListBox("Equipos de Seguridad:", [
+    "Zapatos de seguridad (Dieléctricos).",
+    "Chaleco reflectivo.",
+    "Camisa de algodón de manga y pantalón largo (se recomienda al menos 75% algodón).",
+    "Guantes (cuando se considere necesario).",
+    "Casco.",
+    "Lentes (cuando se considere necesario).",
+  ]);
+
+  drawListBox("Equipos de Verificación:", [
+    "Telurómetro de gancho.",
+    "Cinta métrica laser.",
+    "Multímetro de gancho.",
+    "Desatornilladores aislados.",
+    "Llave Ratchet 12 mm (1/2\") y 9,95 mm (3/8\").",
+    "Cámara Térmica.",
+  ]);
+}
+
 function drawFinding(
   doc,
   idx,
@@ -615,6 +673,10 @@ router.get(
       drawHeader(doc, proyecto.nombre, proyecto.cliente);
       drawCover(doc, proyecto, coverImage, institucionalImage);
       doc.addPage();
+      // Página 2: Equipos (sin encabezado)
+      drawEquiposPage(doc);
+      // Nueva página para hallazgos (sin encabezado)
+      doc.addPage();
 
       // PÁGINAS DE HALLAZGOS (EVIDENCIAS)
       // Agrupar evidencias por (tareaId + comentario) para permitir múltiples fotos por evidencia
@@ -659,14 +721,13 @@ router.get(
         return { ...g, links };
       });
 
-      let y = Math.max(doc.y + 10, 120);
+      let y = Math.max(doc.y + 10, 80);
       for (let i = 0; i < groupsWithLinks.length; i++) {
         const g = groupsWithLinks[i];
         // Si no hay espacio, nueva página
         if (y > 700) {
           doc.addPage();
-          drawHeader(doc, proyecto.nombre, proyecto.cliente);
-          y = 120;
+          y = 80;
         }
         drawFinding(
           doc,

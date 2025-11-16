@@ -11,8 +11,8 @@ type Props = {
 
 // Carga una imagen desde URL http(s). Si falla por restricciones de red del renderer (ERR_INTERNET_DISCONNECTED),
 // intenta obtener el binario desde el proceso principal de Electron vía preload (api.getBinary) y lo coloca como data URL.
-export default function ImageWithFallback({ src, alt = '', style, className, placeholder, preferIpc = true }: Props) {
-  const [imgSrc, setImgSrc] = useState<string | undefined>(src);
+export default function ImageWithFallback({ src, alt = '', style, className, placeholder, preferIpc = true }: Props) {  // Iniciar sin src para evitar que el navegador dispare un GET inmediato
+  const [imgSrc, setImgSrc] = useState<string | undefined>(undefined);
   const [triedFallback, setTriedFallback] = useState(false);
 
   const isHttp = !!src && /^https?:\/\//i.test(src);
@@ -25,22 +25,31 @@ export default function ImageWithFallback({ src, alt = '', style, className, pla
 
     async function load() {
       if (!src) { setImgSrc(undefined); return; }
-      // Evitar la petición directa si podemos usar IPC primero (para no ensuciar consola)
+      // Si estamos offline, mostrar placeholder y no hacer ninguna request
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        setImgSrc(placeholder);
+        return;
+      }
+      // Evitar GET directo si preferIpc y tenemos IPC: así no aparece ERR_INTERNET_DISCONNECTED
       if (preferIpc && hasIpc && isHttp) {
-        // mostrar placeholder mientras llega el binario
-        if (!cancelled) setImgSrc(placeholder);
+        if (!cancelled) setImgSrc(placeholder); // placeholder temporal
         try {
           const res = await api.getBinary(src);
           if (!cancelled) {
-            if (res && res.ok && res.dataUrl) setImgSrc(res.dataUrl);
-            else setImgSrc(src); // fallback a URL directa
+            if (res && res.ok && res.dataUrl) {
+              setImgSrc(res.dataUrl);
+            } else {
+              // No forzamos carga http directa para no ensuciar consola
+              setImgSrc(placeholder); // queda placeholder
+            }
           }
         } catch {
-          if (!cancelled) setImgSrc(src);
+          if (!cancelled) setImgSrc(placeholder); // mantener placeholder
         }
-      } else {
-        setImgSrc(src);
+        return; // no continuar a carga http
       }
+      // Si no se puede IPC o no es http, usar src directamente
+      setImgSrc(src);
     }
     void load();
     return () => { cancelled = true; };
@@ -51,13 +60,19 @@ export default function ImageWithFallback({ src, alt = '', style, className, pla
     setTriedFallback(true);
     try {
       if (hasIpc && src) {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          if (placeholder) setImgSrc(placeholder);
+          return;
+        }
         const res = await api.getBinary(src);
         if (res && res.ok && res.dataUrl) {
           setImgSrc(res.dataUrl);
           return;
         }
       }
-    } catch {}
+    } catch {
+      // Ignorar
+    }
     if (placeholder) setImgSrc(placeholder);
   }
 

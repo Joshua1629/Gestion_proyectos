@@ -90,10 +90,11 @@ function normalizeComment(c) {
 }
 
 // Construye clave de grupo estable a partir de tarea+comentario
-function buildGroupKey(tareaId, comentario) {
+function buildGroupKey(tareaId, comentario, sequence = 0) {
   const t = tareaId ? Number(tareaId) : 0;
   const cm = normalizeComment(comentario);
-  return `t${t}|c${cm}`;
+  // sequence permite dividir grupos cuando exceden el máximo (3 imágenes). 0 = grupo base
+  return `t${t}|c${cm}|s${sequence}`;
 }
 
 // Middleware para capturar errores de multer y responder 400 con detalle
@@ -154,7 +155,20 @@ router.post(
       console.log('EVIDENCIA INSERT payload =>', { proyectoId: pId, tareaId: tId, categoria, comentario, imagePath, mime, size, createdBy });
 
       const evidenceType = detectEvidenceType(file.originalname, req.body.tipo, comentario);
-      const groupKey = buildGroupKey(tId, comentario);
+      // Determinar secuencia para no superar 3 imágenes por grupo
+      let sequence = 0;
+      try {
+        const [countRows] = await pool.query('SELECT COUNT(*) as cnt FROM evidencias WHERE group_key LIKE ?', [`t${tId ? Number(tId) : 0}|c${normalizeComment(comentario)}|s%`]);
+        // Revisar cada secuencia existente y encontrar una con <3 imágenes
+        const seqCounts = {};
+        const [rowsSeq] = await pool.query('SELECT group_key, COUNT(*) as cnt FROM evidencias WHERE group_key LIKE ? GROUP BY group_key', [`t${tId ? Number(tId) : 0}|c${normalizeComment(comentario)}|s%`]);
+        for (const r of rowsSeq) {
+          const m = /\|s(\d+)$/.exec(r.group_key);
+          if (m) seqCounts[m[1]] = r.cnt;
+        }
+        while (sequence < 1000 && seqCounts[String(sequence)] >= 3) sequence++;
+      } catch {}
+      const groupKey = buildGroupKey(tId, comentario, sequence);
       const fileHash = computeFileHash(imagePath);
       // Evitar duplicados dentro del mismo grupo (mismo hash)
       if (fileHash) {
@@ -227,10 +241,34 @@ router.post(
       if (!proy || proy.length === 0) return res.status(400).json({ error: 'Proyecto no encontrado' });
       if (tId && (!tar || tar.length === 0)) return res.status(400).json({ error: 'La tarea no pertenece al proyecto' });
 
-      const groupKey = buildGroupKey(tId, comentario);
-      const createdBy = null;
+      // Para múltiples: distribuir archivos en subgrupos de máx 3
+      const baseT = tId ? Number(tId) : 0;
+      const baseCommentNorm = normalizeComment(comentario);
+      // Obtener conteo actual por secuencia
+      const [rowsSeq] = await pool.query('SELECT group_key, COUNT(*) as cnt FROM evidencias WHERE group_key LIKE ? GROUP BY group_key', [`t${baseT}|c${baseCommentNorm}|s%`]);
+      const seqCounts = {};
+      for (const r of rowsSeq) {
+        const m = /\|s(\d+)$/.exec(r.group_key);
+        if (m) seqCounts[m[1]] = r.cnt;
+      }
+      function nextSequenceSlot() {
+        let seq = 0;
+        while (seq < 1000 && seqCounts[String(seq)] >= 3) seq++;
+        if (!seqCounts[String(seq)]) seqCounts[String(seq)] = 0;
+        return seq;
+      }
+      let currentSeq = nextSequenceSlot();
+      let currentCount = seqCounts[String(currentSeq)] || 0;
       const out = [];
+      const createdBy = null;
       for (const f of files) {
+        if (currentCount >= 3) {
+          currentSeq = nextSequenceSlot();
+          currentCount = seqCounts[String(currentSeq)] || 0;
+        }
+        const groupKey = buildGroupKey(tId, comentario, currentSeq);
+        currentCount++;
+        seqCounts[String(currentSeq)] = currentCount;
         const evidenceType = detectEvidenceType(f.originalname, req.body.tipo, comentario);
         const fileHash = computeFileHash(f.path);
         if (fileHash) {
@@ -249,7 +287,7 @@ router.post(
         const absUrl = `${req.protocol}://${req.get('host')}${relUrl.startsWith('/') ? relUrl : ('/' + relUrl)}`;
         out.push({ id, proyectoId: pId, tareaId: tId, categoria, tipo: evidenceType, comentario: comentario || null, imageUrl: absUrl, mimeType: f.mimetype, sizeBytes: f.size, createdBy, groupKey });
       }
-      res.status(201).json({ items: out, groupKey });
+      res.status(201).json({ items: out });
     } catch (err) {
       console.error('upload-multiple evidencias error:', err);
       res.status(500).json({ error: 'Error al subir evidencias' });

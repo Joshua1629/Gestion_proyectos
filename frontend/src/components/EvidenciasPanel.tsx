@@ -11,8 +11,7 @@ import {
   detachNormaRepoFromGroup,
   deleteEvidenciaGroup,
   listEvidenciasByGroup,
-  deleteEvidencia,
-  exportEvidenciasPdf
+  deleteEvidencia
 } from '../services/evidencias';
 import { listNormasRepo, type NormaRepoItem } from '../services/normasRepo';
 import { type Tarea } from '../services/tareas';
@@ -27,13 +26,11 @@ export default function EvidenciasPanel({ proyectoId, tareas }: { proyectoId: nu
   const [files, setFiles] = useState<File[]>([]);
   const [comentario, setComentario] = useState('');
   const [tareaId, setTareaId] = useState<number | ''>('');
-  const [tipo, setTipo] = useState<'AUTO' | 'INCUMPLIMIENTO' | 'INSTITUCIONAL' | 'TECNICA' | 'GENERAL'>('AUTO');
   const IMG_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==' as const;
 
   // Data agrupada
   const [byTipo, setByTipo] = useState<TipoGroups[]>([]);
-  const [filterTareaId, setFilterTareaId] = useState<number | ''>('');
-  const [filterTipo, setFilterTipo] = useState<string>('');
+  // Filtros eliminados: siempre se muestran todas las evidencias del proyecto
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,16 +58,16 @@ export default function EvidenciasPanel({ proyectoId, tareas }: { proyectoId: nu
   async function load() {
     setLoading(true); setError(null);
     try {
-      const res = await getEvidenciasByTipo({ proyectoId, tareaId: filterTareaId || undefined });
+      const res = await getEvidenciasByTipo({ proyectoId });
       const items: TipoGroups[] = (res.items || []).map((t: any) => ({
         tipo: t.tipo,
         groups: (t.groups || []).map((g: any) => ({ ...g, images: (g.images || []).map((u: string) => normalizeImageUrl(u)) }))
       }));
-      setByTipo(filterTipo ? items.filter(it => String(it.tipo) === filterTipo) : items);
+      setByTipo(items);
     } catch (e: any) { setError(e?.message || 'Error al cargar evidencias'); }
     finally { setLoading(false); }
   }
-  useEffect(() => { void load(); }, [proyectoId, filterTareaId, filterTipo]);
+  useEffect(() => { void load(); }, [proyectoId]);
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
@@ -78,11 +75,23 @@ export default function EvidenciasPanel({ proyectoId, tareas }: { proyectoId: nu
     try {
       setLoading(true);
       const tId = tareaId === '' ? undefined : Number(tareaId);
-      const tipoParam = tipo === 'AUTO' ? undefined : tipo;
       const commentFinal = comentario.trim() || '';
-      if (files.length > 1) await uploadEvidenciasMultiple({ files, proyectoId, tareaId: tId, comentario: commentFinal || undefined, tipo: tipoParam });
-      else await uploadEvidencia({ file: files[0], proyectoId, tareaId: tId, comentario: commentFinal || undefined, tipo: tipoParam });
-      setFiles([]); setComentario(''); setTareaId(''); setTipo('AUTO');
+
+      // Subir en grupos de máximo 3 imágenes para que el backend genere grupos pequeños
+      const chunkSize = 3;
+      if (files.length === 1) {
+        await uploadEvidencia({ file: files[0], proyectoId, tareaId: tId, comentario: commentFinal || undefined, tipo: undefined });
+      } else {
+        for (let i = 0; i < files.length; i += chunkSize) {
+          const slice = files.slice(i, i + chunkSize);
+            if (slice.length === 1) {
+              await uploadEvidencia({ file: slice[0], proyectoId, tareaId: tId, comentario: commentFinal || undefined, tipo: undefined });
+            } else {
+              await uploadEvidenciasMultiple({ files: slice, proyectoId, tareaId: tId, comentario: commentFinal || undefined, tipo: undefined });
+            }
+        }
+      }
+      setFiles([]); setComentario(''); setTareaId('');
       await load();
     } catch (e: any) { setError(e?.detail || e?.error || e?.message || 'Error al subir evidencia'); }
     finally { setLoading(false); }
@@ -128,13 +137,6 @@ export default function EvidenciasPanel({ proyectoId, tareas }: { proyectoId: nu
             <option value="">Sin tarea</option>
             {(tareas || []).map(t => (<option key={t.id} value={t.id}>{t.nombre}</option>))}
           </select>
-          <select value={tipo} onChange={e => setTipo(e.target.value as any)}>
-            <option value="AUTO">Detección automática</option>
-            <option value="INCUMPLIMIENTO">Incumplimientos</option>
-            <option value="INSTITUCIONAL">Evidencia institucional</option>
-            <option value="TECNICA">Evidencia técnica</option>
-            <option value="GENERAL">General</option>
-          </select>
         </div>
         <div className="row">
           <input placeholder="Comentario (opcional)" value={comentario} onChange={e => setComentario(e.target.value)} />
@@ -145,21 +147,7 @@ export default function EvidenciasPanel({ proyectoId, tareas }: { proyectoId: nu
         </div>
       </form>
 
-      {/* Filtros */}
-      <div className="evidencias-filtros">
-        <select value={filterTareaId as any} onChange={e => setFilterTareaId(e.target.value === '' ? '' : Number(e.target.value))}>
-          <option value="">Todas las tareas</option>
-          {(tareas || []).map(t => (<option key={t.id} value={t.id}>{t.nombre}</option>))}
-        </select>
-        <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)}>
-          <option value="">Todos los tipos</option>
-          <option value="INCUMPLIMIENTO">Incumplimientos</option>
-          <option value="INSTITUCIONAL">Institucional</option>
-          <option value="TECNICA">Técnica</option>
-          <option value="GENERAL">General</option>
-        </select>
-        <button className="btn" onClick={() => { setFilterTareaId(''); setFilterTipo(''); }}>Limpiar filtros</button>
-      </div>
+      {/* Filtros eliminados */}
 
       {error && <div className="error-message">{error}</div>}
 
@@ -170,16 +158,14 @@ export default function EvidenciasPanel({ proyectoId, tareas }: { proyectoId: nu
             <div key={section.tipo}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '8px 0' }}>
                 <h4 style={{ margin: 0 }}>{section.tipo}</h4>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn" onClick={async () => { try { await exportEvidenciasPdf(proyectoId, section.tipo); } catch {} }}>Exportar PDF</button>
-                </div>
+                {/* Botón Exportar PDF eliminado */}
               </div>
               <div className="evidencias-grid">
                 {section.groups.map(g => (
                   <div className="evidencia-card" key={g.groupKey}>
                     <div className="evidencia-thumb" onClick={() => openGroup(g.groupKey)} title="Ver detalles">
                       {g.images && g.images[0]
-                        ? (<ImageWithFallback src={g.images[0]} alt={g.comentario || 'Grupo'} />)
+                        ? (<ImageWithFallback src={g.images[0]} alt={g.comentario || 'Grupo'} placeholder={IMG_PLACEHOLDER} />)
                         : (<div className="muted small" style={{ padding: 8 }}>Sin imagen</div>)}
                       <div className="badge">{g.count} fotos</div>
                     </div>
@@ -275,7 +261,7 @@ export default function EvidenciasPanel({ proyectoId, tareas }: { proyectoId: nu
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
                 {groupItems.map(img => (
                   <div key={img.id} className="evidencia-card">
-                    <div className="evidencia-thumb"><ImageWithFallback src={img.imageUrl || IMG_PLACEHOLDER} alt={img.comentario || 'img'} /></div>
+                    <div className="evidencia-thumb"><ImageWithFallback src={img.imageUrl || IMG_PLACEHOLDER} placeholder={IMG_PLACEHOLDER} alt={img.comentario || 'img'} /></div>
                     <div className="evidencia-meta">
                       <div className="comentario">{img.comentario || '—'}</div>
                       <div className="acciones">
