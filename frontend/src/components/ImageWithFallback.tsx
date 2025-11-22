@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 type Props = {
   src?: string;
@@ -11,48 +11,60 @@ type Props = {
 
 // Carga una imagen desde URL http(s). Si falla por restricciones de red del renderer (ERR_INTERNET_DISCONNECTED),
 // intenta obtener el binario desde el proceso principal de Electron vía preload (api.getBinary) y lo coloca como data URL.
-export default function ImageWithFallback({ src, alt = '', style, className, placeholder, preferIpc = true }: Props) {  // Iniciar sin src para evitar que el navegador dispare un GET inmediato
+export default function ImageWithFallback({
+  src,
+  alt = "",
+  style,
+  className,
+  placeholder,
+  preferIpc = true,
+}: Props) {
+  // Iniciar sin src para evitar que el navegador dispare un GET inmediato
   const [imgSrc, setImgSrc] = useState<string | undefined>(undefined);
   const [triedFallback, setTriedFallback] = useState(false);
 
   const isHttp = !!src && /^https?:\/\//i.test(src);
   const api: any = (globalThis as any).api;
-  const hasIpc = !!(api && typeof api.getBinary === 'function');
+  const hasIpc = !!(api && typeof api.getBinary === "function");
 
   useEffect(() => {
     let cancelled = false;
     setTriedFallback(false);
 
     async function load() {
-      if (!src) { setImgSrc(undefined); return; }
-      // Si estamos offline, mostrar placeholder y no hacer ninguna request
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        setImgSrc(placeholder);
+      if (!src) {
+        setImgSrc(undefined);
         return;
       }
-      // Evitar GET directo si preferIpc y tenemos IPC: así no aparece ERR_INTERNET_DISCONNECTED
+      // Si el navegador está "offline" pero tenemos IPC disponible, intentar IPC igualmente
       if (preferIpc && hasIpc && isHttp) {
-        if (!cancelled) setImgSrc(placeholder); // placeholder temporal
+        if (!cancelled) setImgSrc(placeholder);
         try {
           const res = await api.getBinary(src);
           if (!cancelled) {
             if (res && res.ok && res.dataUrl) {
               setImgSrc(res.dataUrl);
-            } else {
-              // No forzamos carga http directa para no ensuciar consola
-              setImgSrc(placeholder); // queda placeholder
+              return;
             }
+            // Mantener placeholder para evitar errores de red en el renderer
+            setImgSrc(placeholder);
           }
         } catch {
-          if (!cancelled) setImgSrc(placeholder); // mantener placeholder
+          if (!cancelled) setImgSrc(placeholder);
         }
-        return; // no continuar a carga http
+        return;
       }
-      // Si no se puede IPC o no es http, usar src directamente
+      // Si no hay IPC y estamos offline, no hacer request directa
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setImgSrc(placeholder);
+        return;
+      }
       setImgSrc(src);
     }
     void load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [src, preferIpc, hasIpc, isHttp, placeholder]);
 
   async function tryFallback() {
@@ -60,7 +72,7 @@ export default function ImageWithFallback({ src, alt = '', style, className, pla
     setTriedFallback(true);
     try {
       if (hasIpc && src) {
-        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        if (typeof navigator !== "undefined" && navigator.onLine === false) {
           if (placeholder) setImgSrc(placeholder);
           return;
         }
@@ -77,7 +89,14 @@ export default function ImageWithFallback({ src, alt = '', style, className, pla
   }
 
   return (
-    <img src={imgSrc} alt={alt} style={style} className={className}
-         onError={() => { void tryFallback(); }} />
+    <img
+      src={imgSrc}
+      alt={alt}
+      style={style}
+      className={className}
+      onError={() => {
+        void tryFallback();
+      }}
+    />
   );
 }
