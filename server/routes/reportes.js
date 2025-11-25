@@ -413,12 +413,25 @@ function drawFinding(
   images
 ) {
   const marginX = 50;
-  // Altura extendida para poder colocar varias fotos
-  const blockH = 260;
+  // Altura se calcula dinámicamente según comentario y número de normas
   const imgW = 200; // zona de imágenes a la derecha
   const imgH = 200;
   const gap = 10;
   // La severidad se muestra por incumplimiento, no a nivel de evidencia
+
+  // Calcular alturas de texto
+  const leftW = 495 - imgW - 3 * gap;
+  const comentarioTxt = evidencia.comentario || "Sin comentario";
+  const comentarioHeight = doc.heightOfString(comentarioTxt, {
+    width: leftW,
+    align: "left",
+  });
+  const normasMostradas = Array.isArray(linkedNormas)
+    ? linkedNormas.slice(0, 6)
+    : [];
+  const normasHeight = normasMostradas.length * 14 + (normasMostradas.length ? 22 : 0); // 22 ~ título + pequeño margen
+  // Altura mínima base para cabecera + espacios + imagen
+  let blockH = Math.max(260, 120 + comentarioHeight + normasHeight, imgH + 50);
 
   // Caja principal
   doc
@@ -439,7 +452,6 @@ function drawFinding(
   // Columna izquierda: tarea y comentario
   const leftX = marginX + 12;
   const leftY = yStart + 32;
-  const leftW = 495 - imgW - 3 * gap;
   doc
     .fillColor("#333")
     .font("Helvetica-Bold")
@@ -459,12 +471,10 @@ function drawFinding(
   doc
     .font("Helvetica")
     .fontSize(10)
-    .text(evidencia.comentario || "Sin comentario", leftX, leftY + 32, {
-      width: leftW,
-    });
+    .text(comentarioTxt, leftX, leftY + 32, { width: leftW });
 
   // Listado de normas/incumplimientos asociados
-  if (Array.isArray(linkedNormas) && linkedNormas.length) {
+  if (normasMostradas.length) {
     doc.moveDown(0.3);
     doc
       .font("Helvetica-Bold")
@@ -472,7 +482,7 @@ function drawFinding(
       .text("Incumplimientos asociados:", leftX, doc.y, { width: leftW });
     const startY = doc.y + 2;
     let y = startY;
-    linkedNormas.slice(0, 6).forEach((n) => {
+    normasMostradas.forEach((n) => {
       const color = severityStyle(n.clasificacion || "LEVE").color;
       // marcador de color
       doc
@@ -557,6 +567,8 @@ function drawFinding(
       }
     } catch {}
   }
+
+  return blockH; // devolver altura usada para cálculo siguiente
 }
 
 router.get(
@@ -675,11 +687,7 @@ router.get(
       doc.addPage();
       // Página 2: Equipos (sin encabezado)
       drawEquiposPage(doc);
-      // Nueva página para hallazgos (sin encabezado)
-      doc.addPage();
-
-      // PÁGINAS DE HALLAZGOS (EVIDENCIAS)
-      // Agrupar evidencias por (tareaId + comentario) para permitir múltiples fotos por evidencia
+      // ---- Preparación de evidencias antes de decidir página de hallazgos ----
       function normComment(s) {
         return String(s || "")
           .replace(/^\s*\[(INSTITUCION|PORTADA)\]\s*/i, "")
@@ -688,7 +696,7 @@ router.get(
       const groups = [];
       const gmap = new Map();
       for (const ev of evidRows) {
-        if (isInstitucional(ev)) continue; // no mostrar la institucional en el listado
+        if (isInstitucional(ev)) continue; // no incluir institucional
         const key = `${ev.tarea_id || 0}|${normComment(ev.comentario)}`;
         if (!gmap.has(key)) {
           gmap.set(key, {
@@ -701,12 +709,9 @@ router.get(
         }
         const g = gmap.get(key);
         g.evidIds.push(ev.id);
-        if (ev.image_path && fs.existsSync(ev.image_path))
-          g.images.push(ev.image_path);
+        if (ev.image_path && fs.existsSync(ev.image_path)) g.images.push(ev.image_path);
       }
-
-      // Vincular normas combinadas por grupo
-      const linkedByEvid = byEvid; // ya cargado
+      const linkedByEvid = byEvid;
       const groupsWithLinks = groups.map((g) => {
         const links = [];
         const seen = new Set();
@@ -721,24 +726,33 @@ router.get(
         return { ...g, links };
       });
 
-      let y = Math.max(doc.y + 10, 80);
-      for (let i = 0; i < groupsWithLinks.length; i++) {
-        const g = groupsWithLinks[i];
-        // Si no hay espacio, nueva página
-        if (y > 700) {
-          doc.addPage();
-          y = 80;
+      // Solo crear página de hallazgos si hay evidencias agrupadas
+      if (groupsWithLinks.length) {
+        doc.addPage();
+        let y = 80;
+        for (let i = 0; i < groupsWithLinks.length; i++) {
+          const g = groupsWithLinks[i];
+          // Calcular altura estimada antes de dibujar para decidir salto
+          const textoWidth = 495 - 200 - 30; // ancho leftW (495 total - imgW - 3*gap)
+          const comentarioHeight = doc.heightOfString(g.comentario || "Sin comentario", { width: textoWidth });
+          const normasCount = Math.min(g.links.length, 6);
+          const normasHeight = normasCount * 14 + (normasCount ? 22 : 0);
+          const estimatedHeight = Math.max(260, 120 + comentarioHeight + normasHeight, 200 + 50);
+          if (y + estimatedHeight > 780) { // margen inferior seguro
+            doc.addPage();
+            y = 80;
+          }
+          const usedH = drawFinding(
+            doc,
+            i,
+            { comentario: g.comentario, tarea_id: g.tareaId },
+            g.tareaId ? tareasMap[g.tareaId]?.nombre : null,
+            y,
+            g.links,
+            g.images.slice(0, 3)
+          );
+          y += usedH + 50; // separación basada en altura usada
         }
-        drawFinding(
-          doc,
-          i,
-          { comentario: g.comentario, tarea_id: g.tareaId },
-          g.tareaId ? tareasMap[g.tareaId]?.nombre : null,
-          y,
-          g.links,
-          g.images.slice(0, 3)
-        );
-        y += 310; // espacio entre bloques acorde a altura
       }
 
       // Numeración de páginas (footer)

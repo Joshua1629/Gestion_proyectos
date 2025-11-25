@@ -180,7 +180,7 @@ export default function EvidenciaNormasModal({
               <table className="normas-table">
                 <thead>
                   <tr>
-                    <th className="col-select">Sel</th>
+                    <th className="col-select">Seleccionar</th>
                     <th className="col-categoria">Categoría</th>
                     <th className="col-descripcion">Descripción</th>
                     <th className="col-articulo">Artículo / Fuente</th>

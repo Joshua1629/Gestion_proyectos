@@ -221,8 +221,9 @@ async function initializeApp() {
     });
 
     const PORT = process.env.PORT || 3001;
-    app.listen(PORT, () => {
-      console.log(`Backend escuchando en puerto ${PORT}`);
+    const HOST = process.env.HOST || '127.0.0.1';
+    app.listen(PORT, HOST, () => {
+      console.log(`Backend escuchando en ${HOST}:${PORT}`);
       console.log('Aplicación lista para usar.');
     });
 
