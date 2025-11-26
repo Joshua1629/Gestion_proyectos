@@ -23,6 +23,15 @@ function getLogoPath() {
   return null;
 }
 
+// Normaliza rutas para comparaciones robustas (soporta Windows/Linux)
+function normalizePath(p) {
+  try {
+    return path.resolve(p).replace(/\\/g, "/").toLowerCase();
+  } catch {
+    return String(p || "").replace(/\\/g, "/").toLowerCase();
+  }
+}
+
 const checkValidation = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty())
@@ -59,18 +68,20 @@ function drawHeader(doc, proyectoNombre, clienteNombre) {
 }
 
 function drawFooter(doc, currentPage, totalPages) {
+  const pageWidth = doc.page.width;
+  const pageHeight = doc.page.height;
+  const x = doc.page.margins.left;
+  const w = pageWidth - doc.page.margins.left - doc.page.margins.right;
+  const y = Math.max(0, pageHeight - 30); // 30pt desde el borde inferior
   doc.save();
   doc
     .fontSize(9)
     .fillColor("#666")
-    .text(
-      `Página ${currentPage} de ${
-        totalPages || doc.page.document._root.data.Pages.data.Count || ""
-      }`,
-      50,
-      800,
-      { width: 495, align: "right" }
-    );
+    .text(`Página ${currentPage} de ${totalPages || ""}`, x, y, {
+      width: w,
+      align: "right",
+      lineBreak: false,
+    });
   doc.restore();
 }
 
@@ -401,13 +412,15 @@ function drawEquiposPage(doc) {
     "Llave Ratchet 12 mm (1/2\") y 9,95 mm (3/8\").",
     "Cámara Térmica.",
   ]);
+
+  // devolver la posición siguiente disponible para continuar contenido
+  return y;
 }
 
 function drawFinding(
   doc,
   idx,
   evidencia,
-  tareaNombre,
   yStart,
   linkedNormas,
   images
@@ -421,17 +434,22 @@ function drawFinding(
 
   // Calcular alturas de texto
   const leftW = 495 - imgW - 3 * gap;
-  const comentarioTxt = evidencia.comentario || "Sin comentario";
-  const comentarioHeight = doc.heightOfString(comentarioTxt, {
-    width: leftW,
-    align: "left",
-  });
+  const comentarioRaw = evidencia.comentario || "";
+  const comentarioTxt = String(comentarioRaw).trim();
+  const hasComentario = comentarioTxt.length > 0;
+  const comentarioHeight = hasComentario
+    ? doc.heightOfString(comentarioTxt, { width: leftW, align: "left" })
+    : 0;
   const normasMostradas = Array.isArray(linkedNormas)
     ? linkedNormas.slice(0, 6)
     : [];
   const normasHeight = normasMostradas.length * 14 + (normasMostradas.length ? 22 : 0); // 22 ~ título + pequeño margen
   // Altura mínima base para cabecera + espacios + imagen
   let blockH = Math.max(260, 120 + comentarioHeight + normasHeight, imgH + 50);
+  // Limitar el bloque al espacio disponible para evitar saltos automáticos
+  const pageBottom = doc.page.height - doc.page.margins.bottom;
+  const availableHeight = Math.max(0, pageBottom - yStart - 6);
+  if (blockH > availableHeight) blockH = Math.max(220, Math.min(blockH, availableHeight));
 
   // Caja principal
   doc
@@ -446,125 +464,95 @@ function drawFinding(
     .fillColor("#000")
     .font("Helvetica-Bold")
     .fontSize(11)
-    .text(`Evidencia ${idx + 1}`, marginX + 8, yStart + 6);
+    .text(`Evidencia e Incumplimiento:`, marginX + 8, yStart + 6);
   // Sin badge global; el estado se mostrará para cada incumplimiento
 
-  // Columna izquierda: tarea y comentario
+  // Columna izquierda: comentario (se elimina 'Tarea' del reporte)
   const leftX = marginX + 12;
   const leftY = yStart + 32;
-  doc
-    .fillColor("#333")
-    .font("Helvetica-Bold")
-    .fontSize(10)
-    .text("Tarea:", leftX, leftY);
-  doc
-    .font("Helvetica")
-    .fontSize(10)
-    .text(tareaNombre || "Sin tarea asociada", leftX + 45, leftY, {
-      width: leftW - 45,
-    });
-
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(10)
-    .text("Comentario:", leftX, leftY + 18);
-  doc
-    .font("Helvetica")
-    .fontSize(10)
-    .text(comentarioTxt, leftX, leftY + 32, { width: leftW });
-
-  // Listado de normas/incumplimientos asociados
-  if (normasMostradas.length) {
-    doc.moveDown(0.3);
+  let yCursor = leftY;
+  if (hasComentario) {
     doc
       .font("Helvetica-Bold")
       .fontSize(10)
-      .text("Incumplimientos asociados:", leftX, doc.y, { width: leftW });
-    const startY = doc.y + 2;
-    let y = startY;
+      .text("Comentario:", leftX, yCursor);
+    const maxCommentH = Math.max(0, blockH - 150);
+    const commentH = Math.min(
+      doc.heightOfString(comentarioTxt, { width: leftW, align: "left" }),
+      maxCommentH
+    );
+    doc
+      .font("Helvetica")
+      .fontSize(10)
+      .text(comentarioTxt, leftX, yCursor + 14, {
+        width: leftW,
+        height: commentH,
+        ellipsis: true,
+      });
+    yCursor += 14 + commentH + 8;
+  }
+
+  // Listado de normas/incumplimientos asociados
+  if (normasMostradas.length) {
+    const bottomLimit = yStart + blockH - 10; // límite dentro del bloque
+    const headerTxt = "Incumplimientos asociados:";
+    const headerH = doc.heightOfString(headerTxt, { width: leftW });
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .fillColor("#000")
+      .text(headerTxt, leftX, yCursor, { width: leftW });
+    let y = yCursor + headerH + 2;
     normasMostradas.forEach((n) => {
       const color = severityStyle(n.clasificacion || "LEVE").color;
-      // marcador de color
+      const texto = ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
+      const itemWidth = leftW - 12;
+      const h = doc.heightOfString(texto, { width: itemWidth, align: "left" });
+      if (y + h > bottomLimit) return; // no dibujar si no hay espacio
+      // marcador tipo "bullet" redondo más notorio
       doc
-        .rect(leftX, y + 3, 6, 6)
+        .circle(leftX + 3, y + 6, 4)
         .fillColor(color)
         .fill();
       doc
         .fillColor("#000")
         .font("Helvetica")
-        .fontSize(9)
-        .text(
-          ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`,
-          leftX + 10,
-          y,
-          {
-            width: leftW - 12,
-          }
-        );
-      y += 14;
+        .fontSize(10)
+        .text(texto, leftX + 12, y - 2, { width: itemWidth });
+      y += h + 6; // avanzar según el alto real del texto
     });
-    if (linkedNormas.length > 6) {
+    if (linkedNormas.length > normasMostradas.length && y + 12 <= bottomLimit) {
       doc
         .fillColor("#666")
         .fontSize(9)
-        .text(`… y ${linkedNormas.length - 6} más`, leftX, y, { width: leftW });
+        .text(`… y ${linkedNormas.length - normasMostradas.length} más`, leftX, y, { width: leftW });
     }
   }
 
   // Columna derecha: una o más imágenes
   const imgX = marginX + leftW + 2 * gap;
   const imgY = yStart + 32;
+  // Mostrar una sola imagen (sin agrupamiento/grilla)
   const imgs =
     Array.isArray(images) && images.length
-      ? images.filter((p) => p && fs.existsSync(p))
+      ? images.filter((p) => p && fs.existsSync(p)).slice(0, 1)
       : evidencia.image_path && fs.existsSync(evidencia.image_path)
       ? [evidencia.image_path]
       : [];
   if (imgs.length) {
     try {
       // Marco general
+      const effImgH = Math.min(imgH, Math.max(0, blockH - 40));
       doc
-        .rect(imgX - 2, imgY - 2, imgW + 4, imgH + 4)
+        .rect(imgX - 2, imgY - 2, imgW + 4, effImgH + 4)
         .strokeColor("#DDD")
         .stroke();
-      // Distribución: hasta 3 imágenes en rejilla 2x2
-      // - 1 imagen: ocupa todo
-      // - 2-3 imágenes: dos arriba, una abajo centrada
-      if (imgs.length === 1) {
-        doc.image(imgs[0], imgX, imgY, {
-          fit: [imgW, imgH],
-          align: "center",
-          valign: "center",
-        });
-      } else {
-        const pad = 6;
-        const cellW = (imgW - pad) / 2;
-        const cellH = (imgH - pad) / 2;
-        // fila 1
-        doc.image(imgs[0], imgX + 0, imgY + 0, {
-          fit: [cellW, cellH],
-          align: "center",
-          valign: "center",
-        });
-        if (imgs[1])
-          doc.image(imgs[1], imgX + cellW + pad, imgY + 0, {
-            fit: [cellW, cellH],
-            align: "center",
-            valign: "center",
-          });
-        // fila 2
-        if (imgs[2]) {
-          // centrada abajo
-          const cx = imgX + (imgW - cellW) / 2;
-          doc.image(imgs[2], cx, imgY + cellH + pad, {
-            fit: [cellW, cellH],
-            align: "center",
-            valign: "center",
-          });
-        } else if (imgs.length === 2) {
-          // reusar la 1ra en grande si quieres dejar vacío; mejor nada
-        }
-      }
+      // Imagen única ocupa todo el marco
+      doc.image(imgs[0], imgX, imgY, {
+        fit: [imgW, effImgH],
+        align: "center",
+        valign: "center",
+      });
     } catch {}
   }
 
@@ -622,18 +610,31 @@ router.get(
         params
       );
 
-      // Detectar evidencia institucional (comentario con marcador)
-      const isInstitucional = (ev) =>
-        /\[(INSTITUCION|PORTADA)\]/i.test(String(ev.comentario || ""));
-      const institucional = evidRows.find(isInstitucional) || null;
+      // Detectar evidencias especiales: PORTADA/INSTITUCION por tipo o marcador en comentario
+      const isPortadaType = (ev) =>
+        String(ev.evidence_type || "").toUpperCase() === "PORTADA";
+      const isInstitucionType = (ev) =>
+        String(ev.evidence_type || "").toUpperCase() === "INSTITUCIONAL";
+      const isTagged = (ev) => /\[(INSTITUCION|PORTADA)\]/i.test(String(ev.comentario || ""));
+      const isInstitucional = (ev) => isPortadaType(ev) || isInstitucionType(ev) || isTagged(ev);
+      const portadaEv = evidRows.find(isPortadaType) || null;
+      const institucional = portadaEv || evidRows.find(isInstitucional) || null;
+      // Recopilar TODAS las imágenes institucionales para excluirlas de evidencias
+      const institucionalImages = evidRows
+        .filter((ev) => isInstitucional(ev))
+        .map((ev) => ev.image_path)
+        .filter((p) => p && fs.existsSync(p));
+      const institucionalImagesSet = new Set(institucionalImages);
+      const institucionalImagesSetNorm = new Set(
+        institucionalImages.map((p) => normalizePath(p))
+      );
       const institucionalImage =
-        institucional &&
-        institucional.image_path &&
-        fs.existsSync(institucional.image_path)
-          ? institucional.image_path
-          : null;
+        (portadaEv && portadaEv.image_path && fs.existsSync(portadaEv.image_path)
+          ? portadaEv.image_path
+          : null) ||
+        (institucionalImages.length ? institucionalImages[0] : null);
 
-      // Elegir imagen de portada (primera evidencia no institucional)
+      // Elegir imagen de portada: preferir evidencia con tipo PORTADA; si no, primera institucional; si no, primera normal
       const firstNormal = evidRows.find((e) => !isInstitucional(e));
       const coverImage =
         firstNormal &&
@@ -641,6 +642,16 @@ router.get(
         fs.existsSync(firstNormal.image_path)
           ? firstNormal.image_path
           : null;
+
+      // Determinar cuál imagen se usará efectivamente en la portada
+      const mainCoverPath =
+        (portadaEv && portadaEv.image_path && fs.existsSync(portadaEv.image_path)
+          ? portadaEv.image_path
+          : null) ||
+        (institucionalImage && fs.existsSync(institucionalImage)
+          ? institucionalImage
+          : null) ||
+        (coverImage && fs.existsSync(coverImage) ? coverImage : null);
 
       // Asociaciones Evidencia ⇄ Normas (catálogo)
       let byEvid = {};
@@ -685,58 +696,48 @@ router.get(
       drawHeader(doc, proyecto.nombre, proyecto.cliente);
       drawCover(doc, proyecto, coverImage, institucionalImage);
       doc.addPage();
-      // Página 2: Equipos (sin encabezado)
-      drawEquiposPage(doc);
-      // ---- Preparación de evidencias antes de decidir página de hallazgos ----
+      // Página 2: Equipos (sin encabezado) y continuar evidencias debajo
+      const nextYAfterEquipos = drawEquiposPage(doc);
+      // ---- Preparación: sin agrupamiento; una evidencia por bloque ----
       function normComment(s) {
         return String(s || "")
           .replace(/^\s*\[(INSTITUCION|PORTADA)\]\s*/i, "")
           .trim();
       }
-      const groups = [];
-      const gmap = new Map();
+      const evidList = [];
       for (const ev of evidRows) {
-        if (isInstitucional(ev)) continue; // no incluir institucional
-        const key = `${ev.tarea_id || 0}|${normComment(ev.comentario)}`;
-        if (!gmap.has(key)) {
-          gmap.set(key, {
-            tareaId: ev.tarea_id || null,
-            comentario: normComment(ev.comentario),
-            images: [],
-            evidIds: [],
-          });
-          groups.push(gmap.get(key));
-        }
-        const g = gmap.get(key);
-        g.evidIds.push(ev.id);
-        if (ev.image_path && fs.existsSync(ev.image_path)) g.images.push(ev.image_path);
-      }
-      const linkedByEvid = byEvid;
-      const groupsWithLinks = groups.map((g) => {
-        const links = [];
-        const seen = new Set();
-        for (const id of g.evidIds) {
-          for (const l of linkedByEvid[id] || []) {
-            const k = `${l.norma_repo_id}|${l.clasificacion}`;
-            if (seen.has(k)) continue;
-            seen.add(k);
-            links.push(l);
+        if (isInstitucional(ev)) continue; // excluir institucionales del listado
+        const images = [];
+        if (ev.image_path && fs.existsSync(ev.image_path)) {
+          const norm = normalizePath(ev.image_path);
+          if (
+            !institucionalImagesSet.has(ev.image_path) &&
+            !institucionalImagesSetNorm.has(norm) &&
+            (!mainCoverPath || normalizePath(mainCoverPath) !== norm)
+          ) {
+            images.push(ev.image_path);
           }
         }
-        return { ...g, links };
-      });
+        evidList.push({
+          comentario: normComment(ev.comentario),
+          tareaId: ev.tarea_id || null,
+          images,
+          links: byEvid[ev.id] || [],
+        });
+      }
 
-      // Solo crear página de hallazgos si hay evidencias agrupadas
-      if (groupsWithLinks.length) {
-        doc.addPage();
-        let y = 80;
-        for (let i = 0; i < groupsWithLinks.length; i++) {
-          const g = groupsWithLinks[i];
+      // Solo crear hallazgos si hay evidencias
+      if (evidList.length) {
+        // Comenzar las evidencias debajo de los equipos en la página 2
+        let y = nextYAfterEquipos + 10;
+        for (let i = 0; i < evidList.length; i++) {
+          const g = evidList[i];
           // Calcular altura estimada antes de dibujar para decidir salto
           const textoWidth = 495 - 200 - 30; // ancho leftW (495 total - imgW - 3*gap)
           const comentarioHeight = doc.heightOfString(g.comentario || "Sin comentario", { width: textoWidth });
           const normasCount = Math.min(g.links.length, 6);
           const normasHeight = normasCount * 14 + (normasCount ? 22 : 0);
+          const pageBottomY = doc.page.height - doc.page.margins.bottom - 10;
           const estimatedHeight = Math.max(260, 120 + comentarioHeight + normasHeight, 200 + 50);
           if (y + estimatedHeight > 780) { // margen inferior seguro
             doc.addPage();
@@ -746,22 +747,15 @@ router.get(
             doc,
             i,
             { comentario: g.comentario, tarea_id: g.tareaId },
-            g.tareaId ? tareasMap[g.tareaId]?.nombre : null,
             y,
             g.links,
-            g.images.slice(0, 3)
+            g.images.slice(0, 1)
           );
           y += usedH + 50; // separación basada en altura usada
         }
       }
-
       // Numeración de páginas (footer)
-      const range = doc.bufferedPageRange(); // { start, count }
-      for (let i = range.start; i < range.start + range.count; i++) {
-        doc.switchToPage(i);
-        drawFooter(doc, i + 1, range.count);
-      }
-
+   
       doc.end();
     } catch (err) {
       console.error("reporte proyecto error:", err);
