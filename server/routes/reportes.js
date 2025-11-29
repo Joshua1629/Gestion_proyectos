@@ -681,9 +681,18 @@ router.get(
 
       // Crear PDF
       res.setHeader("Content-Type", "application/pdf");
+      // Usar el indicador único (codigo del proyecto) como nombre de archivo, con fallback al ID
+      const rawCode = (proyecto && proyecto.codigo) ? String(proyecto.codigo) : "";
+      const safeCode = rawCode
+        .trim()
+        .replace(/\s+/g, "_")
+        .replace(/[^A-Za-z0-9_\-]/g, "");
+      const filename = safeCode
+        ? `${safeCode}.pdf`
+        : `reporte_proyecto_${id}.pdf`;
       res.setHeader(
         "Content-Disposition",
-        `inline; filename=reporte_proyecto_${id}.pdf`
+        `inline; filename=${filename}`
       );
       const doc = new PDFDocument({
         size: "A4",

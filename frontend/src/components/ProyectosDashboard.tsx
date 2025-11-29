@@ -22,6 +22,9 @@ export default function ProyectosDashboard({
   const [totalPages, setTotalPages] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Filtro y ordenado
+  const [estadoFilter, setEstadoFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>("");
 
   // Estado del formulario
   const [formData, setFormData] = useState({
@@ -49,11 +52,11 @@ export default function ProyectosDashboard({
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  // Cargar proyectos
-  const loadProyectos = async () => {
+  // Cargar proyectos; opcionalmente bloquear UI solo en la carga inicial
+  const loadProyectos = async (blockUI: boolean = false) => {
     try {
       console.log("🚀 Iniciando carga de proyectos...");
-      setLoading(true);
+      if (blockUI) setLoading(true);
       const data = await getProyectos(page, 12, search);
       console.log("✅ Proyectos cargados:", data);
       setProyectos(data.data || []);
@@ -62,12 +65,20 @@ export default function ProyectosDashboard({
       console.error("❌ Error cargando proyectos:", err);
       setError(err.message || "Error al cargar proyectos");
     } finally {
-      setLoading(false);
+      if (blockUI) setLoading(false);
     }
   };
 
+  // Carga inicial (bloquea UI)
   useEffect(() => {
-    loadProyectos();
+    loadProyectos(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Actualizaciones por búsqueda/paginación (sin bloquear UI para poder seguir escribiendo)
+  useEffect(() => {
+    loadProyectos(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, search]);
 
   // Buscar proyectos: el input reactivo arriba actualiza automáticamente la lista
@@ -273,6 +284,50 @@ export default function ProyectosDashboard({
     return "Iniciando";
   };
 
+  const getEstadoValue = (progreso: number) => {
+    if (progreso === 100) return "completado";
+    if (progreso > 50) return "avanzado";
+    if (progreso > 0) return "progreso";
+    return "iniciando";
+  };
+
+  const parseDateSafe = (value: any): number => {
+    if (!value) return 0;
+    try {
+      if (typeof value === "number") return value;
+      const d = new Date(String(value));
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    } catch {
+      return 0;
+    }
+  };
+
+  const sortedAndFiltered = (() => {
+    let arr = [...proyectos];
+    // Filtro por estado
+    if (estadoFilter) {
+      arr = arr.filter((p) => getEstadoValue(calcularProgresoProyecto(p)) === estadoFilter);
+    }
+    // Orden
+    if (sortBy) {
+      arr.sort((a, b) => {
+        switch (sortBy) {
+          case "nombre":
+            return String(a.nombre).localeCompare(String(b.nombre));
+          case "cliente":
+            return String(a.cliente).localeCompare(String(b.cliente));
+          case "fecha":
+            return parseDateSafe(a.fecha_inicio) - parseDateSafe(b.fecha_inicio);
+          case "progreso":
+            return calcularProgresoProyecto(a) - calcularProgresoProyecto(b);
+          default:
+            return 0;
+        }
+      });
+    }
+    return arr;
+  })();
+
   if (loading) {
     return (
       <div className="loading-state">
@@ -342,14 +397,22 @@ export default function ProyectosDashboard({
           />
         </div>
         <div className="filter-controls">
-          <select className="filter-select">
+          <select
+            className="filter-select"
+            value={estadoFilter}
+            onChange={(e) => setEstadoFilter(e.target.value)}
+          >
             <option value="">Todos los estados</option>
             <option value="iniciando">Iniciando</option>
             <option value="progreso">En Progreso</option>
             <option value="avanzado">Avanzado</option>
             <option value="completado">Completado</option>
           </select>
-          <select className="filter-select">
+          <select
+            className="filter-select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
             <option value="">Ordenar por</option>
             <option value="nombre">Nombre</option>
             <option value="fecha">Fecha</option>
@@ -369,13 +432,18 @@ export default function ProyectosDashboard({
 
       {/* Grid de Proyectos empresariales */}
       <div className="proyectos-grid">
-        {proyectos.map((proyecto) => {
+        {sortedAndFiltered.map((proyecto) => {
           const progreso = calcularProgresoProyecto(proyecto);
           return (
             <div key={proyecto.id} className="proyecto-card">
               {/* Header del proyecto */}
               <div className="proyecto-card-header">
-                <div className="proyecto-title">{proyecto.nombre}</div>
+                <div className="proyecto-title">
+                  {proyecto.nombre}
+                  {proyecto.codigo && (
+                    <span className="proyecto-code">#{proyecto.codigo}</span>
+                  )}
+                </div>
                 <div className="proyecto-description">
                   Cliente: {proyecto.cliente}
                 </div>

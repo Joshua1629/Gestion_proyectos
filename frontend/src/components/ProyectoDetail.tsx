@@ -173,33 +173,29 @@ export default function ProyectoDetail({
           <div className="proyecto-info">
             <h1>{proyecto.nombre}</h1>
             <p className="cliente">Cliente: {proyecto.cliente}</p>
+            {proyecto.codigo && (
+              <p className="codigo">ID: {proyecto.codigo}</p>
+            )}
           </div>
           <div className="proyecto-stats">
             <div className="stat">
               <span className="stat-label">Progreso</span>
-              <span className="stat-value">
-                {proyecto.progreso_general || 0}%
-              </span>
+              <span className="stat-value">{proyecto.progreso_general || 0}%</span>
             </div>
             <div className="stat">
               <span className="stat-label">Tareas</span>
-              <span className="stat-value">
-                {proyecto.tareas_completadas || 0}/{proyecto.total_tareas || 0}
-              </span>
+              <span className="stat-value">{proyecto.tareas_completadas || 0}/{proyecto.total_tareas || 0}</span>
             </div>
             <div className="stat">
               <span className="stat-label">Fases</span>
-              <span className="stat-value">
-                {proyecto.fases_completadas || 0}/{proyecto.total_fases || 0}
-              </span>
+              <span className="stat-value">{proyecto.fases_completadas || 0}/{proyecto.total_fases || 0}</span>
             </div>
           </div>
           <div>
             <button
               className="btn"
               onClick={() => {
-                const base =
-                  import.meta.env.VITE_API_URL ?? "http://127.0.0.1:3001";
+                const base = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:3001";
                 const url = `${base}/api/reportes/proyectos/${proyecto.id}/pdf`;
                 window.open(url, "_blank");
               }}
@@ -382,24 +378,7 @@ export default function ProyectoDetail({
                     </div>
                   </div>
 
-                  <div className="fase-fechas">
-                    <div className="fecha-item">
-                      <span className="fecha-label">Inicio:</span>
-                      <span className="fecha-value">
-                        {fase.fecha_inicio
-                          ? formatDate(fase.fecha_inicio)
-                          : "No definida"}
-                      </span>
-                    </div>
-                    <div className="fecha-item">
-                      <span className="fecha-label">Fin:</span>
-                      <span className="fecha-value">
-                        {fase.fecha_fin
-                          ? formatDate(fase.fecha_fin)
-                          : "No definida"}
-                      </span>
-                    </div>
-                  </div>
+                  {/* Inicio/Fin ocultos */}
 
                   <div className="fase-tareas">
                     {(Array.isArray(tareas) ? tareas : [])

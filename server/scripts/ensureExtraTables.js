@@ -22,7 +22,7 @@ async function ensureExtraTables() {
       if (err) return reject(err);
       db.run("PRAGMA foreign_keys = ON");
 
-      // Asegurar columna cedula_juridica en proyectos
+      // Asegurar columnas en proyectos (cedula_juridica, fecha_verificacion, codigo)
       db.all("PRAGMA table_info(proyectos)", [], (e, rows) => {
         if (!e) {
           const hasCed =
@@ -41,6 +41,42 @@ async function ensureExtraTables() {
               "ALTER TABLE proyectos ADD COLUMN fecha_verificacion DATE",
               [],
               () => {}
+            );
+          }
+          const hasCodigo = rows && rows.some((r) => r && r.name === "codigo");
+          if (!hasCodigo) {
+            db.run(
+              "ALTER TABLE proyectos ADD COLUMN codigo TEXT",
+              [],
+              () => {
+                // Backfill: generar un código único para proyectos existentes
+                const genCode = () =>
+                  `PRJ-${Date.now().toString(36).toUpperCase()}-${Math.random()
+                    .toString(36)
+                    .slice(2, 6)
+                    .toUpperCase()}`;
+                db.all("SELECT id FROM proyectos", [], (eSel, pRows) => {
+                  if (eSel || !Array.isArray(pRows) || pRows.length === 0)
+                    return;
+                  const stmt = db.prepare(
+                    "UPDATE proyectos SET codigo = ? WHERE id = ?"
+                  );
+                  pRows.forEach((r) => {
+                    try {
+                      stmt.run([genCode(), r.id]);
+                    } catch {}
+                  });
+                  stmt.finalize(() => {
+                    db.run(
+                      "CREATE UNIQUE INDEX IF NOT EXISTS idx_proyectos_codigo ON proyectos(codigo)"
+                    );
+                  });
+                });
+              }
+            );
+          } else {
+            db.run(
+              "CREATE UNIQUE INDEX IF NOT EXISTS idx_proyectos_codigo ON proyectos(codigo)"
             );
           }
         }

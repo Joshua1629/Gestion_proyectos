@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
 -- Tabla de proyectos
 CREATE TABLE IF NOT EXISTS proyectos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    codigo TEXT UNIQUE,
     nombre TEXT NOT NULL,
     cliente TEXT NOT NULL,
     cedula_juridica TEXT NOT NULL,

@@ -102,6 +102,40 @@ router.get(
       proyecto.fases = fasesRows;
       proyecto.tareas = tareasRows;
 
+      // Agregar agregados/indicadores para que el frontend muestre valores reales
+      try {
+        const totalTareas = Array.isArray(tareasRows) ? tareasRows.length : 0;
+        const tareasCompletadas = Array.isArray(tareasRows)
+          ? tareasRows.filter(t => Number(t.progreso) === 100).length
+          : 0;
+        const totalFases = Array.isArray(fasesRows) ? fasesRows.length : 0;
+        const fasesCompletadas = Array.isArray(fasesRows)
+          ? fasesRows.filter(f => f.estado === 'Completado').length
+          : 0;
+
+        // Promedio de progreso de tareas como porcentaje 0-100
+        const progresoPromedio = Array.isArray(tareasRows) && tareasRows.length > 0
+          ? Math.round(
+              tareasRows.reduce((acc, t) => acc + (Number(t.progreso) || 0), 0) /
+              tareasRows.length
+            )
+          : 0;
+
+        proyecto.total_tareas = totalTareas;
+        proyecto.tareas_completadas = tareasCompletadas;
+        proyecto.total_fases = totalFases;
+        proyecto.fases_completadas = fasesCompletadas;
+        proyecto.progreso_general = progresoPromedio;
+      } catch (aggErr) {
+        // No bloquear la respuesta si algo falla en cálculo de agregados
+        console.warn('Error calculando agregados del proyecto:', aggErr && aggErr.message ? aggErr.message : aggErr);
+        proyecto.total_tareas = proyecto.total_tareas || 0;
+        proyecto.tareas_completadas = proyecto.tareas_completadas || 0;
+        proyecto.total_fases = proyecto.total_fases || 0;
+        proyecto.fases_completadas = proyecto.fases_completadas || 0;
+        proyecto.progreso_general = proyecto.progreso_general || 0;
+      }
+
       // Si el proyecto no tiene fechas, intentar derivarlas desde las fases (mínima inicio, máxima fin)
       try {
         if ((!proyecto.fecha_inicio || proyecto.fecha_inicio === '') && Array.isArray(fasesRows) && fasesRows.length > 0) {
@@ -149,10 +183,30 @@ router.post(
   async (req, res) => {
     const { nombre, cliente, cedula_juridica, fecha_verificacion, fecha_inicio, fecha_fin } = req.body;
     try {
+      // Generar código secuencial por año: PROY-YYYY-####
+      const year = new Date().getFullYear();
+      const prefix = `PROY-${year}-`;
+      let nextNumber = 1;
+      try {
+        const [rowsMax] = await pool.query(
+          'SELECT codigo FROM proyectos WHERE codigo LIKE ? ORDER BY codigo DESC LIMIT 1',
+          [`${prefix}%`]
+        );
+        if (Array.isArray(rowsMax) && rowsMax.length > 0 && rowsMax[0]?.codigo) {
+          const match = String(rowsMax[0].codigo).match(/PROY-\d{4}-(\d{4})$/);
+          if (match) {
+            nextNumber = parseInt(match[1], 10) + 1;
+          }
+        }
+      } catch (e) {
+        // Si algo falla, dejamos nextNumber en 1
+        console.warn('No se pudo calcular el consecutivo de codigo, usando 0001:', e?.message || e);
+      }
+      const codigo = `${prefix}${String(nextNumber).padStart(4, '0')}`;
       // Crear proyecto
       const [result] = await pool.query(
-        'INSERT INTO proyectos (nombre, cliente, cedula_juridica, fecha_verificacion, fecha_inicio, fecha_fin) VALUES (?, ?, ?, ?, ?, ?)',
-        [nombre, cliente, cedula_juridica, fecha_verificacion || null, fecha_inicio || null, fecha_fin || null]
+        'INSERT INTO proyectos (codigo, nombre, cliente, cedula_juridica, fecha_verificacion, fecha_inicio, fecha_fin) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [codigo, nombre, cliente, cedula_juridica, fecha_verificacion || null, fecha_inicio || null, fecha_fin || null]
       );
       
       const proyectoId = result.insertId;

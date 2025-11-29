@@ -544,8 +544,25 @@ router.get(
         for (let i = 0; i < 5; i++) params.push(`%${search}%`);
       }
       if (categoria) {
-        where.push("categoria LIKE ?");
-        params.push(`%${categoria}%`);
+        // Si la categoría es un número (con o sin punto), filtrar por el prefijo numérico exacto
+        const catTrim = categoria.trim();
+        const mNum = catTrim.match(/^\d+\.?$/);
+        if (mNum) {
+          // Extraer el número sin el punto final
+          const num = catTrim.replace(/\.$/, "");
+          // Comparar el número inicial antes del punto en la columna categoria
+          where.push(
+            `CASE WHEN instr(categoria, '.') > 0
+                  THEN substr(categoria, 1, instr(categoria, '.') - 1)
+                  ELSE categoria
+             END = ?`
+          );
+          params.push(num);
+        } else {
+          // Búsqueda textual estándar
+          where.push("categoria LIKE ?");
+          params.push(`%${categoria}%`);
+        }
       }
       if (severidad) {
         where.push("severidad LIKE ?");

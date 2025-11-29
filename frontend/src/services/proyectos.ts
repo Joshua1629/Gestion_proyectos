@@ -4,6 +4,7 @@ const API = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3001') + '/api/pr
 
 export interface Proyecto {
   id: number;
+  codigo?: string;
   nombre: string;
   cliente: string;
   cedula_juridica: string;
