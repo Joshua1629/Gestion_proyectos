@@ -30,7 +30,7 @@ router.post(
   '/login',
   [
     body('identifier').optional().isString().trim(),
-    body('email').optional().isEmail().normalizeEmail(),
+    body('email').optional({ checkFalsy: true }).isEmail().normalizeEmail(),
     body('password').isString().isLength({ min: 4 })
   ],
   checkValidation,

@@ -274,7 +274,7 @@ ipcMain.handle('http:uploadMultipart', async (_event, payload) => {
       const FormDataPkg = (await import('form-data')).default;
       form = new FormDataPkg();
     }
-    const { url, method = 'POST', fields = {}, files = [] } = payload || {};
+    const { url, method = 'POST', fields = {}, files = [], headers: extraHeaders = {} } = payload || {};
     for (const [k, v] of Object.entries(fields)) form.append(k, v);
     for (const f of files) {
       const buf = Buffer.from(f.buffer);
@@ -288,10 +288,10 @@ ipcMain.handle('http:uploadMultipart', async (_event, payload) => {
     }
     let reqInit;
     if (usingUndici) {
-      reqInit = { method, body: form };
+      reqInit = { method, body: form, headers: { ...(extraHeaders || {}) } };
     } else {
       // Legacy form-data needs headers and Node fetch requires duplex when piping a stream body
-      const headers = form.getHeaders();
+      const headers = { ...form.getHeaders(), ...(extraHeaders || {}) };
       // Try to compute content-length to avoid chunking issues with some servers
       try {
         const contentLength = await new Promise((resolve, reject) => {

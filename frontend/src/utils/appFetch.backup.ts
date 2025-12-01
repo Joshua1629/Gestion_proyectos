@@ -1,40 +1,26 @@
-﻿function headersToPlain(h: any): Record<string, string> {
-  try {
-    if (!h) return {};
-    if (typeof Headers !== 'undefined' && h instanceof Headers) {
-      const out: Record<string, string> = {};
-      (h as any).forEach((v: string, k: string) => { out[k] = v; });
-      return out;
-    }
-    if (typeof h === 'object') return { ...(h as Record<string, string>) };
-  } catch {}
-  return {};
-}
 export type AppFetchOptions = RequestInit & { asJson?: boolean };
 
 export async function appFetch(url: string, options: AppFetchOptions = {}) {
   const opts: RequestInit = { ...options };
   const asJson = options.asJson !== false; // por defecto intentamos JSON
-
-  // Adjuntar Authorization si existe token
+  // Adjuntar Authorization si existe token y no fue especificado
   try {
     const token = (typeof localStorage !== 'undefined') ? localStorage.getItem('token') : null;
-    const hdrs = new Headers((opts.headers as any) || {});
-    if (token && !hdrs.has('Authorization')) {
-      hdrs.set('Authorization', `Bearer ${token}`);
+    const headers = new Headers(opts.headers || {} as any);
+    if (token && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${token}`);
     }
-    opts.headers = hdrs as any;
+    opts.headers = headers as any;
   } catch {}
 
-  // Preferir puente IPC si existe (Electron)
+  // Preferir el puente IPC si existe (Electron preload)
   const api = (globalThis as any).api;
   const isFormData = typeof FormData !== 'undefined' && (opts as any).body instanceof FormData;
-
-  // IPC normal (no multipart): convertir headers a objeto plano
+  // Importante: cuando el body es FormData (multipart), evitar el puente IPC porque no serializa el stream correctamente
   if (api && typeof api.fetch === 'function' && !isFormData) {
     const res = await api.fetch(url, {
       method: opts.method || 'GET',
-      headers: headersToPlain(opts.headers),
+      headers: opts.headers,
       body: opts.body,
       credentials: (opts as any).credentials,
     });
@@ -44,18 +30,20 @@ export async function appFetch(url: string, options: AppFetchOptions = {}) {
     return asJson ? res.body : res;
   }
 
-  // IPC multipart: ya paso Authorization explícita
+  // Si estamos en Electron y el body es FormData, usar IPC upload para evitar problemas de red del renderer
   if (api && typeof api.uploadMultipart === 'function' && isFormData) {
     const fd = (opts as any).body as FormData;
     const fields: Record<string, string> = {};
     const files: Array<{ fieldName: string; name: string; type: string; buffer: ArrayBuffer }> = [];
     (fd as any).forEach((value: any, key: string) => {
       if (typeof File !== 'undefined' && value instanceof File) {
+        // se completará con arrayBuffer más abajo
         files.push({ fieldName: key, name: value.name, type: value.type || 'application/octet-stream', buffer: new ArrayBuffer(0) });
       } else {
         fields[key] = String(value);
       }
     });
+    // Completar buffers
     for (const f of files) {
       const v: any = (fd as any).get(f.fieldName);
       if (v && typeof v.arrayBuffer === 'function') {
@@ -63,6 +51,7 @@ export async function appFetch(url: string, options: AppFetchOptions = {}) {
         f.type = v.type || f.type;
       }
     }
+    // Extraer Authorization de headers ya calculados arriba
     let headers: Record<string, string> | undefined = undefined;
     try {
       const h = new Headers(opts.headers as any);
@@ -72,6 +61,7 @@ export async function appFetch(url: string, options: AppFetchOptions = {}) {
     const res = await api.uploadMultipart({ url, method: opts.method || 'POST', fields, files, headers });
     if (!res.ok) {
       const body = res.body;
+      // Incluir res.error si existe
       throw { status: res.status, statusText: res.statusText, ...(typeof body === 'object' ? body : { error: body }), ...(res.error ? { error: res.error } : {}) };
     }
     return asJson ? res.body : res;
@@ -86,4 +76,3 @@ export async function appFetch(url: string, options: AppFetchOptions = {}) {
   }
   return asJson ? r.json() : r;
 }
-

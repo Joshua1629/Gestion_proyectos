@@ -11,8 +11,10 @@ import "../css/ProyectosDashboard.css";
 
 export default function ProyectosDashboard({
   onSelectProyecto,
+  canManage = true,
 }: {
   onSelectProyecto?: (proyectoId: number) => void;
+  canManage?: boolean;
 }) {
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -347,14 +349,16 @@ export default function ProyectosDashboard({
             Gestiona y supervisa todos tus proyectos Electricos
           </p>
         </div>
-        <div className="dashboard-actions">
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowCreateModal(true)}
-          >
-            + Nuevo Proyecto
-          </button>
-        </div>
+        {canManage && (
+          <div className="dashboard-actions">
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowCreateModal(true)}
+            >
+              + Nuevo Proyecto
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Estadísticas empresariales */}
@@ -524,22 +528,26 @@ export default function ProyectosDashboard({
                   >
                     Ver Detalles
                   </button>
-                  <button
-                    onClick={() => {
-                      setEditingProject(proyecto);
-                      setEditFecha(proyecto.fecha_verificacion || "");
-                      setEditError(null);
-                    }}
-                    className="btn btn-outline btn-secondary"
-                  >
-                    Editar Fecha Verificación
-                  </button>
-                  <button
-                    onClick={() => handleDelete(proyecto.id)}
-                    className="btn btn-outline btn-danger"
-                  >
-                    Eliminar
-                  </button>
+                  {canManage && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditingProject(proyecto);
+                          setEditFecha(proyecto.fecha_verificacion || "");
+                          setEditError(null);
+                        }}
+                        className="btn btn-outline btn-secondary"
+                      >
+                        Editar Fecha Verificación
+                      </button>
+                      <button
+                        onClick={() => handleDelete(proyecto.id)}
+                        className="btn btn-outline btn-danger"
+                      >
+                        Eliminar
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -556,12 +564,14 @@ export default function ProyectosDashboard({
             Comienza creando tu primer proyecto Electrico para gestionar tareas
             y equipos.
           </p>
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowCreateModal(true)}
-          >
-            Crear Primer Proyecto
-          </button>
+          {canManage && (
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowCreateModal(true)}
+            >
+              Crear Primer Proyecto
+            </button>
+          )}
         </div>
       )}
 
@@ -603,7 +613,7 @@ export default function ProyectosDashboard({
       )}
 
       {/* Modal de crear proyecto empresarial */}
-      {showCreateModal && (
+      {canManage && showCreateModal && (
         <div className="modal-backdrop" onClick={handleCloseModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">

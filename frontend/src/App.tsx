@@ -5,8 +5,9 @@ import { getCurrentUser, logout } from './services/auth';
 import ProyectosDashboard from './components/ProyectosDashboard';
 import NormasRepositorio from './components/NormasRepositorio';
 import ProyectoDetail from './components/ProyectoDetail';
+import PerfilUsuario from './components/PerfilUsuario';
 
-type ViewType = 'dashboard' | 'proyecto-detail' | 'normas-repo';
+type ViewType = 'dashboard' | 'proyecto-detail' | 'normas-repo' | 'perfil';
 
 interface AppState {
   currentView: ViewType;
@@ -17,6 +18,8 @@ function Dashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
   const [appState, setAppState] = useState<AppState>({
     currentView: 'dashboard'
   });
+  const isUsuario = String(user?.rol || '').toLowerCase() === 'usuario';
+  const canManage = !isUsuario; // solo admin gestiona
 
   const navigateToProyecto = (proyectoId: number) => {
     setAppState({
@@ -35,6 +38,10 @@ function Dashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
     setAppState({ currentView: 'normas-repo' });
   };
 
+  const openPerfil = () => {
+    setAppState({ currentView: 'perfil' });
+  };
+
   return (
     <div className="app-container">
       {/* Header Principal */}
@@ -46,6 +53,7 @@ function Dashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
           </div>
           <div className="header-actions">
             <button onClick={openNormasRepo} className="btn">Repositorio de Normas</button>
+            <button onClick={openPerfil} className="btn">Mi Perfil</button>
             <span className="user-role">{user?.rol}</span>
             <button onClick={onLogout} className="btn btn-outline">
               Cerrar sesión
@@ -57,11 +65,15 @@ function Dashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
       {/* Contenido Principal */}
       <main className="main-content">
         {appState.currentView === 'dashboard' && (
-          <ProyectosDashboard onSelectProyecto={navigateToProyecto} />
+          <ProyectosDashboard onSelectProyecto={navigateToProyecto} canManage={canManage} />
         )}
         
+        {appState.currentView === 'perfil' && (
+          <PerfilUsuario user={user} />
+        )}
+
         {appState.currentView === 'normas-repo' && (
-          <NormasRepositorio onBack={navigateBack} />
+          <NormasRepositorio onBack={navigateBack} canManage={canManage} />
         )}
 
         {appState.currentView === 'proyecto-detail' && appState.selectedProyectoId && (

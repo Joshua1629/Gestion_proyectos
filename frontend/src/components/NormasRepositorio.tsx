@@ -10,7 +10,7 @@ import {
 } from "../services/normasRepo";
 import "../css/NormasPanel.css";
 
-export default function NormasRepositorio({ onBack }: { onBack?: () => void }) {
+export default function NormasRepositorio({ onBack, canManage = true }: { onBack?: () => void; canManage?: boolean }) {
   const [items, setItems] = useState<NormaRepoItem[]>([]);
   const [categoria, setCategoria] = useState("");
   const [page, setPage] = useState(1);
@@ -156,18 +156,20 @@ export default function NormasRepositorio({ onBack }: { onBack?: () => void }) {
         </div>
       </div>
 
-      <form className="norma-uploader" onSubmit={onImport}>
-        <div className="row">
-          <input
-            type="file"
-            accept=".xlsx,.csv"
-            onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-          />
-          <button className="btn btn-primary" disabled={loading} type="submit">
-            Importar Excel
-          </button>
-        </div>
-      </form>
+      {canManage && (
+        <form className="norma-uploader" onSubmit={onImport}>
+          <div className="row">
+            <input
+              type="file"
+              accept=".xlsx,.csv"
+              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+            />
+            <button className="btn btn-primary" disabled={loading} type="submit">
+              Importar Excel
+            </button>
+          </div>
+        </form>
+      )}
 
       <div className="normas-busqueda">
         <input
@@ -182,12 +184,14 @@ export default function NormasRepositorio({ onBack }: { onBack?: () => void }) {
         <button className="btn" onClick={openReport}>
           Exportar PDF
         </button>
-        <button className="btn btn-primary" onClick={() => setShowAdd((v) => !v)}>
-          {showAdd ? "Cancelar" : "Agregar"}
-        </button>
+        {canManage && (
+          <button className="btn btn-primary" onClick={() => setShowAdd((v) => !v)}>
+            {showAdd ? "Cancelar" : "Agregar"}
+          </button>
+        )}
       </div>
 
-      {showAdd && (
+      {canManage && showAdd && (
         <form className="normas-add-inline" onSubmit={onCreate}>
           <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
             <input
@@ -285,58 +289,62 @@ export default function NormasRepositorio({ onBack }: { onBack?: () => void }) {
                         )}
                       </td>
                       <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
-                        {isEditing ? (
-                          <>
-                            <button
-                              className="btn btn-primary"
-                              onClick={() => void saveEdit(it.id)}
-                              disabled={loading}
-                              title="Guardar cambios"
-                            >
-                              💾 Guardar
-                            </button>
-                            <button
-                              className="btn"
-                              onClick={cancelEdit}
-                              disabled={loading}
-                              title="Cancelar edición"
-                            >
-                              ✖ Cancelar
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              className="btn btn-outline"
-                              onClick={() => startEdit(it)}
-                              title="Editar"
-                            >
-                              ✏️ Editar
-                            </button>
-                            <button
-                              className="btn btn-outline btn-danger"
-                              onClick={async () => {
-                                const ok = window.confirm(
-                                  "¿Eliminar este registro del repositorio?"
-                                );
-                                if (!ok) return;
-                                try {
-                                  setLoading(true);
-                                  await deleteNormaRepo(it.id);
-                                  await fetchData(page);
-                                } catch (e: any) {
-                                  setError(
-                                    e?.detail || e?.error || e?.message || "Error eliminando"
+                        {canManage ? (
+                          isEditing ? (
+                            <>
+                              <button
+                                className="btn btn-primary"
+                                onClick={() => void saveEdit(it.id)}
+                                disabled={loading}
+                                title="Guardar cambios"
+                              >
+                                💾 Guardar
+                              </button>
+                              <button
+                                className="btn"
+                                onClick={cancelEdit}
+                                disabled={loading}
+                                title="Cancelar edición"
+                              >
+                                ✖ Cancelar
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                className="btn btn-outline"
+                                onClick={() => startEdit(it)}
+                                title="Editar"
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button
+                                className="btn btn-outline btn-danger"
+                                onClick={async () => {
+                                  const ok = window.confirm(
+                                    "¿Eliminar este registro del repositorio?"
                                   );
-                                } finally {
-                                  setLoading(false);
-                                }
-                              }}
-                              title="Eliminar"
-                            >
-                              🗑 Eliminar
-                            </button>
-                          </>
+                                  if (!ok) return;
+                                  try {
+                                    setLoading(true);
+                                    await deleteNormaRepo(it.id);
+                                    await fetchData(page);
+                                  } catch (e: any) {
+                                    setError(
+                                      e?.detail || e?.error || e?.message || "Error eliminando"
+                                    );
+                                  } finally {
+                                    setLoading(false);
+                                  }
+                                }}
+                                title="Eliminar"
+                              >
+                                🗑 Eliminar
+                              </button>
+                            </>
+                          )
+                        ) : (
+                          <span className="muted small">Sin acciones</span>
                         )}
                       </td>
                     </tr>

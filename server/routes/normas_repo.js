@@ -15,6 +15,7 @@ try {
 } catch {}
 
 const router = express.Router();
+const { optionalAuth, requireRole } = require('../middleware/auth');
 
 const checkValidation = (req, res, next) => {
   const errors = validationResult(req);
@@ -228,9 +229,10 @@ async function upsertNormaRepo(row) {
   return { id: result.insertId, created: true };
 }
 
-// POST /api/normas-repo/import
+// POST /api/normas-repo/import (solo admin)
 router.post(
   "/import",
+  requireRole('admin'),
   (req, res, next) => {
     excelUpload.single("file")(req, res, (err) => {
       if (err) {
@@ -512,7 +514,7 @@ router.post(
   }
 );
 
-// GET /api/normas-repo
+// GET /api/normas-repo (público: solo lectura)
 router.get(
   "/",
   [
@@ -623,9 +625,10 @@ router.get(
   }
 );
 
-// POST /api/normas-repo
+// POST /api/normas-repo (solo admin)
 router.post(
   "/",
+  requireRole('admin'),
   [body("titulo").isString().trim().isLength({ min: 1 })],
   checkValidation,
   async (req, res) => {
@@ -667,9 +670,10 @@ router.post(
   }
 );
 
-// PUT /api/normas-repo/:id
+// PUT /api/normas-repo/:id (solo admin)
 router.put(
   "/:id",
+  requireRole('admin'),
   [param("id").isInt({ min: 1 }).toInt()],
   checkValidation,
   async (req, res) => {
@@ -715,9 +719,10 @@ router.put(
   }
 );
 
-// DELETE /api/normas-repo/:id
+// DELETE /api/normas-repo/:id (solo admin)
 router.delete(
   "/:id",
+  requireRole('admin'),
   [param("id").isInt({ min: 1 }).toInt()],
   checkValidation,
   async (req, res) => {
@@ -732,9 +737,10 @@ router.delete(
   }
 );
 
-// POST /api/normas-repo/:id/evidencias (Sharp processing)
+// POST /api/normas-repo/:id/evidencias (solo admin)
 router.post(
   "/:id/evidencias",
+  requireRole('admin'),
   [param("id").isInt({ min: 1 }).toInt()],
   (req, res, next) => {
     imageUpload.single("file")(req, res, (err) => {
@@ -819,7 +825,7 @@ router.post(
   }
 );
 
-// GET /api/normas-repo/:id/evidencias
+// GET /api/normas-repo/:id/evidencias (solo lectura)
 router.get(
   "/:id/evidencias",
   [param("id").isInt({ min: 1 }).toInt()],
@@ -849,9 +855,10 @@ router.get(
   }
 );
 
-// DELETE /api/normas-repo/evidencias/:evidenciaId
+// DELETE /api/normas-repo/evidencias/:evidenciaId (solo admin)
 router.delete(
   "/evidencias/:evidenciaId",
+  requireRole('admin'),
   [param("evidenciaId").isInt({ min: 1 }).toInt()],
   checkValidation,
   async (req, res) => {
