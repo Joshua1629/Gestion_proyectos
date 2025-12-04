@@ -23,6 +23,21 @@ function getLogoPath() {
   return null;
 }
 
+function getCfiaSealPath() {
+  const candidates = [
+    path.join(process.cwd(), "frontend", "public", "cfia_seal.png"),
+    path.join(process.cwd(), "frontend", "public", "cfia.png"),
+    path.join(__dirname, "..", "..", "frontend", "public", "cfia_seal.png"),
+    path.join(__dirname, "..", "..", "frontend", "public", "cfia.png"),
+  ];
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c)) return c;
+    } catch {}
+  }
+  return null;
+}
+
 // Normaliza rutas para comparaciones robustas (soporta Windows/Linux)
 function normalizePath(p) {
   try {
@@ -46,24 +61,29 @@ function drawHeader(doc, proyectoNombre, clienteNombre) {
   doc
     .lineWidth(3)
     .strokeColor("#93C01F")
-    .moveTo(50, 40)
-    .lineTo(545, 40)
+    .moveTo(50, 60)
+    .lineTo(545, 60)
     .stroke();
-  // Título
+  // Logo empresa en esquina superior izquierda (sobre el título)
+  const logo = getLogoPath();
+  if (logo) {
+    try {
+      doc.image(logo, 50, 2, { width: 70 });
+    } catch {}
+  }
+  // Título debajo de la franja y el logo
   doc
     .fillColor("#000")
     .font("Helvetica-Bold")
     .fontSize(16)
-    .text("REPORTE FOTOGRÁFICO", 50, 50, { align: "left" });
-  // Subtítulo a la derecha (proyecto / cliente)
-  const rightText = [proyectoNombre, clienteNombre]
-    .filter(Boolean)
-    .join("  ·  ");
-  if (rightText)
-    doc
-      .font("Helvetica")
-      .fontSize(10)
-      .text(rightText, 300, 55, { width: 245, align: "right" });
+    .text("REPORTE FOTOGRÁFICO", 50, 78, { align: "left" });
+  // Sello CFIA a la derecha (como en el ejemplo)
+  const cfiaSeal = getCfiaSealPath();
+  if (cfiaSeal) {
+    try {
+      doc.image(cfiaSeal, 455, 20, { width: 90 });
+    } catch {}
+  }
   doc.restore();
 }
 
@@ -127,6 +147,134 @@ function formatFechaInforme(d = new Date()) {
   } del ${d.getFullYear()}.`;
 }
 
+// Formatea una fecha ignorando zonas horarias (usa UTC internamente)
+function formatFechaInformeSeguro(value) {
+  const dias = [
+    "Domingo",
+    "Lunes",
+    "Martes",
+    "Miércoles",
+    "Jueves",
+    "Viernes",
+    "Sábado",
+  ];
+  const meses = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ];
+  // Extraer partes y construir una fecha UTC estable
+  let y, m, d;
+  if (typeof value === "string") {
+    const mLoc = value.match(/^\s*(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})\s*$/);
+    if (mLoc) {
+      d = Number(mLoc[1]);
+      m = Number(mLoc[2]) - 1;
+      y = Number(mLoc[3]);
+    } else {
+      const mIso = value.match(/^\s*(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?\s*$/);
+      if (mIso) {
+        y = Number(mIso[1]);
+        m = Number(mIso[2]) - 1;
+        d = Number(mIso[3]);
+      }
+    }
+  } else if (value instanceof Date) {
+    y = value.getFullYear();
+    m = value.getMonth();
+    d = value.getDate();
+  } else if (typeof value === "number") {
+    const dv = new Date(value);
+    y = dv.getFullYear();
+    m = dv.getMonth();
+    d = dv.getDate();
+  }
+  if (y == null || m == null || d == null) {
+    const now = new Date();
+    y = now.getFullYear();
+    m = now.getMonth();
+    d = now.getDate();
+  }
+  const utc = new Date(Date.UTC(y, m, d, 12, 0, 0));
+  return `${dias[utc.getUTCDay()]} ${utc.getUTCDate()} de ${meses[utc.getUTCMonth()]} del ${utc.getUTCFullYear()}.`;
+}
+
+// Parse fechas guardadas como 'YYYY-MM-DD' en horario local para evitar desfase
+function parseFechaLocal(value) {
+  if (!value) return new Date();
+  try {
+    if (typeof value === "string") {
+      // Formato local dd/mm/aaaa
+      const mLoc = value.match(/^\s*(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})\s*$/);
+      if (mLoc) {
+        const da = Number(mLoc[1]);
+        const mo = Number(mLoc[2]) - 1;
+        const y = Number(mLoc[3]);
+        const d = new Date(y, mo, da);
+        d.setHours(12, 0, 0, 0); // fijar a mediodía para evitar desfases
+        return d;
+      }
+      // ISO con solo fecha YYYY-MM-DD
+      const m = value.match(/^\s*(\d{4})-(\d{2})-(\d{2})\s*$/);
+      if (m) {
+        const y = Number(m[1]);
+        const mo = Number(m[2]) - 1;
+        const da = Number(m[3]);
+        const d = new Date(y, mo, da);
+        d.setHours(12, 0, 0, 0);
+        return d;
+      }
+      // ISO con fecha y tiempo (ignorar tiempo/zonas y usar la fecha local)
+      const mIso = value.match(/^\s*(\d{4})-(\d{2})-(\d{2})[T\s].*$/);
+      if (mIso) {
+        const y = Number(mIso[1]);
+        const mo = Number(mIso[2]) - 1;
+        const da = Number(mIso[3]);
+        const d = new Date(y, mo, da);
+        d.setHours(12, 0, 0, 0);
+        return d;
+      }
+    }
+    // Si viene como objeto Date, normalizar a solo fecha local
+    if (value instanceof Date) {
+      const y = value.getFullYear();
+      const mo = value.getMonth();
+      const da = value.getDate();
+      const d = new Date(y, mo, da);
+      d.setHours(12, 0, 0, 0);
+      return d;
+    }
+    // Si es numérico (timestamp), convertir y normalizar
+    if (typeof value === "number") {
+      const dv = new Date(value);
+      const y = dv.getFullYear();
+      const mo = dv.getMonth();
+      const da = dv.getDate();
+      const d = new Date(y, mo, da);
+      d.setHours(12, 0, 0, 0);
+      return d;
+    }
+    const dgen = new Date(value);
+    const y = dgen.getFullYear();
+    const mo = dgen.getMonth();
+    const da = dgen.getDate();
+    const d = new Date(y, mo, da);
+    d.setHours(12, 0, 0, 0);
+    return d;
+  } catch {
+    return new Date();
+  }
+}
+
 function drawLegend(doc, y) {
   doc
     .font("Helvetica-Bold")
@@ -161,18 +309,8 @@ function drawLegend(doc, y) {
 }
 
 function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
-  // Header con logo alineado a la derecha
-  const logo = getLogoPath();
-  if (logo) {
-    try {
-      doc.image(logo, 460, 55, { width: 80 });
-    } catch {}
-  }
-  // Quitar sello superior: usaremos la imagen institucional como foto principal de portada
-  doc.moveDown(1.2);
-  // Encabezados de establecimiento centrados
-  const centerX = 50;
-  const centerW = 495;
+  // Encabezados alineados a la izquierda (más cercanos al margen)
+  const leftX = 50;
   const headStartY = 95;
   let cy = headStartY;
   function heading(label, value) {
@@ -180,16 +318,13 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
       .font("Helvetica-Bold")
       .fontSize(10)
       .fillColor("#444")
-      .text(label, centerX, cy, { width: centerW, align: "center" });
+      .text(label, leftX, cy, { width: 300, align: "left" });
     cy += 14;
     doc
       .font("Helvetica")
       .fontSize(13)
       .fillColor("#000")
-      .text(String(value || ""), centerX, cy, {
-        width: centerW,
-        align: "center",
-      });
+      .text(String(value || ""), leftX, cy, { width: 300, align: "left" });
     cy += 20; // spacing after value
   }
   heading("NOMBRE DE ESTABLECIMIENTO", proyecto.nombre);
@@ -197,16 +332,16 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
   heading("CEDULA JURIDICA", proyecto.cedula_juridica);
   // línea divisoria sutil
   doc
-    .moveTo(centerX + 40, cy)
-    .lineTo(centerX + centerW - 40, cy)
+    .moveTo(leftX, cy)
+    .lineTo(545, cy)
     .strokeColor("#d3d3d3")
     .lineWidth(1)
     .stroke();
   cy += 15;
 
   // Foto de portada (usar institucional si existe, si no la primera normal)
-  const imgY = 205;
-  const imgX = 250; // mover un poco más a la derecha para liberar espacio a la izquierda
+  const imgY = 240; // bajar más la imagen de portada
+  const imgX = 260; // mantener hacia la derecha para dejar espacio a la izquierda
   const imgW = 300;
   const imgH = 230;
   const mainCover =
@@ -217,18 +352,9 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
       : null;
   if (mainCover) {
     try {
-      // sombra ligera simulada
-      doc
-        .rect(imgX + 2, imgY + 2, imgW, imgH)
-        .fillColor("#f0f0f0")
-        .fill();
-      doc
-        .roundedRect(imgX, imgY, imgW, imgH, 6)
-        .strokeColor("#c9c9c9")
-        .lineWidth(1)
-        .stroke();
-      doc.image(mainCover, imgX + 4, imgY + 4, {
-        fit: [imgW - 8, imgH - 8],
+      // Imagen de portada sin borde
+      doc.image(mainCover, imgX, imgY, {
+        fit: [imgW, imgH],
         align: "center",
         valign: "center",
       });
@@ -289,14 +415,14 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
     .stroke();
   ly += 10;
 
-  const fechaVerif = formatFechaInforme(
+  const fechaVerif = formatFechaInformeSeguro(
     proyecto.fecha_verificacion
-      ? new Date(proyecto.fecha_verificacion)
+      ? proyecto.fecha_verificacion
       : proyecto.fecha_inicio
-      ? new Date(proyecto.fecha_inicio)
+      ? proyecto.fecha_inicio
       : new Date()
   );
-  const fechaInforme = formatFechaInforme(new Date());
+  const fechaInforme = formatFechaInformeSeguro(new Date());
   doc
     .font("Helvetica-Bold")
     .fontSize(8)
@@ -361,10 +487,19 @@ function drawEquiposPage(doc) {
   const marginX = 50;
   const fullW = 495;
   const boxW = fullW; // una columna, dos cajas apiladas
-  let y = 100;
+  let y = 60; // subir aún más los recuadros
 
-  function drawListBox(title, items) {
-    const boxH = 20 + items.length * 18 + 20;
+  function drawListBox(title, items, splitOnlyForRecommendation = false) {
+    const lineH = 16; // altura de renglón más compacta y adecuada
+    // Calcular altura considerando que el texto entre paréntesis va en una segunda línea
+    const totalLines = items.reduce((acc, t) => {
+      const lower = String(t || "").toLowerCase();
+      const hasParen = /\(.+\)/.test(lower);
+      const isRecommendation = lower.includes("(se recomienda al menos 75% algodón)");
+      const shouldSplit = splitOnlyForRecommendation ? isRecommendation : hasParen;
+      return acc + (shouldSplit ? 2 : 1);
+    }, 0);
+    const boxH = 16 + totalLines * lineH + 12; // reducir padding para minimizar blancos
     doc
       .roundedRect(marginX, y, boxW, boxH, 6)
       .strokeColor("#CFCFCF")
@@ -377,22 +512,47 @@ function drawEquiposPage(doc) {
       .fillColor("#000")
       .text(title, marginX + 10, y + 8);
 
-    let ly = y + 28;
+    let ly = y + 22;
     items.forEach((t) => {
-      // punto verde
+      const text = String(t || "");
+      const lower = text.toLowerCase();
+      const isRecommendation = lower.includes("(se recomienda al menos 75% algodón)");
+      let firstLine = text;
+      let secondLine = null;
+      if (splitOnlyForRecommendation && isRecommendation) {
+        const idx = lower.indexOf("(se recomienda al menos 75% algodón)");
+        firstLine = text.slice(0, idx).trimEnd();
+        secondLine = text.slice(idx).trim();
+      } else if (!splitOnlyForRecommendation) {
+        const m = text.match(/^(.*?)(\s*\(.*\))\s*$/);
+        if (m) {
+          firstLine = m[1];
+          secondLine = m[2];
+        }
+      }
+      // punto verde para la primera línea del ítem
       doc
-        .circle(marginX + 12, ly + 4, 4)
+        .circle(marginX + 12, ly + 3, 4)
         .fillColor("#43A047")
         .fill();
       doc
         .font("Helvetica")
         .fontSize(10)
         .fillColor("#000")
-        .text(t, marginX + 26, ly - 2, { width: boxW - 36 });
-      ly += 18;
+        .text(firstLine, marginX + 26, ly - 2, { width: boxW - 36 });
+      ly += lineH;
+      // Si existe texto entre paréntesis, dibujarlo en el renglón siguiente sin viñeta
+      if (secondLine) {
+        doc
+          .font("Helvetica")
+          .fontSize(10)
+          .fillColor("#000")
+          .text(secondLine, marginX + 26, ly - 2, { width: boxW - 36 });
+        ly += lineH;
+      }
     });
 
-    y += boxH + 16; // espacio entre cajas
+    y += boxH + 10; // espacio entre cajas
   }
 
   drawListBox("Equipos de Seguridad:", [
@@ -402,7 +562,7 @@ function drawEquiposPage(doc) {
     "Guantes (cuando se considere necesario).",
     "Casco.",
     "Lentes (cuando se considere necesario).",
-  ]);
+  ], true);
 
   drawListBox("Equipos de Verificación:", [
     "Telurómetro de gancho.",
@@ -543,10 +703,6 @@ function drawFinding(
     try {
       // Marco general
       const effImgH = Math.min(imgH, Math.max(0, blockH - 40));
-      doc
-        .rect(imgX - 2, imgY - 2, imgW + 4, effImgH + 4)
-        .strokeColor("#DDD")
-        .stroke();
       // Imagen única ocupa todo el marco
       doc.image(imgs[0], imgX, imgY, {
         fit: [imgW, effImgH],
