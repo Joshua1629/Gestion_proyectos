@@ -165,52 +165,81 @@ async function ensureExtraTables() {
 
       db.exec(ddl, (e) => {
         if (e) return reject(e);
-        // Asegurar columna de agrupación en evidencias para manejar grupos con múltiples fotos
-        db.all("PRAGMA table_info(evidencias)", [], (e2, rows) => {
-          if (e2) {
-            // cerrar de todas formas
-            return db.close(() => resolve());
-          }
-          const hasGroupKey = rows && rows.some((r) => r && r.name === 'group_key');
-          const hasFileHash = rows && rows.some((r) => r && r.name === 'file_hash');
-          const hasEvidenceType = rows && rows.some((r) => r && r.name === 'evidence_type');
-          const ensureIndex = () => {
-            db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_group_key ON evidencias(group_key)", [], () => {
-              db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_file_hash ON evidencias(file_hash)");
-              db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_evidence_type ON evidencias(evidence_type)", [], () => db.close(() => resolve()));
-            });
-          };
-          if (!hasGroupKey) {
-            db.run("ALTER TABLE evidencias ADD COLUMN group_key TEXT", [], () => {
-              // Backfill básico: calcular group_key como t{tarea_id||0}|{comentario_normalizado}
-              db.all("SELECT id, tarea_id, comentario FROM evidencias WHERE group_key IS NULL OR group_key = ''", [], (e3, evRows) => {
-                if (e3 || !Array.isArray(evRows) || evRows.length === 0) return ensureIndex();
-                const norm = (s) => String(s || '')
-                  .replace(/\^?\s*\[(INSTITUCION|PORTADA)\]\s*/gi, '')
-                  .replace(/\s+/g, ' ')
-                  .trim();
-                const stmt = db.prepare("UPDATE evidencias SET group_key = ? WHERE id = ?");
-                evRows.forEach((r) => {
-                  try {
-                    const key = `t${r.tarea_id || 0}|c${norm(r.comentario)}`;
-                    stmt.run([key, r.id]);
-                  } catch {}
-                });
-                stmt.finalize(() => ensureIndex());
+        
+        // Asegurar columnas en normas_repo (migración para tablas existentes)
+        const ensureNormasRepoColumns = (next) => {
+          db.all("PRAGMA table_info(normas_repo)", [], (errInfo, cols) => {
+            if (errInfo || !cols) return next();
+            const colNames = cols.map((c) => c && c.name);
+            const columnsToAdd = [
+              { name: 'subcategoria', type: 'TEXT' },
+              { name: 'severidad', type: 'TEXT' },
+              { name: 'etiquetas', type: 'TEXT' }
+            ];
+            const missing = columnsToAdd.filter((col) => !colNames.includes(col.name));
+            if (missing.length === 0) return next();
+            
+            const addColumn = (idx) => {
+              if (idx >= missing.length) return next();
+              const col = missing[idx];
+              console.log(`Añadiendo columna ${col.name} a normas_repo...`);
+              db.run(`ALTER TABLE normas_repo ADD COLUMN ${col.name} ${col.type}`, [], (errAlter) => {
+                if (errAlter) console.error(`Error añadiendo ${col.name}:`, errAlter.message);
+                addColumn(idx + 1);
               });
-            });
-          } else {
-            // Asegurar columnas adicionales
-            const doEnsureFileHash = (next) => {
-              if (hasFileHash) return next();
-              db.run("ALTER TABLE evidencias ADD COLUMN file_hash TEXT", [], () => next());
             };
-            const doEnsureEvidenceType = (next) => {
-              if (hasEvidenceType) return next();
-              db.run("ALTER TABLE evidencias ADD COLUMN evidence_type TEXT DEFAULT 'GENERAL'", [], () => next());
+            addColumn(0);
+          });
+        };
+
+        ensureNormasRepoColumns(() => {
+          // Asegurar columna de agrupación en evidencias para manejar grupos con múltiples fotos
+          db.all("PRAGMA table_info(evidencias)", [], (e2, rows) => {
+            if (e2) {
+              // cerrar de todas formas
+              return db.close(() => resolve());
+            }
+            const hasGroupKey = rows && rows.some((r) => r && r.name === 'group_key');
+            const hasFileHash = rows && rows.some((r) => r && r.name === 'file_hash');
+            const hasEvidenceType = rows && rows.some((r) => r && r.name === 'evidence_type');
+            const ensureIndex = () => {
+              db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_group_key ON evidencias(group_key)", [], () => {
+                db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_file_hash ON evidencias(file_hash)");
+                db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_evidence_type ON evidencias(evidence_type)", [], () => db.close(() => resolve()));
+              });
             };
-            doEnsureFileHash(() => doEnsureEvidenceType(() => ensureIndex()));
-          }
+            if (!hasGroupKey) {
+              db.run("ALTER TABLE evidencias ADD COLUMN group_key TEXT", [], () => {
+                // Backfill básico: calcular group_key como t{tarea_id||0}|{comentario_normalizado}
+                db.all("SELECT id, tarea_id, comentario FROM evidencias WHERE group_key IS NULL OR group_key = ''", [], (e3, evRows) => {
+                  if (e3 || !Array.isArray(evRows) || evRows.length === 0) return ensureIndex();
+                  const norm = (s) => String(s || '')
+                    .replace(/\^?\s*\[(INSTITUCION|PORTADA)\]\s*/gi, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                  const stmt = db.prepare("UPDATE evidencias SET group_key = ? WHERE id = ?");
+                  evRows.forEach((r) => {
+                    try {
+                      const key = `t${r.tarea_id || 0}|c${norm(r.comentario)}`;
+                      stmt.run([key, r.id]);
+                    } catch {}
+                  });
+                  stmt.finalize(() => ensureIndex());
+                });
+              });
+            } else {
+              // Asegurar columnas adicionales
+              const doEnsureFileHash = (next) => {
+                if (hasFileHash) return next();
+                db.run("ALTER TABLE evidencias ADD COLUMN file_hash TEXT", [], () => next());
+              };
+              const doEnsureEvidenceType = (next) => {
+                if (hasEvidenceType) return next();
+                db.run("ALTER TABLE evidencias ADD COLUMN evidence_type TEXT DEFAULT 'GENERAL'", [], () => next());
+              };
+              doEnsureFileHash(() => doEnsureEvidenceType(() => ensureIndex()));
+            }
+          });
         });
       });
     });
