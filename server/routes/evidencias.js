@@ -474,12 +474,26 @@ router.patch(
   checkValidation,
   async (req, res) => {
     const { id } = req.params;
-    const { categoria, comentario } = req.body;
+    const { categoria } = req.body;
+    // Permitir borrar comentario enviando "" explícitamente
+    const comentarioProvided = 'comentario' in req.body;
+    const comentarioValue = comentarioProvided ? (req.body.comentario || null) : undefined;
     try {
-      const [result] = await pool.query(
-        'UPDATE evidencias SET categoria = COALESCE(?, categoria), comentario = COALESCE(?, comentario), updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [categoria || null, comentario || null, id]
-      );
+      // Construir query dinámicamente para soportar borrar comentario
+      let query = 'UPDATE evidencias SET updated_at = CURRENT_TIMESTAMP';
+      const params = [];
+      if (categoria) {
+        query += ', categoria = ?';
+        params.push(categoria);
+      }
+      if (comentarioProvided) {
+        query += ', comentario = ?';
+        params.push(comentarioValue);
+      }
+      query += ' WHERE id = ?';
+      params.push(id);
+      
+      const [result] = await pool.query(query, params);
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Evidencia no encontrada' });
       const [rows] = await pool.query('SELECT * FROM evidencias WHERE id = ?', [id]);
       const r = rows[0];

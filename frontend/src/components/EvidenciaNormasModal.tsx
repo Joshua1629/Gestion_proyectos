@@ -28,16 +28,15 @@ export default function EvidenciaNormasModal({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Campo de búsqueda removido; mantener variable fija vacía para reutilizar lógica existente
-  const search = "";
-  const [categoria, setCategoria] = useState("");
+  // Campo de búsqueda por descripción
+  const [descripcion, setDescripcion] = useState("");
 
   async function load() {
     try {
       setLoading(true);
       setError(null);
       // Solicitar todas las normas con parámetro all (hasta 2000).
-      let repoRes = await listNormasRepo({ search, categoria, all: true });
+      let repoRes = await listNormasRepo({ search: descripcion, all: true });
       if (
         repoRes.total &&
         repoRes.items &&
@@ -50,8 +49,7 @@ export default function EvidenciaNormasModal({
         const totalPages = Math.ceil(repoRes.total / limit);
         while (accumulated.length < repoRes.total && page <= totalPages) {
           const pageRes = await listNormasRepo({
-            search,
-            categoria,
+            search: descripcion,
             page,
             limit,
           });
@@ -139,12 +137,7 @@ export default function EvidenciaNormasModal({
   }
 
   return (
-    <div
-      className="modal-backdrop"
-      onClick={() => {
-        if (!saving) onClose();
-      }}
-    >
+    <div className="modal-backdrop">
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">Añadir incumplimientos a evidencia</div>
@@ -161,9 +154,9 @@ export default function EvidenciaNormasModal({
           <div className="modal-filters">
             <input
               className="modal-filter-input"
-              placeholder="Categoría"
-              value={categoria}
-              onChange={(e) => setCategoria(e.target.value)}
+              placeholder="Buscar por descripción"
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
             />
             <button
               className="btn modal-filter-btn"

@@ -15,7 +15,7 @@ try {
 } catch {}
 
 const router = express.Router();
-const { optionalAuth, requireRole } = require('../middleware/auth');
+const { optionalAuth, requireRole } = require("../middleware/auth");
 
 const checkValidation = (req, res, next) => {
   const errors = validationResult(req);
@@ -232,7 +232,7 @@ async function upsertNormaRepo(row) {
 // POST /api/normas-repo/import (solo admin)
 router.post(
   "/import",
-  requireRole('admin'),
+  requireRole("admin"),
   (req, res, next) => {
     excelUpload.single("file")(req, res, (err) => {
       if (err) {
@@ -245,25 +245,21 @@ router.post(
         let friendly = "Error procesando archivo";
         if (code === "LIMIT_FILE_SIZE")
           friendly = "Archivo demasiado grande (límite 50MB)";
-        return res
-          .status(400)
-          .json({
-            error: friendly,
-            detail: err && err.message ? err.message : String(err),
-            code,
-          });
+        return res.status(400).json({
+          error: friendly,
+          detail: err && err.message ? err.message : String(err),
+          code,
+        });
       }
       if (!req.file) {
         console.error(
           "[normas-repo/import] no file received. headers=",
           req.headers
         );
-        return res
-          .status(400)
-          .json({
-            error: "Archivo no recibido",
-            detail: 'No se recibió el archivo en el campo "file"',
-          });
+        return res.status(400).json({
+          error: "Archivo no recibido",
+          detail: 'No se recibió el archivo en el campo "file"',
+        });
       }
       next();
     });
@@ -534,16 +530,29 @@ router.get(
     let limit = req.query.limit || 20;
     const all = (req.query.all || "").toString().toLowerCase();
     const returnAll = all === "1" || all === "true" || all === "yes";
-    if (returnAll) { page = 1; limit = 2000; }
+    if (returnAll) {
+      page = 1;
+      limit = 2000;
+    }
     const offset = (page - 1) * limit;
     try {
       const where = [];
       const params = [];
       if (search) {
-        where.push(
-          "(titulo LIKE ? OR descripcion LIKE ? OR incumplimiento LIKE ? OR etiquetas LIKE ? OR codigo LIKE ?)"
-        );
-        for (let i = 0; i < 5; i++) params.push(`%${search}%`);
+        // Dividir por espacios, comas o punto y coma para buscar múltiples palabras clave
+        const keywords = search
+          .split(/[\s,;]+/)
+          .filter((k) => k.trim().length > 0);
+        if (keywords.length > 0) {
+          const keywordConditions = keywords.map(
+            () =>
+              "(titulo LIKE ? OR descripcion LIKE ? OR incumplimiento LIKE ? OR etiquetas LIKE ? OR codigo LIKE ?)"
+          );
+          where.push("(" + keywordConditions.join(" OR ") + ")");
+          for (const kw of keywords) {
+            for (let i = 0; i < 5; i++) params.push(`%${kw}%`);
+          }
+        }
       }
       if (categoria) {
         // Si la categoría es un número (con o sin punto), filtrar por el prefijo numérico exacto
@@ -628,7 +637,7 @@ router.get(
 // POST /api/normas-repo (solo admin)
 router.post(
   "/",
-  requireRole('admin'),
+  requireRole("admin"),
   [body("titulo").isString().trim().isLength({ min: 1 })],
   checkValidation,
   async (req, res) => {
@@ -673,7 +682,7 @@ router.post(
 // PUT /api/normas-repo/:id (solo admin)
 router.put(
   "/:id",
-  requireRole('admin'),
+  requireRole("admin"),
   [param("id").isInt({ min: 1 }).toInt()],
   checkValidation,
   async (req, res) => {
@@ -722,7 +731,7 @@ router.put(
 // DELETE /api/normas-repo/:id (solo admin)
 router.delete(
   "/:id",
-  requireRole('admin'),
+  requireRole("admin"),
   [param("id").isInt({ min: 1 }).toInt()],
   checkValidation,
   async (req, res) => {
@@ -740,17 +749,15 @@ router.delete(
 // POST /api/normas-repo/:id/evidencias (solo admin)
 router.post(
   "/:id/evidencias",
-  requireRole('admin'),
+  requireRole("admin"),
   [param("id").isInt({ min: 1 }).toInt()],
   (req, res, next) => {
     imageUpload.single("file")(req, res, (err) => {
       if (err)
-        return res
-          .status(400)
-          .json({
-            error: "Error procesando imagen",
-            detail: err && err.message ? err.message : String(err),
-          });
+        return res.status(400).json({
+          error: "Error procesando imagen",
+          detail: err && err.message ? err.message : String(err),
+        });
       next();
     });
   },
@@ -858,7 +865,7 @@ router.get(
 // DELETE /api/normas-repo/evidencias/:evidenciaId (solo admin)
 router.delete(
   "/evidencias/:evidenciaId",
-  requireRole('admin'),
+  requireRole("admin"),
   [param("evidenciaId").isInt({ min: 1 }).toInt()],
   checkValidation,
   async (req, res) => {

@@ -410,10 +410,22 @@
 .modal-title { font-weight: 700; }
 .close {
 	border: none;
-	background: transparent;
-	font-size: 20px;
+	background: #f1f5f9;
+	font-size: 24px;
 	line-height: 1;
 	cursor: pointer;
+	color: #374151;
+	width: 32px;
+	height: 32px;
+	border-radius: 6px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background-color 0.2s, color 0.2s;
+}
+.close:hover {
+	background: #e2e8f0;
+	color: #dc2626;
 }
 .modal-body {
 	padding: 12px 16px;
@@ -583,5 +595,58 @@
 	.modal { width: min(98vw, 880px); border-radius:12px; }
 	.modal-filter-input { flex: 1 1 100%; }
 	.modal-footer { flex-wrap: wrap; justify-content: flex-start; }
+}
+
+/* Estilos para edición de comentario */
+.edit-comentario-form {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	flex-wrap: wrap;
+	padding: 6px;
+	background: #f8fafc;
+	border-radius: 6px;
+	border: 1px solid #e2e8f0;
+}
+
+.edit-comentario-form input[type="text"] {
+	flex: 1;
+	min-width: 100px;
+	padding: 6px 10px;
+	border: 1px solid #cbd5e1;
+	border-radius: 4px;
+	font-size: 13px;
+	background: #ffffff;
+	color: #1e293b;
+	transition: all 0.15s ease;
+}
+
+.edit-comentario-form input[type="text"]::placeholder {
+	color: #94a3b8;
+}
+
+.edit-comentario-form input[type="text"]:focus {
+	outline: none;
+	border-color: #3b82f6;
+	box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.edit-comentario-form .btn.small {
+	padding: 6px 10px;
+	font-size: 12px;
+	font-weight: 500;
+	border-radius: 4px;
+}
+
+.comentario span[title] {
+	display: inline-flex;
+	align-items: center;
+}
+
+.comentario span[title]:hover {
+	background: rgba(59, 130, 246, 0.08);
+	border-radius: 4px;
+	padding: 2px 4px;
+	margin: -2px -4px;
 }
 

@@ -4,6 +4,7 @@ import {
   getEvidencias,
   uploadEvidencia,
   deleteEvidencia,
+  updateEvidencia,
 } from "../services/evidencias";
 import { type Tarea } from "../services/tareas";
 import "../css/EvidenciasPanel.css";
@@ -29,6 +30,8 @@ export default function EvidenciasPanel({
   const [error, setError] = useState<string | null>(null);
   const [showNormasFor, setShowNormasFor] = useState<number | null>(null);
   const [normasCount, setNormasCount] = useState<Record<number, number>>({});
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editComentario, setEditComentario] = useState("");
 
   const tareasById = useMemo(
     () => Object.fromEntries((tareas || []).map((t) => [t.id, t])),
@@ -56,6 +59,20 @@ export default function EvidenciasPanel({
         imageUrl: normalizeImageUrl(e.imageUrl),
       }));
       setItems(list);
+
+      // Cargar conteos de incumplimientos para cada evidencia
+      const counts: Record<number, number> = {};
+      await Promise.all(
+        list.map(async (ev) => {
+          try {
+            const normasRes = await listNormasRepoByEvidencia(ev.id);
+            counts[ev.id] = (normasRes.items || []).length;
+          } catch {
+            counts[ev.id] = 0;
+          }
+        })
+      );
+      setNormasCount(counts);
     } catch (e: any) {
       setError(e?.message || "Error al cargar evidencias");
     } finally {
@@ -116,6 +133,35 @@ export default function EvidenciasPanel({
       setError(
         e?.detail || e?.error || e?.message || "Error al subir evidencia"
       );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSaveComentario(evidenciaId: number) {
+    try {
+      setLoading(true);
+      await updateEvidencia(evidenciaId, { comentario: editComentario.trim() || undefined });
+      setEditingId(null);
+      setEditComentario("");
+      await load();
+    } catch (e: any) {
+      setError(e?.detail || e?.error || e?.message || "Error al actualizar comentario");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteComentario(evidenciaId: number) {
+    if (!confirm("¿Eliminar el comentario de esta evidencia?")) return;
+    try {
+      setLoading(true);
+      await updateEvidencia(evidenciaId, { comentario: "" });
+      setEditingId(null);
+      setEditComentario("");
+      await load();
+    } catch (e: any) {
+      setError(e?.detail || e?.error || e?.message || "Error al borrar comentario");
     } finally {
       setLoading(false);
     }
@@ -211,7 +257,60 @@ export default function EvidenciasPanel({
                     </div>
                   )}
                   <div className="comentario">
-                    {ev.comentario || "Sin comentario"}
+                    {editingId === ev.id ? (
+                      <div className="edit-comentario-form">
+                        <input
+                          type="text"
+                          value={editComentario}
+                          onChange={(e) => setEditComentario(e.target.value)}
+                          placeholder="Comentario"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleSaveComentario(ev.id);
+                            } else if (e.key === "Escape") {
+                              setEditingId(null);
+                            }
+                          }}
+                        />
+                        <button
+                          className="btn small"
+                          onClick={() => handleSaveComentario(ev.id)}
+                          disabled={loading}
+                        >
+                          Guardar
+                        </button>
+                        {ev.comentario && (
+                          <button
+                            className="btn small danger"
+                            onClick={() => handleDeleteComentario(ev.id)}
+                            disabled={loading}
+                            title="Borrar comentario"
+                          >
+                            🗑️
+                          </button>
+                        )}
+                        <button
+                          className="btn small"
+                          onClick={() => setEditingId(null)}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <span
+                        style={{ cursor: "pointer" }}
+                        onClick={() => {
+                          setEditingId(ev.id);
+                          setEditComentario(ev.comentario || "");
+                        }}
+                        title="Clic para editar comentario"
+                      >
+                        {ev.comentario || "Sin comentario"}
+                        <span style={{ marginLeft: 6, opacity: 0.5 }}>✏️</span>
+                      </span>
+                    )}
                   </div>
                   <div className="acciones">
                     <button
@@ -253,7 +352,7 @@ export default function EvidenciasPanel({
                       }}
                     >
                       Incumplimientos
-                      {normasCount[ev.id] ? ` (${normasCount[ev.id]})` : ""}
+                      {` (${normasCount[ev.id] ?? 0})`}
                     </button>
                   </div>
                 </div>
