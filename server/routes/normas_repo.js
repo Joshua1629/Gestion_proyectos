@@ -61,8 +61,12 @@ function getCompanyLogoPath() {
     process.resourcesPath ? path.join(process.resourcesPath, "app.asar", "frontend", "public", "logoapp.png") : null,
     process.resourcesPath ? path.join(process.resourcesPath, "logo.png") : null,
     process.resourcesPath ? path.join(process.resourcesPath, "logoapp.png") : null,
-  ).filter(Boolean);
-  for (const p of candidates) {
+  );
+  
+  // Filtrar valores null/undefined
+  const filteredCandidates = candidates.filter(Boolean);
+  
+  for (const p of filteredCandidates) {
     try {
       if (p && fs.existsSync(p)) {
         console.log(`✅ Logo encontrado en: ${p}`);
@@ -992,39 +996,109 @@ router.get(
       res.setHeader("Content-Disposition", "inline; filename=normas_repo.pdf");
       res.setHeader("Cache-Control", "no-cache");
       
+      // Flag para evitar escribir después de que el stream se cierre
+      let streamEnded = false;
+      let pdfEnded = false;
+      
       const doc = new PDFDocument({
         size: "A4",
         margin: 40,
         bufferPages: true,
       });
+      
+      // Manejar errores del stream de respuesta
+      res.on('error', (err) => {
+        if (!streamEnded) {
+          streamEnded = true;
+          console.error("❌ Error en stream de respuesta:", err.message);
+        }
+      });
+      
+      // Detectar cuando el stream se cierra
+      res.on('finish', () => {
+        streamEnded = true;
+      });
+      
+      res.on('close', () => {
+        streamEnded = true;
+      });
+      
+      // Manejar errores del documento PDF
+      doc.on('error', (err) => {
+        console.error("❌ Error en documento PDF:", err.message);
+        if (!streamEnded && !res.headersSent) {
+          streamEnded = true;
+          try {
+            res.status(500).json({ error: "Error generando PDF" });
+          } catch (e) {
+            // Ignorar errores al cerrar
+          }
+        }
+      });
+      
       doc.pipe(res);
+
+      // Función segura para verificar si podemos escribir
+      const canWrite = () => {
+        try {
+          return !streamEnded && !pdfEnded && !res.headersSent && !res.writableEnded && res.writable;
+        } catch {
+          return false;
+        }
+      };
+      
+      // Función segura para escribir al documento PDF
+      const safeDocWrite = (fn) => {
+        if (!canWrite()) return false;
+        try {
+          fn();
+          return true;
+        } catch (err) {
+          if (err.code === 'ERR_STREAM_WRITE_AFTER_END' || err.message.includes('write after end')) {
+            streamEnded = true;
+            console.warn("⚠️ Intento de escribir después de que el stream se cerró");
+            return false;
+          }
+          throw err;
+        }
+      };
 
       // Encabezado con logo y título
       const pageWidth = doc.page.width;
       const marginL = doc.page.margins.left;
       const usableW = pageWidth - marginL * 2;
       const logoPath = getCompanyLogoPath();
-      if (logoPath) {
-        try {
+      if (logoPath && canWrite()) {
+        safeDocWrite(() => {
           doc.image(logoPath, marginL, marginL - 6, { fit: [64, 64] });
-        } catch {}
-      }
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(16)
-        .fillColor("#000")
-        .text("Catálogo de Normas / Incumplimientos", marginL, marginL, {
-          width: usableW,
-          align: "center",
         });
-      const sub = `Total: ${rows.length}`;
-      doc.moveDown(0.2);
-      doc
-        .font("Helvetica")
-        .fontSize(10)
-        .fillColor("#555")
-        .text(sub, { align: "center" });
-      doc.moveDown(0.8);
+      }
+      
+      if (!canWrite()) {
+        console.warn("⚠️ Stream cerrado antes de generar contenido");
+        return;
+      }
+      
+      safeDocWrite(() => {
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(16)
+          .fillColor("#000")
+          .text("Catálogo de Normas / Incumplimientos", marginL, marginL, {
+            width: usableW,
+            align: "center",
+          });
+        const sub = `Total: ${rows.length}`;
+        doc.moveDown(0.2);
+        doc
+          .font("Helvetica")
+          .fontSize(10)
+          .fillColor("#555")
+          .text(sub, { align: "center" });
+        doc.moveDown(0.8);
+      });
+      
+      if (!canWrite()) return;
 
       // Render como tabla plana: Categoria | Descripción | Artículo
       // Ajustado a márgenes (ancho usable = 515 aprox en A4 con margen 40)
@@ -1033,56 +1107,121 @@ router.get(
       let y = doc.y;
       let currentCat = null;
       const drawRow = (cells, styles = {}) => {
+        if (!canWrite()) return;
+        
         const { header = false } = styles;
         const font = header ? "Helvetica-Bold" : "Helvetica";
         const size = header ? 10 : 9.5;
-        doc.font(font).fontSize(size).fillColor("#000");
+        
+        if (!safeDocWrite(() => {
+          doc.font(font).fontSize(size).fillColor("#000");
+        })) return;
+        
         const startY = y;
         const heights = cells.map((text, i) => {
-          const h = doc.heightOfString(String(text || ""), {
-            width: colW[i] - 6,
-          });
-          return Math.max(16, h + 6);
+          try {
+            if (!canWrite()) return 16;
+            const h = doc.heightOfString(String(text || ""), {
+              width: colW[i] - 6,
+            });
+            return Math.max(16, h + 6);
+          } catch (err) {
+            return 16;
+          }
         });
-        const rowH = Math.max(...heights);
+        const rowH = heights.length > 0 ? Math.max(...heights) : 16;
+        
         // Page break dinámico según margen inferior
         const bottomLimit = doc.page.height - doc.page.margins.bottom - 10;
         if (y + rowH > bottomLimit) {
-          doc.addPage();
-          y = doc.page.margins.top;
+          if (!safeDocWrite(() => {
+            doc.addPage();
+            y = doc.page.margins.top;
+          })) {
+            return;
+          }
         }
+        
+        if (!canWrite()) return;
+        
         // Text
         cells.forEach((text, i) => {
-          doc.text(String(text || ""), colX[i] + 3, y + 3, {
-            width: colW[i] - 6,
+          safeDocWrite(() => {
+            doc.text(String(text || ""), colX[i] + 3, y + 3, {
+              width: colW[i] - 6,
+            });
           });
         });
+        
+        if (!canWrite()) return;
+        
         // Borders
-        doc.strokeColor("#cccccc");
-        doc.lineWidth(0.5);
-        doc.rect(colX[0], y, colW[0], rowH).stroke();
-        doc.rect(colX[1], y, colW[1], rowH).stroke();
-        doc.rect(colX[2], y, colW[2], rowH).stroke();
-        y += rowH;
+        safeDocWrite(() => {
+          doc.strokeColor("#cccccc");
+          doc.lineWidth(0.5);
+          doc.rect(colX[0], y, colW[0], rowH).stroke();
+          doc.rect(colX[1], y, colW[1], rowH).stroke();
+          doc.rect(colX[2], y, colW[2], rowH).stroke();
+          y += rowH;
+        });
       };
 
       // Header row
-      drawRow(["Categoría", "Descripción", "Artículo"], { header: true });
+      if (canWrite()) {
+        drawRow(["Categoría", "Descripción", "Artículo"], { header: true });
+      }
+      
       // Data rows
-      rows.forEach((r) => {
-        drawRow([
-          r.categoria || "",
-          r.descripcion || r.titulo || "",
-          r.fuente || "",
-        ]);
-      });
+      if (canWrite()) {
+        rows.forEach((r) => {
+          if (canWrite()) {
+            drawRow([
+              r.categoria || "",
+              r.descripcion || r.titulo || "",
+              r.fuente || "",
+            ]);
+          }
+        });
+      }
 
-      // Finalizar el documento (igual que en reportes.js)
-      doc.end();
+      // Finalizar el documento solo si no se cerró el stream
+      if (!streamEnded && !pdfEnded) {
+        pdfEnded = true;
+        try {
+          doc.end();
+        } catch (err) {
+          console.error("❌ Error cerrando documento PDF:", err.message);
+          if (!res.headersSent) {
+            try {
+              res.status(500).json({ error: "Error finalizando PDF" });
+            } catch (e) {
+              // Ignorar errores al cerrar
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error("❌ Error generando PDF de normas_repo:", err);
+      console.error("❌ Error message:", err?.message);
+      console.error("❌ Error stack:", err?.stack);
+      // Asegurarse de que la respuesta se cierre correctamente
       if (!res.headersSent) {
-        res.status(500).json({ error: "Error generando PDF" });
+        try {
+          res.status(500).json({ error: "Error generando PDF" });
+        } catch (e) {
+          console.error("Error enviando respuesta de error:", e);
+          try {
+            res.end();
+          } catch (e2) {
+            console.error("Error cerrando respuesta:", e2);
+          }
+        }
+      } else {
+        try {
+          res.end();
+        } catch (e) {
+          console.error("Error cerrando respuesta después de headers:", e);
+        }
       }
     }
   }

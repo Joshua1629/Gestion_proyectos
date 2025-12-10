@@ -123,7 +123,7 @@ async function startBackend() {
     console.log("📂 resourcesPath:", resourcesPath);
     
     const possibleNodePaths = [
-      path.join(serverDir, 'node_modules'),
+      path.join(serverDir, 'node_modules'), // PRIORIDAD 1: node_modules local del servidor
       path.join(resourcesPath, 'app.asar.unpacked', 'node_modules'),
       path.join(resourcesPath, 'app.asar', 'node_modules'),
     ];
@@ -137,6 +137,26 @@ async function startBackend() {
         existingPaths.push(p);
       }
     }
+    
+    // CRÍTICO: Asegurar que el directorio del servidor está en Module._nodeModulePaths
+    // Esto es necesario para que Node.js resuelva módulos relativos correctamente
+    const Module = require('module');
+    const serverNodeModules = path.join(serverDir, 'node_modules');
+    const originalNodeModulePaths = Module._nodeModulePaths;
+    Module._nodeModulePaths = function(from) {
+      const paths = originalNodeModulePaths.call(this, from);
+      // Agregar serverDir/node_modules al principio de la lista de paths
+      if (!paths.includes(serverNodeModules)) {
+        paths.unshift(serverNodeModules);
+      }
+      // Agregar otros paths si no están ya incluidos
+      for (const p of existingPaths) {
+        if (!paths.includes(p)) {
+          paths.unshift(p);
+        }
+      }
+      return paths;
+    };
     
     if (existingPaths.length > 0) {
       const currentNodePath = process.env.NODE_PATH || '';
