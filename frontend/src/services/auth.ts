@@ -3,11 +3,26 @@ import { appFetch } from '../utils/appFetch';
 const API = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3001') + '/api/auth';
 
 export async function login(identifier: string, password: string) {
-  return appFetch(`${API}/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier, password })
-  });
+  console.log('🔐 auth.ts - Iniciando llamada a login API:', `${API}/login`);
+  console.log('🔐 auth.ts - Payload:', { identifier, password: password ? '***' : '' });
+  
+  try {
+    const result = await appFetch(`${API}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password })
+    });
+    
+    console.log('🔐 auth.ts - Resultado de appFetch:', result);
+    console.log('🔐 auth.ts - Tipo de resultado:', typeof result);
+    console.log('🔐 auth.ts - Tiene token?', !!result?.token);
+    console.log('🔐 auth.ts - Tiene user?', !!result?.user);
+    
+    return result;
+  } catch (error) {
+    console.error('🔐 auth.ts - Error en appFetch:', error);
+    throw error;
+  }
 }
 
 export function saveAuth(token: string, user: any) {

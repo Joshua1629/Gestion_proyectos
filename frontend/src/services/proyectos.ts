@@ -54,11 +54,24 @@ export async function getProyectos(page = 1, limit = 10, search = '') {
   
   try {
     const data = await appFetch(url);
-    console.log(' Datos recibidos:', data);
+    console.log('✅ Datos recibidos:', data);
     return data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error en getProyectos:', error);
-    throw error;
+    console.error('❌ Error status:', error?.status);
+    console.error('❌ Error message:', error?.message);
+    console.error('❌ Error error:', error?.error);
+    console.error('❌ Error completo:', JSON.stringify(error, null, 2));
+    
+    // Formatear el error para mostrar un mensaje útil
+    const errorMessage = error?.error || error?.message || error?.toString() || 'Error desconocido al cargar proyectos';
+    const formattedError = {
+      ...error,
+      message: errorMessage,
+      error: errorMessage
+    };
+    
+    throw formattedError;
   }
 }
 

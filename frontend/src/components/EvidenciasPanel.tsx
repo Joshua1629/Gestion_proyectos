@@ -216,7 +216,7 @@ export default function EvidenciasPanel({
           </button>
         </div>
         <div className="muted xsmall" style={{ marginTop: 4 }}>
-          Sube varias imágenes. Se listan individualmente (sin agrupación).
+          Sube imágenes individualmente.
         </div>
       </form>
 

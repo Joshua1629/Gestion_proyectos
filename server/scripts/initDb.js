@@ -58,15 +58,103 @@ async function initializeDatabase() {
             if (err) {
               console.error('Error ejecutando schema:', err.message);
               reject(err);
-            } else {
-              console.log('Base de datos inicializada correctamente.');
-              resolve(dbPath);
+              return;
             }
             
-            db.close((closeErr) => {
-              if (closeErr) {
-                console.error('Error cerrando la base de datos:', closeErr.message);
+            console.log('Schema ejecutado correctamente. Creando usuarios por defecto...');
+            
+            // Crear usuarios por defecto (admin y usuario) si no existen
+            const bcrypt = require('bcryptjs');
+            const defaultPassword = 'admin123';
+            
+            bcrypt.hash(defaultPassword, 10, (hashErr, hash) => {
+              if (hashErr) {
+                console.error('Error generando hash:', hashErr.message);
+                db.close();
+                reject(hashErr);
+                return;
               }
+              
+              // Verificar si ya existen usuarios
+              db.all('SELECT usuario FROM usuarios', (checkErr, existingUsers) => {
+                if (checkErr) {
+                  console.error('Error verificando usuarios existentes:', checkErr.message);
+                  db.close();
+                  reject(checkErr);
+                  return;
+                }
+                
+                const existingUsernames = (existingUsers || []).map(u => u.usuario).filter(Boolean);
+                const usersToCreate = [];
+                
+                // Verificar y preparar usuario admin
+                if (!existingUsernames.includes('admin')) {
+                  usersToCreate.push({
+                    nombre: 'Administrador',
+                    usuario: 'admin',
+                    email: 'admin@ferma.com',
+                    password: hash,
+                    rol: 'admin'
+                  });
+                }
+                
+                // Crear hash para el usuario regular
+                bcrypt.hash('usuario123', 10, (userHashErr, userHash) => {
+                  if (userHashErr) {
+                    console.error('Error generando hash para usuario:', userHashErr.message);
+                    db.close();
+                    reject(userHashErr);
+                    return;
+                  }
+                  
+                  // Verificar y preparar usuario regular
+                  if (!existingUsernames.includes('usuario')) {
+                    usersToCreate.push({
+                      nombre: 'Usuario',
+                      usuario: 'usuario',
+                      email: 'usuario@ferma.com',
+                      password: userHash,
+                      rol: 'usuario'
+                    });
+                  }
+                  
+                  if (usersToCreate.length === 0) {
+                    console.log('✅ Usuarios por defecto ya existen, omitiendo creación.');
+                    db.close();
+                    resolve(dbPath);
+                    return;
+                  }
+                  
+                  // Crear usuarios uno por uno
+                  let created = 0;
+                  const total = usersToCreate.length;
+                  
+                  usersToCreate.forEach((userData, index) => {
+                    db.run(
+                      'INSERT INTO usuarios (nombre, usuario, email, password, rol) VALUES (?, ?, ?, ?, ?)',
+                      [userData.nombre, userData.usuario, userData.email, userData.password, userData.rol],
+                      (insertErr) => {
+                        if (insertErr) {
+                          console.error(`Error creando usuario ${userData.usuario}:`, insertErr.message);
+                        } else {
+                          console.log(`✅ Usuario ${userData.rol} creado:`);
+                          console.log(`   Usuario: ${userData.usuario}`);
+                          console.log(`   Contraseña: ${userData.usuario === 'admin' ? 'admin123' : 'usuario123'}`);
+                          console.log(`   Email: ${userData.email}`);
+                          console.log(`   Rol: ${userData.rol}`);
+                        }
+                        
+                        created++;
+                        if (created === total) {
+                          console.log('✅ Base de datos inicializada correctamente con usuarios por defecto.');
+                          db.close();
+                          resolve(dbPath);
+                        }
+                      }
+                    );
+                  });
+                });
+              });
             });
           });
         });

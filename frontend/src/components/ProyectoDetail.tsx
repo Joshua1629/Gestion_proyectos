@@ -168,7 +168,7 @@ export default function ProyectoDetail({
       <div className="proyecto-header">
         <div className="header-content">
           <button onClick={onBack} className="btn btn-primary">
-            ← Volver al Dashboard
+            ← Volver
           </button>
           <div className="proyecto-info">
             <h1>{proyecto.nombre}</h1>

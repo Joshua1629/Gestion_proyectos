@@ -9,13 +9,11 @@ const { initializeDatabase, checkDatabaseExists } = require('./scripts/initDb');
 const { ensureExtraTables } = require('./scripts/ensureExtraTables');
 
 const tryRequireRouter = (...parts) => {
+  // En producción, las rutas están dentro del .asar junto con el código del servidor
   const candidates = [
+    // Primero buscar relativamente desde __dirname (funciona en dev y prod)
     path.join(__dirname, ...parts),
     path.join(__dirname, ...parts) + '.js',
-    path.join(process.cwd(), ...parts),
-    path.join(process.cwd(), ...parts) + '.js',
-    path.join(process.resourcesPath || __dirname, ...parts),
-    path.join(process.resourcesPath || __dirname, ...parts) + '.js'
   ];
 
   for (const candidate of candidates) {
@@ -45,6 +43,60 @@ async function initializeApp() {
       console.log('Base de datos inicializada correctamente.');
     } else {
       console.log('Base de datos existente encontrada.');
+      
+      // Verificar si hay usuarios, si no, crear admin y usuario por defecto
+      try {
+        const pool = require('./models/db');
+        const [users] = await pool.query('SELECT usuario FROM usuarios');
+        const existingUsernames = (users || []).map(u => u.usuario).filter(Boolean);
+        
+        const bcrypt = require('bcryptjs');
+        const usersToCreate = [];
+        
+        // Verificar y crear admin si no existe
+        if (!existingUsernames.includes('admin')) {
+          const adminHash = await bcrypt.hash('admin123', 10);
+          usersToCreate.push({
+            nombre: 'Administrador',
+            usuario: 'admin',
+            email: 'admin@ferma.com',
+            password: adminHash,
+            rol: 'admin'
+          });
+        }
+        
+        // Verificar y crear usuario regular si no existe
+        if (!existingUsernames.includes('usuario')) {
+          const userHash = await bcrypt.hash('usuario123', 10);
+          usersToCreate.push({
+            nombre: 'Usuario',
+            usuario: 'usuario',
+            email: 'usuario@ferma.com',
+            password: userHash,
+            rol: 'usuario'
+          });
+        }
+        
+        if (usersToCreate.length > 0) {
+          console.log(`⚠️ No hay todos los usuarios necesarios. Creando ${usersToCreate.length} usuario(s) por defecto...`);
+          
+          for (const userData of usersToCreate) {
+            await pool.query(
+              'INSERT INTO usuarios (nombre, usuario, email, password, rol) VALUES (?, ?, ?, ?, ?)',
+              [userData.nombre, userData.usuario, userData.email, userData.password, userData.rol]
+            );
+            console.log(`✅ Usuario ${userData.rol} creado:`);
+            console.log(`   Usuario: ${userData.usuario}`);
+            console.log(`   Contraseña: ${userData.usuario === 'admin' ? 'admin123' : 'usuario123'}`);
+            console.log(`   Email: ${userData.email}`);
+            console.log(`   Rol: ${userData.rol}`);
+          }
+        } else {
+          console.log(`✅ Base de datos tiene usuarios existentes (${existingUsernames.length} usuario(s)).`);
+        }
+      } catch (userCheckErr) {
+        console.warn('⚠️ No se pudo verificar/crear usuarios:', userCheckErr.message);
+      }
     }
 
     // Intentar cargar desde varias rutas posibles (dev y empaquetado)
@@ -197,14 +249,27 @@ async function initializeApp() {
 
     // Servir uploads estáticos
     function getUploadsBase() {
-      if (process.env.NODE_ENV === 'production') {
-        const userDataPath = process.env.APPDATA || process.env.HOME || __dirname;
+      // Si estamos dentro de .asar (empaquetado), usar AppData
+      if (__dirname.includes('.asar') || process.env.NODE_ENV === 'production') {
+        const userDataPath = process.env.APPDATA || process.env.HOME;
+        if (!userDataPath) {
+          throw new Error('No se pudo determinar la ruta de datos del usuario para uploads');
+        }
         const base = path.join(userDataPath, 'GestionProyectos', 'uploads');
-        if (!fs.existsSync(base)) fs.mkdirSync(base, { recursive: true });
+        if (!fs.existsSync(base)) {
+          console.log('📁 Creando directorio de uploads:', base);
+          fs.mkdirSync(base, { recursive: true });
+        }
+        console.log('📂 Directorio de uploads:', base);
         return base;
       }
+      // Desarrollo - usar carpeta local
       const base = path.join(__dirname, '..', 'data', 'uploads');
-      if (!fs.existsSync(base)) fs.mkdirSync(base, { recursive: true });
+      if (!fs.existsSync(base)) {
+        console.log('📁 Creando directorio de uploads (dev):', base);
+        fs.mkdirSync(base, { recursive: true });
+      }
+      console.log('📂 Directorio de uploads (dev):', base);
       return base;
     }
     const uploadsDir = getUploadsBase();
@@ -222,16 +287,48 @@ async function initializeApp() {
 
     const PORT = process.env.PORT || 3001;
     const HOST = process.env.HOST || '127.0.0.1';
-    app.listen(PORT, HOST, () => {
-      console.log(`Backend escuchando en ${HOST}:${PORT}`);
-      console.log('Aplicación lista para usar.');
+    
+    console.log(`📡 Intentando iniciar servidor en ${HOST}:${PORT}...`);
+    
+    const server = app.listen(PORT, HOST, () => {
+      console.log(`✅ ✅ ✅ Backend escuchando en ${HOST}:${PORT} ✅ ✅ ✅`);
+      console.log('✅ Aplicación lista para usar.');
+      console.log(`✅ Health check disponible en: http://${HOST}:${PORT}/api/auth/health`);
+      console.log(`✅ Server address:`, server.address());
+    });
+    
+    server.on('error', (err) => {
+      console.error('❌ Error del servidor HTTP:', err);
+      console.error('❌ Error code:', err.code);
+      console.error('❌ Error message:', err.message);
+      if (err.code === 'EADDRINUSE') {
+        console.error(`❌ El puerto ${PORT} ya está en uso. Cierra otras instancias de la aplicación.`);
+      } else {
+        console.error('❌ Error desconocido al iniciar el servidor HTTP');
+      }
+      throw err; // Re-lanzar para que Electron lo capture
+    });
+    
+    // Verificar que el servidor realmente está escuchando
+    server.on('listening', () => {
+      const addr = server.address();
+      console.log(`✅ Servidor confirmado escuchando en:`, addr);
     });
 
   } catch (error) {
     console.error('Error inicializando la aplicación:', error);
-    process.exit(1);
+    console.error('Stack:', error.stack);
+    // NO usar process.exit(1) aquí porque estamos dentro de Electron
+    // Lanzar el error para que Electron lo maneje
+    throw error;
   }
 }
 
 // Inicializar la aplicación
-initializeApp();
+// Si se ejecuta directamente (no desde require)
+if (require.main === module) {
+  initializeApp();
+}
+
+// Exportar para uso desde Electron
+module.exports = { initializeApp };

@@ -48,15 +48,29 @@ function getCompanyLogoPath() {
   if (process.env.COMPANY_LOGO) candidates.push(process.env.COMPANY_LOGO);
   // Posibles ubicaciones comunes
   candidates.push(
+    path.join(process.cwd(), "frontend", "public", "logo.png"),
+    path.join(process.cwd(), "frontend", "public", "logoapp.png"),
     path.join(__dirname, "..", "..", "frontend", "public", "logo.png"),
+    path.join(__dirname, "..", "..", "frontend", "public", "logoapp.png"),
     path.join(__dirname, "..", "..", "public", "logo.png"),
-    path.join(getUploadsBase(), "logo.png")
-  );
+    path.join(getUploadsBase(), "logo.png"),
+    // Rutas de producción (Electron empaquetado)
+    process.resourcesPath ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "logo.png") : null,
+    process.resourcesPath ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "logoapp.png") : null,
+    process.resourcesPath ? path.join(process.resourcesPath, "app.asar", "frontend", "public", "logo.png") : null,
+    process.resourcesPath ? path.join(process.resourcesPath, "app.asar", "frontend", "public", "logoapp.png") : null,
+    process.resourcesPath ? path.join(process.resourcesPath, "logo.png") : null,
+    process.resourcesPath ? path.join(process.resourcesPath, "logoapp.png") : null,
+  ).filter(Boolean);
   for (const p of candidates) {
     try {
-      if (p && fs.existsSync(p)) return p;
+      if (p && fs.existsSync(p)) {
+        console.log(`✅ Logo encontrado en: ${p}`);
+        return p;
+      }
     } catch {}
   }
+  console.warn("⚠️ Logo no encontrado en ninguna ruta");
   return null;
 }
 
@@ -908,6 +922,14 @@ router.get(
   ],
   checkValidation,
   async (req, res) => {
+    // Manejar HEAD requests (solo devolver headers, no generar PDF)
+    if (req.method === 'HEAD') {
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "inline; filename=normas_repo.pdf");
+      res.setHeader("Cache-Control", "no-cache");
+      return res.status(200).end();
+    }
+    
     try {
       // seleccionar items por ids o por filtros
       let where = [];
@@ -944,6 +966,7 @@ router.get(
           params.push(`%${severidad}%`);
         }
       }
+
       const whereSql = where.length ? "WHERE " + where.join(" AND ") : "";
       // Orden natural por categoría (número inicial antes del punto), luego categoría/texto, luego título
       const [rows] = await pool.query(
@@ -959,9 +982,16 @@ router.get(
         params
       );
 
-      // build PDF
+      // Validar que tenemos datos antes de generar el PDF
+      if (!rows || rows.length === 0) {
+        return res.status(404).json({ error: "No hay datos para generar el PDF" });
+      }
+
+      // Crear PDF (igual que en reportes.js)
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", "inline; filename=normas_repo.pdf");
+      res.setHeader("Cache-Control", "no-cache");
+      
       const doc = new PDFDocument({
         size: "A4",
         margin: 40,
@@ -995,11 +1025,6 @@ router.get(
         .fillColor("#555")
         .text(sub, { align: "center" });
       doc.moveDown(0.8);
-
-      const [evCountsRows] = await pool.query(
-        "SELECT norma_repo_id as id, COUNT(*) as c FROM normas_repo_evidencias GROUP BY norma_repo_id"
-      );
-      const evCounts = Object.fromEntries(evCountsRows.map((r) => [r.id, r.c]));
 
       // Render como tabla plana: Categoria | Descripción | Artículo
       // Ajustado a márgenes (ancho usable = 515 aprox en A4 con margen 40)
@@ -1052,34 +1077,16 @@ router.get(
         ]);
       });
 
-      // Footers
-      const range = doc.bufferedPageRange();
-      for (let i = range.start; i < range.start + range.count; i++) {
-        doc.switchToPage(i);
-        // Colocar el footer un poco por encima del margen inferior para evitar cualquier wrap
-        const footerY = doc.page.height - doc.page.margins.bottom - 12;
-        const prevY = doc.y,
-          prevX = doc.x;
-        doc.fontSize(9).fillColor("#666");
-        doc.text(`Página ${i + 1} de ${range.count}`, marginL, footerY, {
-          width: usableW - 1,
-          align: "right",
-          lineBreak: false,
-          continued: false,
-        });
-        // Restaurar cursores
-        doc.x = prevX;
-        doc.y = prevY;
-      }
-      // Asegurarnos de estar en la última página activa antes de cerrar
-      doc.switchToPage(range.start + range.count - 1);
-
+      // Finalizar el documento (igual que en reportes.js)
       doc.end();
     } catch (err) {
-      console.error("report normas_repo error:", err);
-      res.status(500).json({ error: "Error generando PDF" });
+      console.error("❌ Error generando PDF de normas_repo:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Error generando PDF" });
+      }
     }
   }
 );
 
 module.exports = router;
+

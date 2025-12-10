@@ -32,16 +32,63 @@ export async function appFetch(url: string, options: AppFetchOptions = {}) {
 
   // IPC normal (no multipart): convertir headers a objeto plano
   if (api && typeof api.fetch === 'function' && !isFormData) {
-    const res = await api.fetch(url, {
-      method: opts.method || 'GET',
-      headers: headersToPlain(opts.headers),
-      body: opts.body,
-      credentials: (opts as any).credentials,
-    });
-    if (!res.ok) {
-      throw { status: res.status, statusText: res.statusText, ...(typeof res.body === 'object' ? res.body : { error: res.body }) };
+    try {
+      const res = await api.fetch(url, {
+        method: opts.method || 'GET',
+        headers: headersToPlain(opts.headers),
+        body: opts.body,
+        credentials: (opts as any).credentials,
+      });
+      
+      // Si res es null o undefined, el backend no respondió
+      if (!res || typeof res !== 'object') {
+        throw { 
+          status: 503, 
+          statusText: 'Service Unavailable', 
+          error: 'El backend no está respondiendo. Verifica que el servidor esté ejecutándose.' 
+        };
+      }
+      
+      // El IPC handler puede devolver { ok: false, error: "..." } sin status/statusText
+      if (!res.ok) {
+        const errorObj: any = {
+          status: res.status || 500,
+          statusText: res.statusText || 'Error',
+        };
+        
+        // Si hay un error directo (del IPC handler)
+        if (res.error) {
+          errorObj.error = res.error;
+        } 
+        // Si hay un body con error
+        else if (typeof res.body === 'object' && res.body) {
+          Object.assign(errorObj, res.body);
+        }
+        // Si el body es un string con el error
+        else if (res.body) {
+          errorObj.error = res.body;
+        }
+        // Error genérico
+        else {
+          errorObj.error = 'Error desconocido del servidor';
+        }
+        
+        throw errorObj;
+      }
+      
+      return asJson ? res.body : res;
+    } catch (err: any) {
+      // Si es un objeto error ya formateado, re-lanzarlo
+      if (err && typeof err === 'object' && (err.status || err.error || err.statusText)) {
+        throw err;
+      }
+      // Si es un error de red/tiempo de espera, formatearlo
+      throw {
+        status: err?.status || 503,
+        statusText: err?.statusText || 'Service Unavailable',
+        error: err?.message || err?.toString() || 'No se pudo conectar con el servidor. Verifica que el backend esté ejecutándose.'
+      };
     }
-    return asJson ? res.body : res;
   }
 
   // IPC multipart: ya paso Authorization explícita

@@ -9,6 +9,7 @@ import {
   updateNormaRepo,
 } from "../services/normasRepo";
 import "../css/NormasPanel.css";
+import "../css/NormasRepositorio.css";
 
 export default function NormasRepositorio({ onBack, canManage = true }: { onBack?: () => void; canManage?: boolean }) {
   const [items, setItems] = useState<NormaRepoItem[]>([]);
@@ -107,9 +108,80 @@ export default function NormasRepositorio({ onBack, canManage = true }: { onBack
     }
   };
 
-  const openReport = () => {
-    const url = buildRepoReportUrl(undefined, { categoria });
-    window.open(url, "_blank");
+  const openReport = async () => {
+    try {
+      setError(null);
+      setLoading(true);
+      const url = buildRepoReportUrl(undefined, { categoria });
+      console.log('📄 Abriendo PDF de normas:', url);
+      
+      // Usar appFetch para verificar que el endpoint responda (usando HEAD)
+      // Esto usa el IPC de Electron y maneja errores mejor
+      try {
+        const api = (globalThis as any).api;
+        if (api && typeof api.fetch === 'function') {
+          // Verificar con HEAD usando IPC
+          const testResponse = await api.fetch(url, { method: 'HEAD' });
+          if (!testResponse || !testResponse.ok) {
+            const errorMsg = testResponse?.error || 
+                           `El servidor respondió con error: ${testResponse?.status || 'desconocido'}`;
+            throw new Error(errorMsg);
+          }
+        } else {
+          // Fallback: usar fetch nativo solo si no hay IPC
+          const testResponse = await fetch(url, { method: 'HEAD' });
+          if (!testResponse.ok) {
+            throw new Error(`El servidor respondió con error: ${testResponse.status} ${testResponse.statusText}`);
+          }
+        }
+      } catch (fetchErr: any) {
+        console.error('❌ Error verificando URL del PDF:', fetchErr);
+        const errorMessage = fetchErr?.message || 
+                           fetchErr?.error || 
+                           'No se pudo conectar con el servidor';
+        setError(`Error al generar PDF: ${errorMessage}`);
+        setLoading(false);
+        return;
+      }
+      
+      // Intentar abrir en nueva ventana
+      // Usar setTimeout para asegurar que el estado de loading se actualice
+      setTimeout(() => {
+        try {
+          const newWindow = window.open(url, "_blank");
+          
+          // Si el navegador bloquea la ventana emergente, mostrar mensaje
+          if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+            setError('No se pudo abrir la ventana. Verifica que las ventanas emergentes no estén bloqueadas.');
+            setLoading(false);
+          } else {
+            // Monitorear si la ventana se cierra rápidamente (indicaría un error)
+            setTimeout(() => {
+              try {
+                if (newWindow.closed) {
+                  setError('El PDF no se pudo cargar. Verifica que el servidor esté funcionando correctamente.');
+                }
+                setLoading(false);
+              } catch (e) {
+                // Ignorar errores de acceso cross-origin
+                setLoading(false);
+              }
+            }, 2000);
+          }
+        } catch (windowErr: any) {
+          console.error('❌ Error abriendo ventana:', windowErr);
+          setError('Error al abrir la ventana del PDF. Intenta nuevamente.');
+          setLoading(false);
+        }
+      }, 100);
+    } catch (err: any) {
+      console.error('❌ Error al abrir PDF:', err);
+      const errorMessage = err?.message || 
+                          err?.error || 
+                          'Error al exportar PDF. Verifica la consola para más detalles.';
+      setError(errorMessage);
+      setLoading(false);
+    }
   };
 
   const resetAddForm = () => {
@@ -150,7 +222,7 @@ export default function NormasRepositorio({ onBack, canManage = true }: { onBack
         <div style={{ display: "flex", gap: 8 }}>
           {onBack && (
             <button className="btn" onClick={onBack}>
-              ⟵ Volver al Dashboard
+              ⟵ Volver 
             </button>
           )}
         </div>

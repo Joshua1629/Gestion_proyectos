@@ -10,30 +10,66 @@ const router = express.Router();
 
 function getLogoPath() {
   const candidates = [
+    // Rutas de desarrollo
     path.join(process.cwd(), "frontend", "public", "logo.png"),
     path.join(process.cwd(), "frontend", "public", "logoapp.png"),
     path.join(__dirname, "..", "..", "frontend", "public", "logo.png"),
     path.join(__dirname, "..", "..", "frontend", "public", "logoapp.png"),
-  ];
+    // Rutas de producción (Electron empaquetado)
+    process.resourcesPath ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "logo.png") : null,
+    process.resourcesPath ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "logoapp.png") : null,
+    process.resourcesPath ? path.join(process.resourcesPath, "app.asar", "frontend", "public", "logo.png") : null,
+    process.resourcesPath ? path.join(process.resourcesPath, "app.asar", "frontend", "public", "logoapp.png") : null,
+    // Rutas alternativas en extraResources
+    process.resourcesPath ? path.join(process.resourcesPath, "logo.png") : null,
+    process.resourcesPath ? path.join(process.resourcesPath, "logoapp.png") : null,
+    // Desde el directorio del servidor (si está en extraResources)
+    path.join(__dirname, "..", "..", "logo.png"),
+    path.join(__dirname, "..", "..", "logoapp.png"),
+  ].filter(Boolean);
+  
   for (const c of candidates) {
     try {
-      if (fs.existsSync(c)) return c;
-    } catch {}
+      if (c && fs.existsSync(c)) {
+        console.log(`✅ Logo encontrado en: ${c}`);
+        return c;
+      }
+    } catch (err) {
+      // Continuar buscando
+    }
   }
+  console.warn("⚠️ Logo no encontrado en ninguna ruta. Rutas probadas:", candidates);
   return null;
 }
 
 function getCfiaSealPath() {
   const candidates = [
+    // Rutas de desarrollo
     path.join(process.cwd(), "frontend", "public", "cfia_seal.png"),
     path.join(process.cwd(), "frontend", "public", "cfia.png"),
     path.join(__dirname, "..", "..", "frontend", "public", "cfia_seal.png"),
     path.join(__dirname, "..", "..", "frontend", "public", "cfia.png"),
-  ];
+    // Rutas de producción (Electron empaquetado)
+    process.resourcesPath ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "cfia_seal.png") : null,
+    process.resourcesPath ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "cfia.png") : null,
+    process.resourcesPath ? path.join(process.resourcesPath, "app.asar", "frontend", "public", "cfia_seal.png") : null,
+    process.resourcesPath ? path.join(process.resourcesPath, "app.asar", "frontend", "public", "cfia.png") : null,
+    // Rutas alternativas
+    process.resourcesPath ? path.join(process.resourcesPath, "cfia_seal.png") : null,
+    process.resourcesPath ? path.join(process.resourcesPath, "cfia.png") : null,
+    path.join(__dirname, "..", "..", "cfia_seal.png"),
+    path.join(__dirname, "..", "..", "cfia.png"),
+  ].filter(Boolean);
+  
   for (const c of candidates) {
     try {
-      if (fs.existsSync(c)) return c;
-    } catch {}
+      if (c && fs.existsSync(c)) {
+        console.log(`✅ Sello CFIA encontrado en: ${c}`);
+        return c;
+      }
+    } catch (err) {
+      // Continuar buscando
+    }
   }
   return null;
 }
@@ -329,7 +365,15 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
   }
   heading("NOMBRE DE ESTABLECIMIENTO", proyecto.nombre);
   heading("RAZON SOCIAL", proyecto.cliente);
-  heading("CEDULA JURIDICA", proyecto.cedula_juridica);
+  // Formatear cédula jurídica con guiones (X-XXX-XXXXXX)
+  const cedulaRaw = String(proyecto.cedula_juridica || "").replace(/\D/g, "");
+  let cedulaFormateada = cedulaRaw;
+  if (cedulaRaw.length === 10) {
+    cedulaFormateada = `${cedulaRaw.slice(0, 1)}-${cedulaRaw.slice(1, 4)}-${cedulaRaw.slice(4)}`;
+  } else if (cedulaRaw.length === 9) {
+    cedulaFormateada = `${cedulaRaw.slice(0, 1)}-${cedulaRaw.slice(1, 3)}-${cedulaRaw.slice(3)}`;
+  }
+  heading("CEDULA JURIDICA", cedulaFormateada);
   // línea divisoria sutil
   doc
     .moveTo(leftX, cy)
@@ -487,10 +531,10 @@ function drawEquiposPage(doc) {
   const marginX = 50;
   const fullW = 495;
   const boxW = fullW; // una columna, dos cajas apiladas
-  let y = 60; // subir aún más los recuadros
+  let y = 50; // posición inicial más arriba
 
   function drawListBox(title, items, splitOnlyForRecommendation = false) {
-    const lineH = 16; // altura de renglón más compacta y adecuada
+    const lineH = 14; // altura de renglón compacta
     // Calcular altura considerando que el texto entre paréntesis va en una segunda línea
     const totalLines = items.reduce((acc, t) => {
       const lower = String(t || "").toLowerCase();
@@ -499,7 +543,7 @@ function drawEquiposPage(doc) {
       const shouldSplit = splitOnlyForRecommendation ? isRecommendation : hasParen;
       return acc + (shouldSplit ? 2 : 1);
     }, 0);
-    const boxH = 16 + totalLines * lineH + 12; // reducir padding para minimizar blancos
+    const boxH = 14 + totalLines * lineH + 8; // padding reducido
     doc
       .roundedRect(marginX, y, boxW, boxH, 6)
       .strokeColor("#CFCFCF")
@@ -508,11 +552,11 @@ function drawEquiposPage(doc) {
 
     doc
       .font("Helvetica-Bold")
-      .fontSize(11)
+      .fontSize(10)
       .fillColor("#000")
-      .text(title, marginX + 10, y + 8);
+      .text(title, marginX + 10, y + 6);
 
-    let ly = y + 22;
+    let ly = y + 18;
     items.forEach((t) => {
       const text = String(t || "");
       const lower = text.toLowerCase();
@@ -552,7 +596,7 @@ function drawEquiposPage(doc) {
       }
     });
 
-    y += boxH + 10; // espacio entre cajas
+    y += boxH + 6; // espacio reducido entre cajas
   }
 
   drawListBox("Equipos de Seguridad:", [
@@ -588,7 +632,7 @@ function drawFinding(
   const marginX = 50;
   // Altura se calcula dinámicamente según comentario y número de normas
   const imgW = 200; // zona de imágenes a la derecha
-  const imgH = 200;
+  const imgH = 150; // reducido para 3 evidencias por hoja
   const gap = 10;
   // La severidad se muestra por incumplimiento, no a nivel de evidencia
 
@@ -598,18 +642,27 @@ function drawFinding(
   const comentarioTxt = String(comentarioRaw).trim();
   const hasComentario = comentarioTxt.length > 0;
   const comentarioHeight = hasComentario
-    ? doc.heightOfString(comentarioTxt, { width: leftW, align: "left" })
+    ? doc.heightOfString(comentarioTxt, { width: leftW, align: "left" }) + 18 // +18 para label "Comentario:" y espaciado
     : 0;
   const normasMostradas = Array.isArray(linkedNormas)
     ? linkedNormas.slice(0, 6)
     : [];
-  const normasHeight = normasMostradas.length * 14 + (normasMostradas.length ? 22 : 0); // 22 ~ título + pequeño margen
-  // Altura mínima base para cabecera + espacios + imagen
-  let blockH = Math.max(260, 120 + comentarioHeight + normasHeight, imgH + 50);
-  // Limitar el bloque al espacio disponible para evitar saltos automáticos
+  // Calcular altura real de normas considerando el alto de cada texto
+  const normasHeight = normasMostradas.reduce((acc, n) => {
+    const texto = ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
+    const h = doc.heightOfString(texto, { width: leftW - 12, align: "left" });
+    return acc + h + 6;
+  }, 0) + (normasMostradas.length ? 22 : 0); // 22 ~ título header + margen
+  // Altura dinámica: solo lo necesario para el contenido (incluye comentario completo + normas completas)
+  const contentHeight = 32 + comentarioHeight + normasHeight + 20; // header + comentario + normas + padding extra
+  let blockH = Math.max(contentHeight, imgH + 40); // al menos el tamaño de la imagen
+  // NO limitar el bloque - asegurar que todo el contenido quepa
   const pageBottom = doc.page.height - doc.page.margins.bottom;
   const availableHeight = Math.max(0, pageBottom - yStart - 6);
-  if (blockH > availableHeight) blockH = Math.max(220, Math.min(blockH, availableHeight));
+  // Si el bloque no cabe, NO recortarlo - el llamador debería haber hecho salto de página
+  if (blockH > availableHeight && availableHeight > 150) {
+    blockH = Math.max(contentHeight, availableHeight);
+  }
 
   // Caja principal
   doc
@@ -634,27 +687,21 @@ function drawFinding(
   if (hasComentario) {
     doc
       .font("Helvetica-Bold")
-      .fontSize(10)
+      .fontSize(9)
       .text("Comentario:", leftX, yCursor);
-    const maxCommentH = Math.max(0, blockH - 150);
-    const commentH = Math.min(
-      doc.heightOfString(comentarioTxt, { width: leftW, align: "left" }),
-      maxCommentH
-    );
+    // Usar la altura completa del comentario sin recortar
+    const commentH = doc.heightOfString(comentarioTxt, { width: leftW, align: "left" });
     doc
       .font("Helvetica")
-      .fontSize(10)
-      .text(comentarioTxt, leftX, yCursor + 14, {
+      .fontSize(9)
+      .text(comentarioTxt, leftX, yCursor + 12, {
         width: leftW,
-        height: commentH,
-        ellipsis: true,
       });
-    yCursor += 14 + commentH + 8;
+    yCursor += 12 + commentH + 6;
   }
 
   // Listado de normas/incumplimientos asociados
   if (normasMostradas.length) {
-    const bottomLimit = yStart + blockH - 10; // límite dentro del bloque
     const headerTxt = "Incumplimientos asociados:";
     const headerH = doc.heightOfString(headerTxt, { width: leftW });
     doc
@@ -663,12 +710,12 @@ function drawFinding(
       .fillColor("#000")
       .text(headerTxt, leftX, yCursor, { width: leftW });
     let y = yCursor + headerH + 2;
+    // Dibujar TODAS las normas mostradas sin verificar límite (ya se calculó el espacio necesario)
     normasMostradas.forEach((n) => {
       const color = severityStyle(n.clasificacion || "LEVE").color;
       const texto = ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
       const itemWidth = leftW - 12;
       const h = doc.heightOfString(texto, { width: itemWidth, align: "left" });
-      if (y + h > bottomLimit) return; // no dibujar si no hay espacio
       // marcador tipo "bullet" redondo más notorio
       doc
         .circle(leftX + 3, y + 6, 4)
@@ -681,7 +728,7 @@ function drawFinding(
         .text(texto, leftX + 12, y - 2, { width: itemWidth });
       y += h + 6; // avanzar según el alto real del texto
     });
-    if (linkedNormas.length > normasMostradas.length && y + 12 <= bottomLimit) {
+    if (linkedNormas.length > normasMostradas.length) {
       doc
         .fillColor("#666")
         .fontSize(9)
@@ -894,19 +941,27 @@ router.get(
       // Solo crear hallazgos si hay evidencias
       if (evidList.length) {
         // Comenzar las evidencias debajo de los equipos en la página 2
-        let y = nextYAfterEquipos + 10;
+        let y = nextYAfterEquipos + 5; // espacio mínimo después de equipos
         for (let i = 0; i < evidList.length; i++) {
           const g = evidList[i];
           // Calcular altura estimada antes de dibujar para decidir salto
           const textoWidth = 495 - 200 - 30; // ancho leftW (495 total - imgW - 3*gap)
           const comentarioHeight = doc.heightOfString(g.comentario || "Sin comentario", { width: textoWidth });
           const normasCount = Math.min(g.links.length, 6);
-          const normasHeight = normasCount * 14 + (normasCount ? 22 : 0);
+          // Estimar altura de normas más precisa
+          const normasHeight = g.links.slice(0, 6).reduce((acc, n) => {
+            const texto = ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
+            const h = doc.heightOfString(texto, { width: textoWidth - 12, align: "left" });
+            return acc + h + 6;
+          }, 0) + (normasCount ? 22 : 0);
           const pageBottomY = doc.page.height - doc.page.margins.bottom - 10;
-          const estimatedHeight = Math.max(260, 120 + comentarioHeight + normasHeight, 200 + 50);
-          if (y + estimatedHeight > 780) { // margen inferior seguro
+          // Altura dinámica basada en contenido real
+          const contentHeight = 32 + comentarioHeight + normasHeight + 15;
+          const estimatedHeight = Math.max(contentHeight, 150 + 40);
+          // Usar el límite real de la página (A4 = 841pt, con margen 50 = 791pt útiles)
+          if (y + estimatedHeight > pageBottomY) {
             doc.addPage();
-            y = 80;
+            y = 50; // empezar más arriba en páginas nuevas
           }
           const usedH = drawFinding(
             doc,
@@ -916,7 +971,7 @@ router.get(
             g.links,
             g.images.slice(0, 1)
           );
-          y += usedH + 50; // separación basada en altura usada
+          y += usedH + 15; // separación reducida para 3 evidencias por hoja
         }
       }
       // Numeración de páginas (footer)

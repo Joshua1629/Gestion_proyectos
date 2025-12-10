@@ -1,0 +1,277 @@
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_usuarios_usuario ON usuarios(usuario)...
+Error: no such table: main.usuarios
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_fases_proyecto ON fases(proyecto_id)...
+Error: no such table: main.fases
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_tareas_proyecto ON tareas(proyecto_id)...
+Error: no such table: main.tareas
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_tareas_responsable ON tareas(responsable)...
+Error: no such table: main.tareas
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_comentarios_tarea ON comentarios(tarea_id)...
+Error: no such table: main.comentarios
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_archivos_tarea ON archivos(tarea_id)...
+Error: no such table: main.archivos
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(usuario_id)...
+Error: no such table: main.notificaciones
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_logs_usuario ON logs_actividad(usuario_id)...
+Error: no such table: main.logs_actividad
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_evidencias_proyecto ON evidencias(proyecto_id)...
+Error: no such table: main.evidencias
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_evidencias_tarea ON evidencias(tarea_id)...
+Error: no such table: main.evidencias
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_evidencias_categoria ON evidencias(categoria)...
+Error: no such table: main.evidencias
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_evidencias_created_at ON evidencias(created_at)...
+Error: no such table: main.evidencias
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_evidencias_file_hash ON evidencias(file_hash)...
+Error: no such table: main.evidencias
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_evidencias_evidence_type ON evidencias(evidence_type)...
+Error: no such table: main.evidencias
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_normas_etiquetas ON normas(etiquetas)...
+Error: no such table: main.normas
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_normasrepo_titulo ON normas_repo(titulo)...
+Error: no such table: main.normas_repo
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_normasrepo_codigo ON normas_repo(codigo)...
+Error: no such table: main.normas_repo
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_normasrepo_categoria ON normas_repo(categoria)...
+Error: no such table: main.normas_repo
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_nre_norma ON normas_repo_evidencias(norma_repo_id)...
+Error: no such table: main.normas_repo_evidencias
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_enr_evidencia ON evidencias_normas_repo(evidencia_id)...
+Error: no such table: main.evidencias_normas_repo
+⚠️  Error ejecutando statement: CREATE INDEX IF NOT EXISTS idx_enr_norma ON evidencias_normas_repo(norma_repo_id)...
+Error: no such table: main.evidencias_normas_repo
+Error cargando router desde "C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\proyectos.js":
+ Error: Cannot find module 'express'
+Require stack:
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\proyectos.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\app.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\electron\main.js
+- 
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1082:15)
+    at n._resolveFilename (node:electron/js2c/browser_init:2:117760)
+    at Module._load (node:internal/modules/cjs/loader:927:27)
+    at f._load (node:electron/js2c/asar_bundle:2:13377)
+    at Module.require (node:internal/modules/cjs/loader:1148:19)
+    at require (node:internal/modules/cjs/helpers:110:18)
+    at Object.<anonymous> (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\proyectos.js:1:17)
+    at Module._compile (node:internal/modules/cjs/loader:1269:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1324:10)
+    at Module.load (node:internal/modules/cjs/loader:1124:32)
+Error cargando router desde "C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\auth.js":
+ Error: Cannot find module 'express'
+Require stack:
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\auth.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\app.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\electron\main.js
+- 
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1082:15)
+    at n._resolveFilename (node:electron/js2c/browser_init:2:117760)
+    at Module._load (node:internal/modules/cjs/loader:927:27)
+    at f._load (node:electron/js2c/asar_bundle:2:13377)
+    at Module.require (node:internal/modules/cjs/loader:1148:19)
+    at require (node:internal/modules/cjs/helpers:110:18)
+    at Object.<anonymous> (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\auth.js:1:17)
+    at Module._compile (node:internal/modules/cjs/loader:1269:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1324:10)
+    at Module.load (node:internal/modules/cjs/loader:1124:32)
+Error cargando router desde "C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\tareas.js":
+ Error: Cannot find module 'express'
+Require stack:
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\tareas.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\app.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\electron\main.js
+- 
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1082:15)
+    at n._resolveFilename (node:electron/js2c/browser_init:2:117760)
+    at Module._load (node:internal/modules/cjs/loader:927:27)
+    at f._load (node:electron/js2c/asar_bundle:2:13377)
+    at Module.require (node:internal/modules/cjs/loader:1148:19)
+    at require (node:internal/modules/cjs/helpers:110:18)
+    at Object.<anonymous> (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\tareas.js:1:17)
+    at Module._compile (node:internal/modules/cjs/loader:1269:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1324:10)
+    at Module.load (node:internal/modules/cjs/loader:1124:32)
+Error cargando router desde "C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\evidencias.js":
+ Error: Cannot find module 'express'
+Require stack:
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\evidencias.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\app.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\electron\main.js
+- 
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1082:15)
+    at n._resolveFilename (node:electron/js2c/browser_init:2:117760)
+    at Module._load (node:internal/modules/cjs/loader:927:27)
+    at f._load (node:electron/js2c/asar_bundle:2:13377)
+    at Module.require (node:internal/modules/cjs/loader:1148:19)
+    at require (node:internal/modules/cjs/helpers:110:18)
+    at Object.<anonymous> (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\evidencias.js:1:17)
+    at Module._compile (node:internal/modules/cjs/loader:1269:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1324:10)
+    at Module.load (node:internal/modules/cjs/loader:1124:32)
+Error cargando router desde "C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\normas.js":
+ Error: Cannot find module 'express'
+Require stack:
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\normas.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\app.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\electron\main.js
+- 
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1082:15)
+    at n._resolveFilename (node:electron/js2c/browser_init:2:117760)
+    at Module._load (node:internal/modules/cjs/loader:927:27)
+    at f._load (node:electron/js2c/asar_bundle:2:13377)
+    at Module.require (node:internal/modules/cjs/loader:1148:19)
+    at require (node:internal/modules/cjs/helpers:110:18)
+    at Object.<anonymous> (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\normas.js:1:17)
+    at Module._compile (node:internal/modules/cjs/loader:1269:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1324:10)
+    at Module.load (node:internal/modules/cjs/loader:1124:32)
+Error cargando router desde "C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\normas_repo.js":
+ Error: Cannot find module 'express'
+Require stack:
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\normas_repo.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\app.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\electron\main.js
+- 
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1082:15)
+    at n._resolveFilename (node:electron/js2c/browser_init:2:117760)
+    at Module._load (node:internal/modules/cjs/loader:927:27)
+    at f._load (node:electron/js2c/asar_bundle:2:13377)
+    at Module.require (node:internal/modules/cjs/loader:1148:19)
+    at require (node:internal/modules/cjs/helpers:110:18)
+    at Object.<anonymous> (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\normas_repo.js:1:17)
+    at Module._compile (node:internal/modules/cjs/loader:1269:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1324:10)
+    at Module.load (node:internal/modules/cjs/loader:1124:32)
+Error cargando router desde "C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\reportes.js":
+ Error: Cannot find module 'express'
+Require stack:
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\reportes.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\app.js
+- C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\electron\main.js
+- 
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1082:15)
+    at n._resolveFilename (node:electron/js2c/browser_init:2:117760)
+    at Module._load (node:internal/modules/cjs/loader:927:27)
+    at f._load (node:electron/js2c/asar_bundle:2:13377)
+    at Module.require (node:internal/modules/cjs/loader:1148:19)
+    at require (node:internal/modules/cjs/helpers:110:18)
+    at Object.<anonymous> (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\server\routes\reportes.js:1:17)
+    at Module._compile (node:internal/modules/cjs/loader:1269:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1324:10)
+    at Module.load (node:internal/modules/cjs/loader:1124:32)
+No se pudieron asegurar tablas extra: ENOTDIR, not a directory
+Icono logoapp.png no encontrado en dev ni prod, se usará el icono por defecto de la plataforma
+[11808:1209/035638.127:WARNING:electron_api_native_image.cc(176)] Argument must be a file path or a NativeImage
+[11808:1209/035638.352:INFO:CONSOLE(43)] "App mounted", source: file:///C:/Users/Apt01/Documents/GitHub/Gestion_proyectos/installer/win-unpacked/resources/app.asar.unpacked/frontend/dist/assets/index-rxRXCvsN.js (43)
+❌ Error en query: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+SQL: SELECT id, nombre, usuario, email, password, rol FROM usuarios WHERE email = ? OR nombre = ? OR usuario = ? LIMIT 1
+Params: [ 'admin', 'admin', 'admin' ]
+auth/login error: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+❌ Error en query: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+SQL: SELECT id, nombre, usuario, email, password, rol FROM usuarios WHERE email = ? OR nombre = ? OR usuario = ? LIMIT 1
+Params: [ 'admin', 'admin', 'admin' ]
+auth/login error: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+❌ Error en query: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+SQL: SELECT id, nombre, usuario, email, password, rol FROM usuarios WHERE email = ? OR nombre = ? OR usuario = ? LIMIT 1
+Params: [ 'admin', 'admin', 'admin' ]
+auth/login error: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+❌ Error en query: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+SQL: SELECT id, nombre, usuario, email, password, rol FROM usuarios WHERE email = ? OR nombre = ? OR usuario = ? LIMIT 1
+Params: [ 'admin', 'admin', 'admin' ]
+auth/login error: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+❌ Error en query: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+SQL: SELECT id, nombre, usuario, email, password, rol FROM usuarios WHERE email = ? OR nombre = ? OR usuario = ? LIMIT 1
+Params: [ 'admin', 'admin', 'admin' ]
+auth/login error: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+❌ Error en query: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+SQL: SELECT id, nombre, usuario, email, password, rol FROM usuarios WHERE email = ? OR nombre = ? OR usuario = ? LIMIT 1
+Params: [ 'admin', 'admin', 'admin' ]
+auth/login error: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+❌ Error en query: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+SQL: SELECT id, nombre, usuario, email, password, rol FROM usuarios WHERE email = ? OR nombre = ? OR usuario = ? LIMIT 1
+Params: [ 'usuario', 'usuario', 'usuario' ]
+auth/login error: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+❌ Error en query: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22
+SQL: SELECT id, nombre, usuario, email, password, rol FROM usuarios WHERE email = ? OR nombre = ? OR usuario = ? LIMIT 1
+Params: [ 'usuario', 'usuario', 'usuario' ]
+auth/login error: Error: no such table: usuarios
+    at e.handleError (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:90:371)
+    at e.prepare (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\node_modules\sql.js\dist\sql-wasm.js:89:104)
+    at Object.query (C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\models\db.js:140:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\routes\auth.js:47:22

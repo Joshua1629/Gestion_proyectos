@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import './App.css';
 import Login from './components/login';
 import { getCurrentUser, logout } from './services/auth';
@@ -69,7 +69,7 @@ function Dashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
         )}
         
         {appState.currentView === 'perfil' && (
-          <PerfilUsuario user={user} />
+          <PerfilUsuario user={user} onBack={navigateBack} />
         )}
 
         {appState.currentView === 'normas-repo' && (
@@ -89,38 +89,137 @@ function Dashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
 
 function App() {
   const [user, setUser] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const loginInProgress = useRef(false); // Ref para evitar múltiples intentos
+
+  // Callback para manejar login exitoso
+  const handleLoginSuccess = useCallback((userData: any) => {
+    console.log('🎉 ========== CALLBACK LOGIN RECIBIDO EN APP ==========');
+    console.log('🎉 UserData recibido:', userData);
+    
+    // Prevenir múltiples ejecuciones
+    if (loginInProgress.current) {
+      console.log('⚠️ Login ya en progreso, ignorando callback duplicado');
+      return;
+    }
+    
+    loginInProgress.current = true;
+    
+    // Verificar que userData es válido
+    if (!userData || typeof userData !== 'object' || !userData.id) {
+      console.error('❌ UserData inválido, intentando desde localStorage...');
+      const savedUser = getCurrentUser();
+      const savedToken = localStorage.getItem('token');
+      
+      if (savedUser && savedToken && savedUser.id) {
+        console.log('✅ Usando usuario de localStorage como fallback');
+        setUser(savedUser);
+        setLoading(false);
+        loginInProgress.current = false;
+        return;
+      }
+      console.error('❌ No se pudo recuperar usuario válido');
+      loginInProgress.current = false;
+      return;
+    }
+    
+    // Actualizar estado de forma síncrona
+    console.log('✅ Actualizando estado con usuario válido...');
+    setUser(userData);
+    setLoading(false);
+    loginInProgress.current = false;
+    
+    console.log('✅ Estados actualizados exitosamente');
+  }, []);
+
+  // Función para cargar el usuario desde localStorage
+  const loadUser = useCallback(() => {
+    try {
+      const u = getCurrentUser();
+      const token = localStorage.getItem('token');
+      
+      console.log('🔍 loadUser - Usuario completo:', JSON.stringify(u, null, 2));
+      console.log('🔍 loadUser - Token:', token ? `${token.substring(0, 20)}...` : 'Ausente');
+      console.log('🔍 loadUser - Usuario es válido?', u && typeof u === 'object' && u.id);
+      
+      if (u && token && typeof u === 'object' && u.id) {
+        console.log('✅ Usuario y token válidos encontrados, mostrando dashboard');
+        setUser(u);
+        setLoading(false);
+        return true;
+      } else {
+        console.log('⚠️ No hay usuario o token válido, mostrando login');
+        console.log('   - Usuario:', u ? 'Presente pero inválido' : 'Ausente');
+        console.log('   - Token:', token ? 'Presente' : 'Ausente');
+        setUser(null);
+        setLoading(false);
+        // NO limpiar datos aquí - podría estar en proceso de guardado durante login
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error en loadUser:', error);
+      setUser(null);
+      setLoading(false);
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
-    const u = getCurrentUser();
-    setUser(u);
-  }, []);
+    console.log('🚀 ========== APP MOUNTED ==========');
+    console.log('🚀 Iniciando carga de usuario...');
+    
+    // Resetear flag de login
+    loginInProgress.current = false;
+    
+    // Cargar usuario inicial
+    loadUser();
+    
+    // También escuchar evento como fallback (por si el callback no se pasa)
+    const handleLoginEvent = () => {
+      console.log('📢 ========== EVENTO LOGIN RECIBIDO (FALLBACK) ==========');
+      setTimeout(() => {
+        loadUser();
+      }, 100);
+    };
+    
+    window.addEventListener('user-logged-in', handleLoginEvent);
+    console.log('✅ Listener de evento user-logged-in registrado (fallback)');
+    
+    return () => {
+      window.removeEventListener('user-logged-in', handleLoginEvent);
+      loginInProgress.current = false;
+    };
+  }, [loadUser]);
 
   const handleLogout = () => {
     logout();
     setUser(null);
     // recargar para forzar estado limpio
-    window.location.href = '/';
+    window.location.reload();
   };
 
-  useEffect(() => { console.log('App mounted'); }, []);
-
-  // Diagnóstico de conectividad desde el renderer (solo en desarrollo; una sola vez)
- /* useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    const key = '__did_connectivity_probe__';
-    if ((window as any)[key]) return; // evitar doble ejecución por StrictMode
-    (window as any)[key] = true;
-    console.log('navigator.onLine =', navigator.onLine);
-    const base = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3001');
-    fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: 'probe', password: 'xxxx' }) })
-      .then(r => console.log('probe /api/auth/login status', r.status))
-      .catch(e => console.warn('probe failed', e?.message || e));
-  }, []);
-*/
-  if (!user) {
-    return <Login />;
+  // Mostrar loading mientras se verifica el usuario
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        background: 'var(--bg-main, #f8fafc)',
+        color: 'var(--text-primary, #111827)'
+      }}>
+        <div style={{ fontSize: '16px', fontWeight: 500 }}>Cargando...</div>
+      </div>
+    );
   }
 
+  // Si no hay usuario, mostrar login
+  if (!user) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // Si hay usuario, mostrar dashboard
   return <Dashboard user={user} onLogout={handleLogout} />;
 }
 

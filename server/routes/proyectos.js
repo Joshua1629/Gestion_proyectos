@@ -33,22 +33,19 @@ router.get(
       const total = countRows[0]?.total || 0;
       
       // Obtener proyectos con progreso calculado
+      // Usar subconsultas para evitar problemas con GROUP BY en SQLite
       const [rows] = await pool.query(`
         SELECT 
           p.*,
-          -- Si el proyecto no tiene fecha, tomar la mínima/máxima fecha de sus fases
-          COALESCE(p.fecha_inicio, MIN(f.fecha_inicio)) as fecha_inicio,
-          COALESCE(p.fecha_fin, MAX(f.fecha_fin)) as fecha_fin,
-          COALESCE(AVG(t.progreso), 0) as progreso_general,
-          COUNT(t.id) as total_tareas,
-          COUNT(CASE WHEN t.progreso = 100 THEN 1 END) as tareas_completadas,
-          (SELECT COUNT(*) FROM fases f2 WHERE f2.proyecto_id = p.id) as total_fases,
-          (SELECT COUNT(*) FROM fases f2 WHERE f2.proyecto_id = p.id AND f2.estado = 'Completado') as fases_completadas
+          COALESCE(p.fecha_inicio, (SELECT MIN(fecha_inicio) FROM fases WHERE proyecto_id = p.id)) as fecha_inicio,
+          COALESCE(p.fecha_fin, (SELECT MAX(fecha_fin) FROM fases WHERE proyecto_id = p.id)) as fecha_fin,
+          COALESCE((SELECT AVG(progreso) FROM tareas WHERE proyecto_id = p.id), 0) as progreso_general,
+          (SELECT COUNT(*) FROM tareas WHERE proyecto_id = p.id) as total_tareas,
+          (SELECT COUNT(*) FROM tareas WHERE proyecto_id = p.id AND progreso = 100) as tareas_completadas,
+          (SELECT COUNT(*) FROM fases WHERE proyecto_id = p.id) as total_fases,
+          (SELECT COUNT(*) FROM fases WHERE proyecto_id = p.id AND estado = 'Completado') as fases_completadas
         FROM proyectos p 
-        LEFT JOIN tareas t ON p.id = t.proyecto_id 
-        LEFT JOIN fases f ON p.id = f.proyecto_id
         WHERE p.nombre LIKE ? OR p.cliente LIKE ? 
-        GROUP BY p.id 
         ORDER BY p.id DESC 
         LIMIT ? OFFSET ?
       `, [search, search, Number(limit), Number(offset)]);
@@ -61,8 +58,13 @@ router.get(
         totalPages: Math.max(1, Math.ceil(total / limit))
       });
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Error al obtener proyectos' });
+      console.error('❌ Error en GET /api/proyectos:', err);
+      console.error('❌ Error message:', err?.message);
+      console.error('❌ Error stack:', err?.stack);
+      res.status(500).json({ 
+        error: 'Error al obtener proyectos',
+        detail: err?.message || String(err)
+      });
     }
   }
 );

@@ -65,7 +65,15 @@ export default function ProyectosDashboard({
       setTotalPages(data.totalPages || 0);
     } catch (err: any) {
       console.error("❌ Error cargando proyectos:", err);
-      setError(err.message || "Error al cargar proyectos");
+      console.error("❌ Error tipo:", typeof err);
+      console.error("❌ Error status:", err?.status);
+      console.error("❌ Error message:", err?.message);
+      console.error("❌ Error error:", err?.error);
+      console.error("❌ Error completo:", JSON.stringify(err, null, 2));
+      
+      // Extraer mensaje de error de diferentes propiedades posibles
+      const errorMsg = err?.error || err?.message || err?.detail || (typeof err === 'string' ? err : "Error al cargar proyectos");
+      setError(errorMsg);
     } finally {
       if (blockUI) setLoading(false);
     }

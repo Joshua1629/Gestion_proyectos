@@ -1,4 +1,25 @@
-const sqlite3 = require('sqlite3').verbose();
+// Manejar el require de sqlite3 con mejor manejo de errores
+let sqlite3;
+try {
+  sqlite3 = require('sqlite3').verbose();
+  console.log('✅ sqlite3 cargado correctamente');
+} catch (error) {
+  console.error('❌ ERROR CRÍTICO: No se pudo cargar sqlite3');
+  console.error('❌ Error:', error.message);
+  console.error('❌ Stack:', error.stack);
+  console.error('❌ NODE_PATH:', process.env.NODE_PATH || '(no configurado)');
+  console.error('❌ __dirname:', __dirname);
+  console.error('❌ process.cwd():', process.cwd());
+  
+  // Intentar mostrar rutas donde Node.js busca módulos
+  const Module = require('module');
+  console.error('❌ Rutas de búsqueda de módulos:');
+  if (Module._nodeModulePaths) {
+    Module._nodeModulePaths(__dirname).forEach(p => console.error('   -', p));
+  }
+  
+  throw new Error(`No se pudo cargar sqlite3: ${error.message}`);
+}
 const path = require('path');
 const fs = require('fs');
 

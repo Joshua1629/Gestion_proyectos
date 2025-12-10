@@ -1,0 +1,25 @@
+
+🚀 Electron app ready, iniciando...
+🚀 Iniciando backend directamente en el proceso principal de Electron...
+📂 Ruta del servidor: C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\server\app.js
+📂 __dirname: C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar\electron
+📂 process.resourcesPath: C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources
+[dotenv@17.2.2] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+⏳ Llamando a initializeApp()...
+Base de datos existente encontrada.
+💾 Ruta de BD configurada: C:\Users\Apt01\AppData\Roaming\GestionProyectos\gestion_proyectos.db
+🚀 Inicializando sql.js para ensureExtraTables...
+✅ Tablas extras aseguradas y guardadas
+📂 Directorio de uploads: C:\Users\Apt01\AppData\Roaming\GestionProyectos\uploads
+✅ Backend iniciado correctamente en el proceso principal.
+Forced online network conditions for renderer
+📂 Cargando index.html desde: C:\Users\Apt01\Documents\GitHub\Gestion_proyectos\installer\win-unpacked\resources\app.asar.unpacked\frontend\dist\index.html
+📂 Existe el archivo? true
+Backend escuchando en 127.0.0.1:3001
+Aplicación lista para usar.
+✅ index.html cargado correctamente
+2025-12-09T10:20:58.117Z GET /api/proyectos?page=1&limit=12
+🚀 Inicializando sql.js...
+📂 Cargando base de datos existente: C:\Users\Apt01\AppData\Roaming\GestionProyectos\gestion_proyectos.db
+✅ Base de datos inicializada correctamente
+2025-12-09T10:20:58.134Z GET /api/proyectos?page=1&limit=12

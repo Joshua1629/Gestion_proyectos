@@ -5,19 +5,18 @@
   "main": "electron/main.js",
   "dependencies": {
     "bcryptjs": "^3.0.2",
+    "better-sqlite3": "^12.5.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
-    "electron": "^25.0.0",
-    "electron-builder": "^24.0.0",
     "express": "^5.1.0",
     "express-validator": "^7.2.1",
     "form-data": "^4.0.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
-    "sqlite3": "^5.1.6",
+    "pdf-parse": "^1.1.1",
     "pdfkit": "^0.17.2",
     "sharp": "^0.34.3",
-    "pdf-parse": "^1.1.1",
+    "sqlite3": "^5.1.7",
     "xlsx": "^0.18.5"
   },
   "scripts": {
@@ -33,17 +32,41 @@
   "devDependencies": {
     "concurrently": "^8.0.0",
     "cross-env": "^7.0.3",
+    "electron": "^25.0.0",
+    "electron-builder": "^24.0.0",
+    "electron-rebuild": "^3.2.9",
     "nodemon": "^3.1.10"
   },
   "build": {
     "appId": "com.tuempresa.gestion-proyectos",
     "productName": "Gestion Proyectos",
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
     "files": [
       "electron/**/*",
       "server/**/*",
       "frontend/dist/**/*",
       "db/**/*",
-      "package.json"
+      "package.json",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+    ],
+    "asarUnpack": [
+      "frontend/dist/**/*",
+      "frontend/public/**/*",
+      "**/node_modules/sqlite3/**/*",
+      "**/node_modules/sharp/**/*",
+      "**/node_modules/better-sqlite3/**/*",
+      "**/node_modules/@img/**/*"
     ],
     "extraResources": [
       {
@@ -56,6 +79,97 @@
       {
         "from": "db/",
         "to": "db/",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "frontend/public/",
+        "to": "frontend/public/",
+        "filter": [
+          "logo.png",
+          "logoapp.png",
+          "cfia_seal.png",
+          "cfia.png"
+        ]
+      },
+      {
+        "from": "node_modules/",
+        "to": "server/node_modules/",
+        "filter": [
+          "express/**/*",
+          "body-parser/**/*",
+          "cookie-parser/**/*",
+          "cors/**/*",
+          "dotenv/**/*",
+          "express-validator/**/*",
+          "bcryptjs/**/*",
+          "jsonwebtoken/**/*",
+          "multer/**/*",
+          "sqlite3/**/*",
+          "pdfkit/**/*",
+          "pdf-parse/**/*",
+          "sharp/**/*",
+          "xlsx/**/*",
+          "form-data/**/*",
+          "accepts/**/*",
+          "array-flatten/**/*",
+          "content-disposition/**/*",
+          "content-type/**/*",
+          "cookie/**/*",
+          "debug/**/*",
+          "depd/**/*",
+          "encodeurl/**/*",
+          "escape-html/**/*",
+          "etag/**/*",
+          "finalhandler/**/*",
+          "fresh/**/*",
+          "merge-descriptors/**/*",
+          "methods/**/*",
+          "mime/**/*",
+          "mime-db/**/*",
+          "mime-types/**/*",
+          "ms/**/*",
+          "on-finished/**/*",
+          "parseurl/**/*",
+          "path-to-regexp/**/*",
+          "proxy-addr/**/*",
+          "qs/**/*",
+          "range-parser/**/*",
+          "raw-body/**/*",
+          "safe-buffer/**/*",
+          "send/**/*",
+          "serve-static/**/*",
+          "setprototypeof/**/*",
+          "statuses/**/*",
+          "type-is/**/*",
+          "unpipe/**/*",
+          "utils-merge/**/*",
+          "vary/**/*",
+          "@fastify/**/*",
+            "bytes/**/*",
+            "ee-first/**/*",
+            "forwarded/**/*",
+            "http-errors/**/*",
+            "iconv-lite/**/*",
+            "inherits/**/*",
+            "ipaddr.js/**/*",
+            "negotiator/**/*",
+            "once/**/*",
+            "toidentifier/**/*",
+            "wrappy/**/*",
+            "side-channel/**/*",
+            "call-bind/**/*",
+            "get-intrinsic/**/*",
+            "has-symbols/**/*",
+            "hasown/**/*",
+            "object-inspect/**/*",
+            "set-function-length/**/*"
+        ]
+      },
+      {
+        "from": "node_modules/sqlite3/",
+        "to": "sqlite3/",
         "filter": [
           "**/*"
         ]

@@ -10,68 +10,372 @@ let backendProcess = null;
 const isDev =
   process.env.NODE_ENV === "development" || process.env.ELECTRON_DEV === "true";
 
-function resolveServerPath() {
-  const devPath = path.join(__dirname, "..", "server", "app.js");
-  const prodPath = path.join(
-    process.resourcesPath || __dirname,
-    "server",
-    "app.js"
-  );
-  return fs.existsSync(devPath) ? devPath : prodPath;
+// Crear archivo de log para debugging (definir ANTES de usarlo)
+const logDir = path.join(process.env.APPDATA || process.env.HOME || __dirname, 'GestionProyectos', 'logs');
+const logFile = path.join(logDir, 'electron.log');
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
 }
 
-function startBackend() {
-  if (backendProcess) return;
-  const serverPath = resolveServerPath();
+let logStream = null;
+try {
+  logStream = fs.createWriteStream(logFile, { flags: 'a' });
+  console.log(`✅ Logging configurado en: ${logFile}`);
+} catch (err) {
+  console.error('⚠️ No se pudo crear archivo de log:', err.message);
+}
 
-  // Ejecuta el script con el runtime actual (process.execPath)
-  // Uso de comillas para rutas con espacios
-  // En dev, normalmente ya ejecutamos el backend con nodemon desde npm run dev,
-  // así que evitamos duplicarlo salvo que se fuerce con ELECTRON_START_BACKEND=true
-  if (isDev && process.env.ELECTRON_START_BACKEND !== "true") {
-    console.log("Skip starting backend from Electron (dev mode).");
+function writeLog(message) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${message}\n`;
+  try {
+    if (logStream) {
+      logStream.write(logMessage);
+    } else {
+      fs.appendFileSync(logFile, logMessage);
+    }
+  } catch (err) {
+    // Ignorar errores de escritura de log, pero mostrar en consola
+    console.error('⚠️ Error escribiendo log:', err.message);
+  }
+  console.log(message);
+}
+
+function resolveServerPath() {
+  // En desarrollo, el servidor está en la raíz del proyecto
+  const devPath = path.join(__dirname, "..", "server", "app.js");
+  
+  // En producción, el servidor está en extraResources (fuera del .asar)
+  // process.resourcesPath apunta al directorio 'resources/' en producción
+  const prodPaths = [
+    // En extraResources (la ubicación correcta según package.json)
+    process.resourcesPath ? path.join(process.resourcesPath, "server", "app.js") : null,
+    // Dentro del .asar (fallback por si acaso)
+    path.join(__dirname, "..", "server", "app.js"),
+  ].filter(Boolean);
+  
+  // En desarrollo, usar directamente devPath
+  if (isDev) {
+    console.log("📂 Modo desarrollo, usando:", devPath);
+    return devPath;
+  }
+  
+  // En producción, buscar en las rutas de producción
+  console.log("📂 Modo producción, buscando servidor...");
+  console.log("📂 process.resourcesPath:", process.resourcesPath);
+  
+  for (const prodPath of prodPaths) {
+    if (prodPath) {
+      console.log(`📂 Verificando: ${prodPath}`);
+      if (fs.existsSync(prodPath)) {
+        console.log("✅ Servidor encontrado en producción:", prodPath);
+        return prodPath;
+      } else {
+        console.log("❌ No encontrado");
+      }
+    }
+  }
+  
+  // Fallback: usar la primera ruta de producción (aunque no exista, para mostrar error)
+  const fallback = prodPaths[0] || devPath;
+  console.error("❌ ERROR: Servidor no encontrado en ninguna ruta esperada");
+  console.error("❌ Rutas probadas:");
+  prodPaths.forEach(p => console.error(`   - ${p}`));
+  console.error("❌ Usando fallback (puede fallar):", fallback);
+  return fallback;
+}
+
+async function startBackend() {
+  if (backendProcess) {
+    console.log("⚠️ Backend ya está iniciado");
     return;
   }
 
-  const command = `"${process.execPath}" "${serverPath}"`;
+  // En dev, normalmente ya ejecutamos el backend con nodemon desde npm run dev,
+  // así que evitamos duplicarlo salvo que se fuerce con ELECTRON_START_BACKEND=true
+  if (isDev && process.env.ELECTRON_START_BACKEND !== "true") {
+    console.log("⚠️ Skip starting backend from Electron (dev mode).");
+    return;
+  }
 
-  // aumentar maxBuffer para evitar errores si hay mucha salida
-  backendProcess = exec(command, {
+  // SOLUCIÓN: Ejecutar el backend directamente en el proceso principal
+  // Esto evita problemas con NODE_PATH y módulos nativos como sqlite3
+  let serverPath = resolveServerPath();
+  
+  writeLog("🚀 Iniciando backend directamente en el proceso principal...");
+  writeLog(`🚀 Ruta del servidor: ${serverPath}`);
+
+  // Verificar que el archivo existe
+  if (!fs.existsSync(serverPath)) {
+    console.error("❌ ERROR: No se encontró el servidor en:", serverPath);
+    console.error("❌ Verifica la configuración de electron-builder");
+    return;
+  }
+
+  try {
+    // Cambiar al directorio del servidor temporalmente
+    const originalCwd = process.cwd();
+    const serverDir = path.dirname(serverPath);
+    process.chdir(serverDir);
+    
+    // Configurar NODE_PATH para el proceso actual
+    const resourcesPath = process.resourcesPath || path.join(__dirname, '..');
+    console.log("📂 resourcesPath:", resourcesPath);
+    
+    const possibleNodePaths = [
+      path.join(serverDir, 'node_modules'),
+      path.join(resourcesPath, 'app.asar.unpacked', 'node_modules'),
+      path.join(resourcesPath, 'app.asar', 'node_modules'),
+    ];
+    
+    console.log("🔍 Verificando rutas de node_modules:");
+    const existingPaths = [];
+    for (const p of possibleNodePaths) {
+      const exists = fs.existsSync(p);
+      console.log(`   ${exists ? '✅' : '❌'} ${p}`);
+      if (exists) {
+        existingPaths.push(p);
+      }
+    }
+    
+    if (existingPaths.length > 0) {
+      const currentNodePath = process.env.NODE_PATH || '';
+      process.env.NODE_PATH = existingPaths.join(path.delimiter) + 
+        (currentNodePath ? path.delimiter + currentNodePath : '');
+      console.log("📦 NODE_PATH configurado:", process.env.NODE_PATH);
+    } else {
+      console.error("❌ ERROR: No se encontró ningún node_modules!");
+    }
+    
+    // Verificar sqlite3 ANTES de cargar el servidor
+    console.log("🔍 Verificando que sqlite3 esté disponible...");
+    try {
+      const Module = require('module');
+      const originalResolve = Module._resolveFilename;
+      const resolved = Module._resolveFilename('sqlite3', {
+        paths: Module._nodeModulePaths(serverDir).concat(existingPaths),
+        parent: module,
+      });
+      console.log("✅ sqlite3 encontrado en:", resolved);
+    } catch (sqliteErr) {
+      console.error("❌ ERROR: No se puede encontrar sqlite3");
+      console.error("❌ Error:", sqliteErr.message);
+      throw new Error(`sqlite3 no disponible: ${sqliteErr.message}`);
+    }
+    
+    // Configurar variables de entorno
+    process.env.NODE_ENV = 'production';
+    
+    // Cargar y ejecutar el módulo del servidor directamente
+    writeLog(`📂 Cargando módulo del servidor desde: ${serverPath}`);
+    const serverModule = require(serverPath);
+    
+    if (serverModule && typeof serverModule.initializeApp === 'function') {
+      writeLog("✅ Módulo cargado, ejecutando initializeApp...");
+      await serverModule.initializeApp();
+      writeLog("✅ ✅ ✅ Backend iniciado correctamente en el proceso principal ✅ ✅ ✅");
+      
+      // Marcar como iniciado
+      backendProcess = { pid: process.pid, killed: false };
+    } else {
+      throw new Error("El módulo del servidor no exporta initializeApp");
+    }
+    
+    // Restaurar el directorio de trabajo original
+    process.chdir(originalCwd);
+    
+  } catch (error) {
+    const errorMsg = `❌ ❌ ❌ ERROR CRÍTICO al iniciar backend ❌ ❌ ❌
+❌ Tipo: ${error.constructor.name}
+❌ Mensaje: ${error.message}
+❌ Stack completo:
+${error.stack}
+❌ ===========================================`;
+    writeLog(errorMsg);
+    console.error("❌ ❌ ❌ ERROR CRÍTICO al iniciar backend ❌ ❌ ❌");
+    console.error("❌ Tipo:", error.constructor.name);
+    console.error("❌ Mensaje:", error.message);
+    console.error("❌ Stack completo:");
+    console.error(error.stack);
+    console.error("❌ ===========================================");
+    
+    // Restaurar directorio de trabajo antes del fallback
+    try {
+      process.chdir(originalCwd);
+    } catch {}
+    
+    // Fallback: intentar como proceso hijo
+    console.error("❌ Intentando como proceso hijo (fallback)...");
+    startBackendAsChildProcess(serverPath);
+  }
+}
+
+function startBackendAsChildProcess(serverPath) {
+  // Usar process.execPath para ejecutar con el runtime de Electron
+  // Con ELECTRON_RUN_AS_NODE=1, se ejecuta como Node.js pero con acceso al .asar
+  const command = `"${process.execPath}" "${serverPath}"`;
+  console.log("🔨 Ejecutando comando:", command);
+  console.log("📂 Directorio de trabajo:", path.dirname(serverPath));
+  console.log("📂 process.resourcesPath:", process.resourcesPath);
+  console.log("📂 __dirname:", __dirname);
+
+  // Configurar NODE_PATH para que el proceso hijo pueda encontrar los módulos
+  // PRIORIDAD: primero buscar en server/node_modules (extraResources), luego en otras ubicaciones
+  let nodePath = [];
+  
+  if (!isDev && process.resourcesPath) {
+    const serverDir = path.dirname(serverPath);
+    const serverNodeModules = path.join(serverDir, 'node_modules');
+    
+    // PRIMERO: node_modules local del servidor (extraResources) - ALTA PRIORIDAD
+    if (fs.existsSync(serverNodeModules)) {
+      nodePath.push(serverNodeModules);
+      console.log("📦 [ALTA PRIORIDAD] Agregando al NODE_PATH:", serverNodeModules);
+    }
+    
+    // Buscar node_modules en otras ubicaciones (incluyendo módulos desempaquetados)
+    // IMPORTANTE: app.asar.unpacked tiene prioridad para módulos nativos como sqlite3
+    const possiblePaths = [
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules'), // ALTA PRIORIDAD para módulos nativos
+      path.join(process.resourcesPath, 'sqlite3'), // También desde extraResources directo
+      path.join(process.resourcesPath, 'app.asar', 'node_modules'),
+      path.join(__dirname, '..', 'node_modules'),
+    ];
+    
+    for (const nmPath of possiblePaths) {
+      if (fs.existsSync(nmPath)) {
+        nodePath.push(nmPath);
+        console.log("📦 Agregando al NODE_PATH:", nmPath);
+      }
+    }
+  }
+  
+  // Agregar el NODE_PATH existente si hay (al final, menor prioridad)
+  if (process.env.NODE_PATH) {
+    nodePath.push(process.env.NODE_PATH);
+  }
+
+  const env = {
+    ...process.env,
+    NODE_ENV: isDev ? 'development' : 'production',
+    ELECTRON_RUN_AS_NODE: '1', // Permite acceso al .asar desde proceso hijo
+    NODE_PATH: nodePath.length > 0 ? nodePath.join(process.platform === 'win32' ? ';' : ':') : undefined,
+  };
+
+  console.log("🌍 NODE_PATH configurado:", env.NODE_PATH || '(ninguno)');
+
+  // IMPORTANTE: En Windows, usar shell: true puede causar problemas con las rutas
+  // Usar spawn en lugar de exec para mejor control de errores
+  const { spawn } = require('child_process');
+  
+  console.log("🔨 Ejecutando backend como proceso hijo...");
+  console.log("🔨 Comando completo:", command);
+  console.log("🔨 Directorio:", path.dirname(serverPath));
+  console.log("🔨 NODE_PATH:", env.NODE_PATH || '(ninguno)');
+  
+  // En Windows, necesitamos ejecutar el comando de forma especial
+  backendProcess = spawn(process.execPath, [serverPath], {
     cwd: path.dirname(serverPath),
-    env: process.env,
-    maxBuffer: 1024 * 1024 * 50, // 50 MB
+    env: env,
+    stdio: ['ignore', 'pipe', 'pipe'], // stdin: ignore, stdout: pipe, stderr: pipe
+    shell: false, // No usar shell para evitar problemas de escape
+    windowsHide: false, // Mostrar ventana de consola para ver errores
   });
 
-  // stdout / stderr (si el child tiene streams)
+  // Capturar TODA la salida del proceso hijo para debugging
+  let stdoutBuffer = '';
+  let stderrBuffer = '';
+  let hasOutput = false;
+  
   if (backendProcess.stdout) {
     backendProcess.stdout.on("data", (chunk) => {
-      process.stdout.write(`[backend stdout] ${chunk}`);
+      hasOutput = true;
+      const output = chunk.toString();
+      stdoutBuffer += output;
+      // Mostrar línea por línea para mejor legibilidad
+      output.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed) {
+          console.log(`[backend stdout] ${trimmed}`);
+        }
+      });
     });
   }
+  
   if (backendProcess.stderr) {
     backendProcess.stderr.on("data", (chunk) => {
-      process.stderr.write(`[backend stderr] ${chunk}`);
+      hasOutput = true;
+      const output = chunk.toString();
+      stderrBuffer += output;
+      // Mostrar línea por línea para mejor legibilidad
+      output.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed) {
+          console.error(`[backend stderr] ${trimmed}`);
+        }
+      });
     });
   }
-
+  
+  // Si después de 3 segundos no hay output, puede que el proceso haya crasheado silenciosamente
+  const outputTimeout = setTimeout(() => {
+    if (!hasOutput) {
+      console.error("⚠️ WARNING: El backend no ha producido ninguna salida después de 3 segundos");
+      console.error("⚠️ Esto puede indicar que el proceso crasheó inmediatamente");
+      console.error("⚠️ Verifica que todas las dependencias estén disponibles");
+    }
+  }, 3000);
+  
   backendProcess.on("error", (err) => {
-    console.error("Backend error:", err);
-  });
-
-  backendProcess.on("exit", (code, signal) => {
-    console.log(`Backend exited code=${code} signal=${signal}`);
+    clearTimeout(outputTimeout);
+    console.error("❌ ========== BACKEND PROCESS ERROR ==========");
+    console.error("❌ Error:", err);
+    console.error("❌ Error message:", err.message);
+    console.error("❌ Error code:", err.code);
+    console.error("❌ Error stack:", err.stack);
+    console.error("❌ ===========================================");
     backendProcess = null;
   });
-
-  console.log("Backend started with exec:", command);
+  
+  backendProcess.on("exit", (code, signal) => {
+    clearTimeout(outputTimeout);
+    console.log(`⚠️ ========== BACKEND EXITED ==========`);
+    console.log(`⚠️ Código: ${code}, Signal: ${signal}`);
+    if (code !== 0 && code !== null) {
+      console.error(`❌ Backend terminó con código de error: ${code}`);
+      console.error("❌ Esto indica que el backend crasheó o falló al iniciar");
+      console.error("❌ Revisa los logs arriba para ver el error específico");
+    }
+    if (stdoutBuffer) {
+      console.error("📋 Última salida stdout (últimos 2000 caracteres):");
+      console.error(stdoutBuffer.slice(-2000));
+    }
+    if (stderrBuffer) {
+      console.error("📋 Última salida stderr (últimos 2000 caracteres):");
+      console.error(stderrBuffer.slice(-2000));
+    }
+    if (!stdoutBuffer && !stderrBuffer) {
+      console.error("❌ No hubo salida del backend (ni stdout ni stderr)");
+      console.error("❌ Esto sugiere que el proceso falló antes de escribir algo");
+    }
+    console.error("⚠️ ======================================");
+    backendProcess = null;
+  });
+  
+  console.log("✅ Backend proceso iniciado con PID:", backendProcess.pid);
+  console.log("⏳ Esperando salida del backend...");
 }
 
 function stopBackend() {
   if (!backendProcess) return;
   try {
-    // intenta terminar de forma amable
-    backendProcess.kill("SIGTERM");
-    // en Windows / procesos rebeldes puede requerir más, pero dejar así por defecto
+    // Si es un proceso hijo real, terminarlo
+    if (backendProcess.pid && backendProcess.pid !== process.pid && typeof backendProcess.kill === 'function') {
+      backendProcess.kill("SIGTERM");
+    } else {
+      // Si está ejecutándose en el proceso principal, solo marcarlo como detenido
+      console.log("⚠️ Backend ejecutándose en proceso principal, no se puede detener sin cerrar la app");
+    }
   } catch (e) {
     console.error("Error killing backend:", e);
   }
@@ -116,6 +420,20 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+  
+  // Abrir DevTools automáticamente para ver errores
+  //mainWindow.webContents.openDevTools();
+  
+  // También mostrar errores en una ventana de consola
+  if (!isDev) {
+    // En producción, crear una ventana de consola para ver los logs del backend
+    const { screen } = require('electron');
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width, height } = primaryDisplay.workAreaSize;
+    
+    // No crear ventana de consola separada, pero asegurar que los logs se vean
+    // Los logs se guardan en el archivo electron.log
+  }
 
   // Forzar modo "direct" para evitar proxys del sistema que a veces provocan desconexiones
   mainWindow.webContents.session.setProxy({ mode: "direct" }).catch(() => {});
@@ -199,16 +517,67 @@ function createWindow() {
         );
       });
   } else {
-    const indexHtml = path.join(
-      __dirname,
-      "..",
-      "frontend",
-      "dist",
-      "index.html"
-    );
+    // En producción, el frontend/dist puede estar dentro del .asar o en app.asar.unpacked
+    const candidates = [
+      // Dentro del .asar (ruta relativa desde electron/main.js)
+      path.join(__dirname, "..", "frontend", "dist", "index.html"),
+      // En app.asar.unpacked (si está configurado así)
+      process.resourcesPath 
+        ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "dist", "index.html")
+        : null,
+      // Alternativa: dentro del .asar desde la raíz
+      path.join(process.resourcesPath || __dirname, "app.asar", "frontend", "dist", "index.html"),
+    ].filter(Boolean);
+
+    // En producción, frontend/dist está en app.asar.unpacked (gracias a asarUnpack)
+    const indexHtml = process.resourcesPath
+      ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "dist", "index.html")
+      : path.join(__dirname, "..", "frontend", "dist", "index.html");
+
+    console.log("📂 Cargando index.html en producción...");
+    console.log("📂 process.resourcesPath:", process.resourcesPath);
+    console.log("📂 Ruta calculada:", indexHtml);
+    
+    // Verificar que existe
+    if (!fs.existsSync(indexHtml)) {
+      console.error("❌ index.html no encontrado en:", indexHtml);
+      const errorHtml = `
+        <html>
+          <body style="font-family: sans-serif; padding: 24px;">
+            <h2>Error: No se encontró index.html</h2>
+            <p>Ruta buscada: ${indexHtml}</p>
+            <p>Revisa la consola para más detalles.</p>
+          </body>
+        </html>`;
+      mainWindow.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(errorHtml));
+      mainWindow.webContents.openDevTools();
+      return;
+    }
+
+    console.log("✅ index.html encontrado, cargando...");
+    
     mainWindow
       .loadFile(indexHtml)
-      .catch((err) => console.error("Error loading prod file", err));
+      .then(() => {
+        console.log("✅ index.html cargado correctamente");
+        // Abrir DevTools automáticamente para debugging
+        mainWindow.webContents.openDevTools();
+      })
+      .catch((err) => {
+        console.error("❌ Error loading prod file", err);
+        console.error("❌ Stack:", err.stack);
+        const errorHtml = `
+          <html>
+            <body style="font-family: sans-serif; padding: 24px;">
+              <h2>Error al cargar la aplicación</h2>
+              <p>Error: ${err && err.message ? err.message : String(err)}</p>
+              <p>Ruta intentada: ${indexHtml}</p>
+              <p>Revisa la consola para más detalles.</p>
+            </body>
+          </html>`;
+        mainWindow.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(errorHtml));
+        mainWindow.webContents.openDevTools();
+      });
   }
 
   mainWindow.on("closed", () => {
@@ -248,8 +617,54 @@ function createWindow() {
   );
 }
 
-app.whenReady().then(() => {
-  startBackend();
+
+app.whenReady().then(async () => {
+  writeLog("🚀 Electron app ready, iniciando...");
+  
+  // Iniciar backend primero
+  await startBackend();
+  
+  // Esperar y verificar que el backend esté respondiendo antes de crear la ventana
+  const backendUrl = "http://127.0.0.1:3001/api/auth/health";
+  console.log("⏳ Esperando a que el backend esté listo...");
+  
+  try {
+    // Esperar hasta 10 segundos con intentos cada 500ms
+    const maxAttempts = 20;
+    let attempts = 0;
+    let backendReady = false;
+    
+    while (attempts < maxAttempts && !backendReady) {
+      try {
+        const healthCheck = await fetch(backendUrl, { 
+          method: 'GET',
+          signal: AbortSignal.timeout(1000) // timeout de 1 segundo por intento
+        });
+        if (healthCheck.ok) {
+          console.log("✅ Backend respondiendo correctamente");
+          backendReady = true;
+          break;
+        }
+      } catch (fetchErr) {
+        // Ignorar errores de conexión y continuar intentando
+        if (attempts % 4 === 0) {
+          console.log(`⏳ Esperando backend... (intento ${attempts + 1}/${maxAttempts})`);
+        }
+      }
+      attempts++;
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    if (!backendReady) {
+      console.warn("⚠️ Backend no respondió después de 10 segundos");
+      console.warn("⚠️ Revisa los logs [backend stdout] y [backend stderr] arriba para ver errores");
+      console.warn("⚠️ Continuando de todos modos...");
+    }
+  } catch (err) {
+    console.warn("⚠️ Error verificando backend:", err.message);
+    console.warn("⚠️ Continuando de todos modos...");
+  }
+  
   createWindow();
 
   app.on("activate", () => {
@@ -313,10 +728,23 @@ async function waitForUrl(url, { timeoutMs = 15000, intervalMs = 250 } = {}) {
 // IPC: proxy de fetch desde el renderer al proceso principal (usa Node fetch)
 ipcMain.handle("http:fetch", async (_event, { url, options }) => {
   try {
+    console.log(`🌐 IPC fetch: ${options?.method || 'GET'} ${url}`);
+    
     const res = await fetch(url, options || {});
+    
+    console.log(`📡 IPC fetch response: ${res.status} ${res.statusText}`);
+    
     const contentType = res.headers.get("content-type") || "";
     const isJson = contentType.includes("application/json");
-    const body = isJson ? await res.json().catch(() => null) : await res.text();
+    
+    let body;
+    try {
+      body = isJson ? await res.json() : await res.text();
+    } catch (parseErr) {
+      console.error("❌ Error parseando respuesta:", parseErr);
+      body = await res.text().catch(() => null);
+    }
+    
     return {
       ok: res.ok,
       status: res.status,
@@ -325,7 +753,24 @@ ipcMain.handle("http:fetch", async (_event, { url, options }) => {
       body,
     };
   } catch (e) {
-    return { ok: false, error: e && e.message ? e.message : String(e) };
+    console.error(`❌ IPC fetch error para ${url}:`, e);
+    console.error(`❌ Error message:`, e?.message);
+    console.error(`❌ Error stack:`, e?.stack);
+    
+    // Formatear error más descriptivo
+    const errorMessage = e?.message || String(e);
+    const isNetworkError = errorMessage.includes('fetch failed') || 
+                          errorMessage.includes('ECONNREFUSED') ||
+                          errorMessage.includes('ENOTFOUND');
+    
+    return { 
+      ok: false, 
+      status: isNetworkError ? 503 : 500,
+      statusText: isNetworkError ? 'Service Unavailable' : 'Internal Server Error',
+      error: isNetworkError 
+        ? 'No se pudo conectar con el servidor. Verifica que el backend esté ejecutándose en http://127.0.0.1:3001'
+        : errorMessage
+    };
   }
 });
 
