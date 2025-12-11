@@ -1080,24 +1080,24 @@ router.get(
       }
       
       safeDocWrite(() => {
-        doc
-          .font("Helvetica-Bold")
-          .fontSize(16)
-          .fillColor("#000")
-          .text("Catálogo de Normas / Incumplimientos", marginL, marginL, {
-            width: usableW,
-            align: "center",
-          });
-        const sub = `Total: ${rows.length}`;
-        doc.moveDown(0.2);
-        doc
-          .font("Helvetica")
-          .fontSize(10)
-          .fillColor("#555")
-          .text(sub, { align: "center" });
-        doc.moveDown(0.8);
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(16)
+        .fillColor("#000")
+        .text("Catálogo de Normas / Incumplimientos", marginL, marginL, {
+          width: usableW,
+          align: "center",
+        });
+      const sub = `Total: ${rows.length}`;
+      doc.moveDown(0.2);
+      doc
+        .font("Helvetica")
+        .fontSize(10)
+        .fillColor("#555")
+        .text(sub, { align: "center" });
+      doc.moveDown(0.8);
       });
-      
+
       if (!canWrite()) return;
 
       // Render como tabla plana: Categoria | Descripción | Artículo
@@ -1114,17 +1114,17 @@ router.get(
         const size = header ? 10 : 9.5;
         
         if (!safeDocWrite(() => {
-          doc.font(font).fontSize(size).fillColor("#000");
+        doc.font(font).fontSize(size).fillColor("#000");
         })) return;
         
         const startY = y;
         const heights = cells.map((text, i) => {
           try {
             if (!canWrite()) return 16;
-            const h = doc.heightOfString(String(text || ""), {
-              width: colW[i] - 6,
-            });
-            return Math.max(16, h + 6);
+          const h = doc.heightOfString(String(text || ""), {
+            width: colW[i] - 6,
+          });
+          return Math.max(16, h + 6);
           } catch (err) {
             return 16;
           }
@@ -1135,11 +1135,11 @@ router.get(
         const bottomLimit = doc.page.height - doc.page.margins.bottom - 10;
         if (y + rowH > bottomLimit) {
           if (!safeDocWrite(() => {
-            doc.addPage();
-            y = doc.page.margins.top;
+          doc.addPage();
+          y = doc.page.margins.top;
           })) {
             return;
-          }
+        }
         }
         
         if (!canWrite()) return;
@@ -1147,39 +1147,39 @@ router.get(
         // Text
         cells.forEach((text, i) => {
           safeDocWrite(() => {
-            doc.text(String(text || ""), colX[i] + 3, y + 3, {
-              width: colW[i] - 6,
-            });
+          doc.text(String(text || ""), colX[i] + 3, y + 3, {
+            width: colW[i] - 6,
           });
+        });
         });
         
         if (!canWrite()) return;
         
         // Borders
         safeDocWrite(() => {
-          doc.strokeColor("#cccccc");
-          doc.lineWidth(0.5);
-          doc.rect(colX[0], y, colW[0], rowH).stroke();
-          doc.rect(colX[1], y, colW[1], rowH).stroke();
-          doc.rect(colX[2], y, colW[2], rowH).stroke();
-          y += rowH;
+        doc.strokeColor("#cccccc");
+        doc.lineWidth(0.5);
+        doc.rect(colX[0], y, colW[0], rowH).stroke();
+        doc.rect(colX[1], y, colW[1], rowH).stroke();
+        doc.rect(colX[2], y, colW[2], rowH).stroke();
+        y += rowH;
         });
       };
 
       // Header row
       if (canWrite()) {
-        drawRow(["Categoría", "Descripción", "Artículo"], { header: true });
+      drawRow(["Categoría", "Descripción", "Artículo"], { header: true });
       }
       
       // Data rows
       if (canWrite()) {
-        rows.forEach((r) => {
+      rows.forEach((r) => {
           if (canWrite()) {
-            drawRow([
-              r.categoria || "",
-              r.descripcion || r.titulo || "",
-              r.fuente || "",
-            ]);
+        drawRow([
+          r.categoria || "",
+          r.descripcion || r.titulo || "",
+          r.fuente || "",
+        ]);
           }
         });
       }
@@ -1188,8 +1188,8 @@ router.get(
       if (!streamEnded && !pdfEnded) {
         pdfEnded = true;
         try {
-          doc.end();
-        } catch (err) {
+      doc.end();
+    } catch (err) {
           console.error("❌ Error cerrando documento PDF:", err.message);
           if (!res.headersSent) {
             try {
@@ -1207,7 +1207,7 @@ router.get(
       // Asegurarse de que la respuesta se cierre correctamente
       if (!res.headersSent) {
         try {
-          res.status(500).json({ error: "Error generando PDF" });
+      res.status(500).json({ error: "Error generando PDF" });
         } catch (e) {
           console.error("Error enviando respuesta de error:", e);
           try {

@@ -14,6 +14,13 @@ interface AppState {
   selectedProyectoId?: number;
 }
 
+// Función helper para obtener la ruta del logo
+function getLogoPath(filename: string = 'logo.png'): string {
+  // Usar la URL del API para acceder al logo desde el servidor
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
+  return `${apiUrl.replace(/\/$/, '')}/${filename}`;
+}
+
 function Dashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
   const [appState, setAppState] = useState<AppState>({
     currentView: 'dashboard'
@@ -48,8 +55,22 @@ function Dashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
       <header className="app-header">
         <div className="header-content">
           <div className="logo-section">
-            <h1 className="app-title">Sistema de Gestión de Proyectos</h1>
-            <span className="user-info">Bienvenido, {user?.nombre || user?.email}</span>
+            <div className="logo-container">
+              <img src={getLogoPath()} alt="FERMA S.R.L" className="app-logo" onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                // Intentar logoapp.png como fallback
+                if (!target.src.includes('logoapp.png')) {
+                  target.src = getLogoPath('logoapp.png');
+                } else {
+                  // Si ambos fallan, ocultar la imagen
+                  target.style.display = 'none';
+                }
+              }} />
+            </div>
+            <div className="title-section">
+              <h1 className="app-title">Sistema de Gestión de Proyectos</h1>
+              <span className="user-info">Bienvenido, {user?.nombre || user?.email}</span>
+            </div>
           </div>
           <div className="header-actions">
             <button onClick={openNormasRepo} className="btn">Repositorio de Normas</button>

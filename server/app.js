@@ -275,6 +275,44 @@ async function initializeApp() {
     const uploadsDir = getUploadsBase();
     app.use('/uploads', express.static(uploadsDir));
 
+    // Servir archivos estáticos de public (logo, etc.)
+    function getPublicDir() {
+      // En desarrollo
+      if (__dirname.includes('server') && !__dirname.includes('.asar')) {
+        const publicDir = path.join(__dirname, '..', 'frontend', 'public');
+        if (fs.existsSync(publicDir)) {
+          console.log('📂 Directorio public (dev):', publicDir);
+          return publicDir;
+        }
+      }
+      // En producción (Electron empaquetado)
+      const candidates = [
+        process.resourcesPath ? path.join(process.resourcesPath, 'frontend', 'public') : null,
+        process.resourcesPath ? path.join(process.resourcesPath, 'app.asar.unpacked', 'frontend', 'public') : null,
+        process.resourcesPath ? path.join(process.resourcesPath, 'app.asar', 'frontend', 'public') : null,
+      ].filter(Boolean);
+      
+      for (const candidate of candidates) {
+        if (candidate && fs.existsSync(candidate)) {
+          console.log('📂 Directorio public (prod):', candidate);
+          return candidate;
+        }
+      }
+      
+      // Fallback: intentar desde __dirname
+      const fallback = path.join(__dirname, '..', 'frontend', 'public');
+      console.log('📂 Directorio public (fallback):', fallback);
+      return fallback;
+    }
+    
+    const publicDir = getPublicDir();
+    if (fs.existsSync(publicDir)) {
+      app.use(express.static(publicDir));
+      console.log('✅ Archivos estáticos de public disponibles en /');
+    } else {
+      console.warn('⚠️ Directorio public no encontrado:', publicDir);
+    }
+
     // manejador de errores simple
     app.use((err, req, res, next) => {
       console.error(err && err.stack ? err.stack : err);

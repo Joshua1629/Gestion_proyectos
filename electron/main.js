@@ -406,28 +406,51 @@ function createWindow() {
   // Resolver icono (dev vs prod)
   let iconPath = null;
   try {
-    const devIcon = path.join(
-      __dirname,
-      "..",
-      "frontend",
-      "public",
-      "logoapp.png"
+    // Lista de candidatos para el icono (en orden de prioridad)
+    const iconCandidates = [];
+    
+    // En desarrollo
+    iconCandidates.push(
+      path.join(__dirname, "..", "frontend", "public", "logoapp.png"),
+      path.join(__dirname, "..", "frontend", "public", "icon_256.png"),
+      path.join(__dirname, "..", "frontend", "public", "logo.png")
     );
-    const prodIcon = path.join(
-      process.resourcesPath || __dirname,
-      "logoapp.png"
-    );
-    if (fs.existsSync(devIcon)) {
-      iconPath = devIcon;
-    } else if (fs.existsSync(prodIcon)) {
-      iconPath = prodIcon;
-    } else {
-      console.warn(
-        "Icono logoapp.png no encontrado en dev ni prod, se usará el icono por defecto de la plataforma"
+    
+    // En producción (Electron empaquetado)
+    if (process.resourcesPath) {
+      iconCandidates.push(
+        // Desde extraResources/frontend/public/
+        path.join(process.resourcesPath, "frontend", "public", "logoapp.png"),
+        path.join(process.resourcesPath, "frontend", "public", "icon_256.png"),
+        path.join(process.resourcesPath, "frontend", "public", "logo.png"),
+        // Desde app.asar.unpacked/frontend/public/
+        path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "logoapp.png"),
+        path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "icon_256.png"),
+        path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "logo.png"),
+        // Desde la raíz de resources (fallback)
+        path.join(process.resourcesPath, "logoapp.png"),
+        path.join(process.resourcesPath, "icon_256.png")
       );
     }
+    
+    // Buscar el primer icono que exista
+    for (const candidate of iconCandidates) {
+      if (candidate && fs.existsSync(candidate)) {
+        iconPath = candidate;
+        console.log(`✅ Icono de ventana encontrado en: ${iconPath}`);
+        break;
+      }
+    }
+    
+    if (!iconPath) {
+      console.warn("⚠️ Icono de ventana no encontrado en ninguna ubicación. Rutas probadas:");
+      iconCandidates.forEach(c => {
+        if (c) console.warn(`   - ${c}`);
+      });
+      console.warn("⚠️ Se usará el icono por defecto de la plataforma");
+    }
   } catch (e) {
-    console.error("Error al resolver icono:", e);
+    console.error("❌ Error al resolver icono:", e);
   }
 
   mainWindow = new BrowserWindow({

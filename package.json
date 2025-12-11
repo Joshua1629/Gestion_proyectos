@@ -97,6 +97,7 @@
         "filter": [
           "logo.png",
           "logoapp.png",
+          "icon_256.png",
           "cfia_seal.png",
           "cfia.png"
         ]

@@ -101,6 +101,25 @@ body {
 
 .logo-section {
   display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-logo {
+  height: 48px;
+  width: auto;
+  object-fit: contain;
+  max-width: 200px;
+}
+
+.title-section {
+  display: flex;
   flex-direction: column;
   gap: var(--spacing-xs);
 }

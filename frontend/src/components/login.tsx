@@ -2,6 +2,13 @@ import React, { useState } from "react";
 import { login, saveAuth } from "../services/auth";
 import "../css/login.css";
 
+// Función helper para obtener la ruta del logo
+function getLogoPath(filename: string = 'logo.png'): string {
+  // Usar la URL del API para acceder al logo desde el servidor
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
+  return `${apiUrl.replace(/\/$/, '')}/${filename}`;
+}
+
 interface LoginProps {
   onLoginSuccess?: (user: any) => void;
 }
@@ -98,10 +105,11 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     <div className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <img src="./logo.png" alt="Logo empresa" onError={(e) => {
+          <img src={getLogoPath()} alt="Logo empresa" onError={(e) => {
             const target = e.target as HTMLImageElement;
-            if (target.src !== 'logo.png') {
-              target.src = 'logo.png';
+            // Intentar logoapp.png como fallback
+            if (!target.src.includes('logoapp.png')) {
+              target.src = getLogoPath('logoapp.png');
             }
           }} />
         </div>

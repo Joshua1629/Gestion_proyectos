@@ -113,7 +113,7 @@ export default function NormasRepositorio({ onBack, canManage = true }: { onBack
     try {
       setError(null);
       setLoading(true);
-      const url = buildRepoReportUrl(undefined, { categoria });
+    const url = buildRepoReportUrl(undefined, { categoria });
       console.log('📄 Abriendo PDF de normas:', url);
       
       // Usar appFetch para verificar que el endpoint responda (usando HEAD)
