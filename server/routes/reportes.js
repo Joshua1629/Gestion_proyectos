@@ -208,27 +208,34 @@ function formatFechaInformeSeguro(value) {
     "Noviembre",
     "Diciembre",
   ];
-  // Extraer partes y construir una fecha UTC estable
+  // Extraer partes y construir una fecha estable SIN conversiones de zona horaria
   let y, m, d;
   if (typeof value === "string") {
-    const mLoc = value.match(/^\s*(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})\s*$/);
-    if (mLoc) {
-      d = Number(mLoc[1]);
-      m = Number(mLoc[2]) - 1;
-      y = Number(mLoc[3]);
+    // Priorizar formato ISO (YYYY-MM-DD) que viene de la base de datos
+    const mIso = value.match(/^\s*(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?\s*$/);
+    if (mIso) {
+      y = Number(mIso[1]);
+      m = Number(mIso[2]) - 1; // Los meses en JS son 0-indexed
+      d = Number(mIso[3]);
     } else {
-      const mIso = value.match(/^\s*(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?\s*$/);
-      if (mIso) {
-        y = Number(mIso[1]);
-        m = Number(mIso[2]) - 1;
-        d = Number(mIso[3]);
+      // Formato local (DD/MM/YYYY o DD-MM-YYYY)
+      const mLoc = value.match(/^\s*(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})\s*$/);
+      if (mLoc) {
+        d = Number(mLoc[1]);
+        m = Number(mLoc[2]) - 1;
+        y = Number(mLoc[3]);
       }
     }
   } else if (value instanceof Date) {
+    // Si viene como Date, NO usar toISOString() porque puede cambiar el día
+    // En su lugar, usar los métodos locales que preservan la fecha correcta
+    // (a menos que el Date ya tenga un desfase, en cuyo caso necesitamos corregirlo)
+    // Para evitar problemas, usar getFullYear(), getMonth(), getDate() que preservan la fecha local
     y = value.getFullYear();
     m = value.getMonth();
     d = value.getDate();
   } else if (typeof value === "number") {
+    // Timestamp: convertir a Date y usar métodos locales (no UTC)
     const dv = new Date(value);
     y = dv.getFullYear();
     m = dv.getMonth();
@@ -240,6 +247,9 @@ function formatFechaInformeSeguro(value) {
     m = now.getMonth();
     d = now.getDate();
   }
+  // Usar los valores directamente - NO hacer conversión UTC adicional
+  // Crear la fecha en UTC pero usando los valores de año/mes/día extraídos
+  // Esto evita cualquier desfase de zona horaria
   const utc = new Date(Date.UTC(y, m, d, 12, 0, 0));
   return `${dias[utc.getUTCDay()]} ${utc.getUTCDate()} de ${meses[utc.getUTCMonth()]} del ${utc.getUTCFullYear()}.`;
 }

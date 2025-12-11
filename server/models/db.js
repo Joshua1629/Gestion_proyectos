@@ -76,14 +76,17 @@ const dbWrapper = {
               const processedRow = { ...row };
               
               // Convertir campos de fecha a strings válidos o vacíos si son null
-              ['fecha_limite', 'fecha_inicio', 'fecha_fin'].forEach(dateField => {
+              ['fecha_limite', 'fecha_inicio', 'fecha_fin', 'fecha_verificacion'].forEach(dateField => {
                 if (processedRow[dateField] !== undefined) {
                   if (processedRow[dateField] === null || processedRow[dateField] === undefined) {
                     // Devolver null para fechas no definidas (más semántico que cadena vacía)
                     processedRow[dateField] = null;
                   } else {
-                    // Asegurar que sea un string válido
-                    processedRow[dateField] = String(processedRow[dateField]);
+                    // Asegurar que sea un string válido en formato YYYY-MM-DD
+                    const dateStr = String(processedRow[dateField]);
+                    // Si viene como fecha ISO completa, extraer solo la parte de fecha
+                    const isoMatch = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
+                    processedRow[dateField] = isoMatch ? isoMatch[1] : dateStr;
                   }
                 }
               });

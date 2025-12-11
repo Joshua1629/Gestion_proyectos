@@ -177,14 +177,38 @@ router.post(
     body('nombre').isString().trim().isLength({ min: 1, max: 100 }),
     body('cliente').isString().trim().isLength({ min: 1, max: 100 }),
     body('cedula_juridica').isString().trim().isLength({ min: 9, max: 20 }),
-    body('fecha_verificacion').optional().isISO8601().toDate(),
-    body('fecha_inicio').optional().isISO8601().toDate(),
-    body('fecha_fin').optional().isISO8601().toDate()
+    body('fecha_verificacion').optional().isISO8601(),
+    body('fecha_inicio').optional().isISO8601(),
+    body('fecha_fin').optional().isISO8601()
   ],
   checkValidation,
   async (req, res) => {
     const { nombre, cliente, cedula_juridica, fecha_verificacion, fecha_inicio, fecha_fin } = req.body;
     try {
+      // Convertir fechas Date a string YYYY-MM-DD para evitar desfases de zona horaria
+      const formatDateForDB = (dateValue) => {
+        if (!dateValue) return null;
+        if (dateValue instanceof Date) {
+          // Usar métodos LOCALES (no UTC) para preservar exactamente la fecha que el usuario ingresó
+          // Esto es crítico: getFullYear/getMonth/getDate preservan la fecha local,
+          // mientras que UTC podría cambiar el día debido a la zona horaria
+          const year = dateValue.getFullYear();
+          const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+          const day = String(dateValue.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+        if (typeof dateValue === 'string') {
+          // Si ya es string, verificar que esté en formato ISO
+          const isoMatch = dateValue.match(/^(\d{4}-\d{2}-\d{2})/);
+          if (isoMatch) return isoMatch[1];
+        }
+        return dateValue;
+      };
+      
+      const fechaVerifStr = formatDateForDB(fecha_verificacion);
+      const fechaInicioStr = formatDateForDB(fecha_inicio);
+      const fechaFinStr = formatDateForDB(fecha_fin);
+      
       // Generar código secuencial por año: PROY-YYYY-####
       const year = new Date().getFullYear();
       const prefix = `PROY-${year}-`;
@@ -208,7 +232,7 @@ router.post(
       // Crear proyecto
       const [result] = await pool.query(
         'INSERT INTO proyectos (codigo, nombre, cliente, cedula_juridica, fecha_verificacion, fecha_inicio, fecha_fin) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [codigo, nombre, cliente, cedula_juridica, fecha_verificacion || null, fecha_inicio || null, fecha_fin || null]
+        [codigo, nombre, cliente, cedula_juridica, fechaVerifStr, fechaInicioStr, fechaFinStr]
       );
       
       const proyectoId = result.insertId;
@@ -241,18 +265,40 @@ router.put(
     body('nombre').optional().isString().trim().isLength({ min: 1, max: 100 }),
     body('cliente').optional().isString().trim().isLength({ min: 1, max: 100 }),
     body('cedula_juridica').optional().isString().trim().isLength({ min: 9, max: 20 }),
-    body('fecha_verificacion').optional().isISO8601().toDate(),
-    body('fecha_inicio').optional().isISO8601().toDate(),
-    body('fecha_fin').optional().isISO8601().toDate()
+    body('fecha_verificacion').optional().isISO8601(),
+    body('fecha_inicio').optional().isISO8601(),
+    body('fecha_fin').optional().isISO8601()
   ],
   checkValidation,
   async (req, res) => {
     const { id } = req.params;
     const { nombre, cliente, cedula_juridica, fecha_verificacion, fecha_inicio, fecha_fin } = req.body;
     try {
+      // Convertir fechas Date a string YYYY-MM-DD para evitar desfases de zona horaria
+      const formatDateForDB = (dateValue) => {
+        if (!dateValue) return null;
+        if (dateValue instanceof Date) {
+          // Usar métodos LOCALES (no UTC) para preservar exactamente la fecha que el usuario ingresó
+          const year = dateValue.getFullYear();
+          const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+          const day = String(dateValue.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+        if (typeof dateValue === 'string') {
+          // Si ya es string, verificar que esté en formato ISO
+          const isoMatch = dateValue.match(/^(\d{4}-\d{2}-\d{2})/);
+          if (isoMatch) return isoMatch[1];
+        }
+        return dateValue;
+      };
+      
+      const fechaVerifStr = formatDateForDB(fecha_verificacion);
+      const fechaInicioStr = formatDateForDB(fecha_inicio);
+      const fechaFinStr = formatDateForDB(fecha_fin);
+      
       const [result] = await pool.query(
         'UPDATE proyectos SET nombre = COALESCE(?, nombre), cliente = COALESCE(?, cliente), cedula_juridica = COALESCE(?, cedula_juridica), fecha_verificacion = COALESCE(?, fecha_verificacion), fecha_inicio = COALESCE(?, fecha_inicio), fecha_fin = COALESCE(?, fecha_fin) WHERE id = ?',
-        [nombre, cliente, cedula_juridica || null, fecha_verificacion || null, fecha_inicio || null, fecha_fin || null, id]
+        [nombre, cliente, cedula_juridica || null, fechaVerifStr, fechaInicioStr, fechaFinStr, id]
       );
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
       const [rows] = await pool.query('SELECT * FROM proyectos WHERE id = ?', [id]);
