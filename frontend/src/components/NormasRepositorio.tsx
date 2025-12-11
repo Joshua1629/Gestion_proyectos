@@ -10,6 +10,7 @@ import {
 } from "../services/normasRepo";
 import "../css/NormasPanel.css";
 import "../css/NormasRepositorio.css";
+import Icon from "./Icon";
 
 export default function NormasRepositorio({ onBack, canManage = true }: { onBack?: () => void; canManage?: boolean }) {
   const [items, setItems] = useState<NormaRepoItem[]>([]);
@@ -370,7 +371,7 @@ export default function NormasRepositorio({ onBack, canManage = true }: { onBack
                                 disabled={loading}
                                 title="Guardar cambios"
                               >
-                                💾 Guardar
+                                <Icon name="save" size={18} /> Guardar
                               </button>
                               <button
                                 className="btn"
@@ -378,7 +379,7 @@ export default function NormasRepositorio({ onBack, canManage = true }: { onBack
                                 disabled={loading}
                                 title="Cancelar edición"
                               >
-                                ✖ Cancelar
+                                <Icon name="close" size={18} /> Cancelar
                               </button>
                             </>
                           ) : (
@@ -388,7 +389,7 @@ export default function NormasRepositorio({ onBack, canManage = true }: { onBack
                                 onClick={() => startEdit(it)}
                                 title="Editar"
                               >
-                                ✏️ Editar
+                                <Icon name="edit" size={18} /> Editar
                               </button>
                               <button
                                 className="btn btn-outline btn-danger"

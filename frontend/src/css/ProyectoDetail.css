@@ -230,6 +230,10 @@
   width: 24px;
   height: 24px;
   color: var(--primary-blue);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
 }
 
 .progress-circle {

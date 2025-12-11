@@ -8,6 +8,7 @@ import {
   calcularProgresoProyecto,
 } from "../services/proyectos";
 import "../css/ProyectosDashboard.css";
+import Icon from "./Icon";
 
 export default function ProyectosDashboard({
   onSelectProyecto,
@@ -372,25 +373,25 @@ export default function ProyectosDashboard({
       {/* Estadísticas empresariales */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-icon">📁</div>
+          <div className="stat-icon"><Icon name="folder" size={32} /></div>
           <div className="stat-value">{stats.total}</div>
           <div className="stat-label">Total de Proyectos</div>
         </div>
 
         <div className="stat-card stat-warning">
-          <div className="stat-icon">⚡</div>
+          <div className="stat-icon"><Icon name="flash_on" size={32} /></div>
           <div className="stat-value">{stats.enProgreso}</div>
           <div className="stat-label">En Progreso</div>
         </div>
 
         <div className="stat-card stat-success">
-          <div className="stat-icon">✅</div>
+          <div className="stat-icon"><Icon name="check_circle" size={32} /></div>
           <div className="stat-value">{stats.completados}</div>
           <div className="stat-label">Completados</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">📊</div>
+          <div className="stat-icon"><Icon name="bar_chart" size={32} /></div>
           <div className="stat-value">{stats.progresoPromedio}%</div>
           <div className="stat-label">Progreso Promedio</div>
         </div>
@@ -399,7 +400,7 @@ export default function ProyectosDashboard({
       {/* Controles del dashboard */}
       <div className="dashboard-controls">
         <div className="search-container">
-          <div className="search-icon">🔍</div>
+          <div className="search-icon"><Icon name="search" size={20} /></div>
           <input
             type="text"
             placeholder="Buscar proyectos por nombre o cliente..."
@@ -566,7 +567,7 @@ export default function ProyectosDashboard({
       {/* Estado vacío */}
       {proyectos.length === 0 && !loading && (
         <div className="empty-state">
-          <div className="empty-icon">📁</div>
+          <div className="empty-icon"><Icon name="folder" size={64} /></div>
           <h4 className="empty-title">No hay proyectos</h4>
           <p className="empty-description">
             Comienza creando tu primer proyecto Electrico para gestionar tareas
@@ -650,7 +651,7 @@ export default function ProyectosDashboard({
                 {/* Información básica */}
                 <div className="form-section">
                   <div className="section-header">
-                    <h4 className="section-title">📋 Información Básica</h4>
+                    <h4 className="section-title"><Icon name="assignment" size={20} /> Información Básica</h4>
                   </div>
 
                   <div className="form-grid">
@@ -748,7 +749,7 @@ export default function ProyectosDashboard({
                 {/* Fechas del proyecto */}
                 <div className="form-section">
                   <div className="section-header">
-                    <h4 className="section-title">📅 Cronograma</h4>
+                    <h4 className="section-title"><Icon name="calendar_today" size={20} /> Cronograma</h4>
                   </div>
 
                   <div className="form-grid">
@@ -820,7 +821,7 @@ export default function ProyectosDashboard({
                 {/* Descripción del proyecto */}
                 <div className="form-section">
                   <div className="section-header">
-                    <h4 className="section-title">📝 Descripción</h4>
+                    <h4 className="section-title"><Icon name="description" size={20} /> Descripción</h4>
                   </div>
 
                   <div className="form-group">
@@ -850,7 +851,7 @@ export default function ProyectosDashboard({
                 {/* Configuración inicial */}
                 <div className="form-section">
                   <div className="section-header">
-                    <h4 className="section-title">⚙️ Configuración Inicial</h4>
+                    <h4 className="section-title"><Icon name="settings" size={20} /> Configuración Inicial</h4>
                   </div>
 
                   <div className="form-grid">
@@ -961,7 +962,7 @@ export default function ProyectosDashboard({
                   </>
                 ) : (
                   <>
-                    <span className="btn-icon">💾</span>
+                    <span className="btn-icon"><Icon name="save" size={18} /></span>
                     Guardar Proyecto
                   </>
                 )}

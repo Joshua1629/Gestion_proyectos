@@ -15,6 +15,7 @@ import {
 } from "../services/tareas";
 import "../css/ProyectoDetail.css";
 import EvidenciasPanel from "./EvidenciasPanel";
+import Icon from "./Icon";
 // import NormasPanel from "./NormasPanel"; // Repositorio ahora es global
 
 interface Usuario {
@@ -238,25 +239,25 @@ export default function ProyectoDetail({
           className={`tab-button ${activeTab === "resumen" ? "active" : ""}`}
           onClick={() => setActiveTab("resumen")}
         >
-          📊 Resumen
+          <Icon name="bar_chart" size={18} /> Resumen
         </button>
         <button
           className={`tab-button ${activeTab === "fases" ? "active" : ""}`}
           onClick={() => setActiveTab("fases")}
         >
-          🎯 Fases
+          <Icon name="flag" size={18} /> Fases
         </button>
         <button
           className={`tab-button ${activeTab === "tareas" ? "active" : ""}`}
           onClick={() => setActiveTab("tareas")}
         >
-          ✅ Tareas ({Array.isArray(tareas) ? tareas.length : 0})
+          <Icon name="check_circle" size={18} /> Tareas ({Array.isArray(tareas) ? tareas.length : 0})
         </button>
         <button
           className={`tab-button ${activeTab === "evidencias" ? "active" : ""}`}
           onClick={() => setActiveTab("evidencias")}
         >
-          📷 Evidencias
+          <Icon name="camera_alt" size={18} /> Evidencias
         </button>
       </div>
 
@@ -265,7 +266,7 @@ export default function ProyectoDetail({
           <div className="resumen-grid">
             <div className="progress-section">
               <h3 className="section-title">
-                <span className="section-icon">📈</span> Progreso General
+                <span className="section-icon"><Icon name="trending_up" size={20} /></span> Progreso General
               </h3>
               <div className="progress-circle">
                 <svg width="120" height="120" className="progress-ring">
@@ -294,7 +295,7 @@ export default function ProyectoDetail({
 
             <div className="quick-stats">
               <h3 className="section-title">
-                <span className="section-icon">📋</span> Estadísticas Rápidas
+                <span className="section-icon"><Icon name="assignment" size={20} /></span> Estadísticas Rápidas
               </h3>
               <div className="stats-list">
                 <div className="stats-item">
@@ -399,7 +400,7 @@ export default function ProyectoDetail({
               ))
             ) : (
               <div className="empty-state">
-                <div className="empty-icon">🎯</div>
+                <div className="empty-icon"><Icon name="flag" size={64} /></div>
                 <h4 className="empty-title">No hay fases definidas</h4>
                 <p className="empty-description">
                   Este proyecto aún no tiene fases configuradas.
@@ -413,7 +414,7 @@ export default function ProyectoDetail({
           <div className="tareas-section">
             <div className="tareas-header">
               <h3 className="section-title">
-                <span className="section-icon">✅</span> Lista de Tareas
+                <span className="section-icon"><Icon name="check_circle" size={20} /></span> Lista de Tareas
               </h3>
               <div className="tareas-actions">
                 <button
@@ -508,7 +509,7 @@ export default function ProyectoDetail({
                 ))
               ) : (
                 <div className="empty-state">
-                  <div className="empty-icon">📝</div>
+                  <div className="empty-icon"><Icon name="description" size={64} /></div>
                   <h4 className="empty-title">No hay tareas creadas</h4>
                   <p className="empty-description">
                     Este proyecto aún no tiene tareas asignadas.

@@ -10,6 +10,7 @@ import { type Tarea } from "../services/tareas";
 import "../css/EvidenciasPanel.css";
 import ImageWithFallback from "./ImageWithFallback";
 import EvidenciaNormasModal from "./EvidenciaNormasModal";
+import Icon from "./Icon";
 import { listNormasRepoByEvidencia } from "../services/evidencias";
 export default function EvidenciasPanel({
   proyectoId,
@@ -288,7 +289,7 @@ export default function EvidenciasPanel({
                             disabled={loading}
                             title="Borrar comentario"
                           >
-                            🗑️
+                            <Icon name="delete" size={18} />
                           </button>
                         )}
                         <button

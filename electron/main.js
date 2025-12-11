@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, Menu } = require("electron");
 const path = require("path");
 const { exec } = require("child_process");
 const fs = require("fs");
@@ -500,8 +500,8 @@ function createWindow() {
         return mainWindow.loadURL(devUrl);
       })
       .then(() => {
-        mainWindow.webContents.openDevTools();
-        // Reforzar online tras abrir DevTools por si activa emulaciones
+        // DevTools removido - no abrir automáticamente
+        // Reforzar online
         setTimeout(() => {
           try {
             mainWindow.webContents.debugger.sendCommand("Network.enable");
@@ -570,7 +570,7 @@ function createWindow() {
           </body>
         </html>`;
       mainWindow.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(errorHtml));
-      mainWindow.webContents.openDevTools();
+      // DevTools removido - no abrir automáticamente
       return;
     }
 
@@ -580,8 +580,7 @@ function createWindow() {
       .loadFile(indexHtml)
       .then(() => {
         console.log("✅ index.html cargado correctamente");
-        // Abrir DevTools automáticamente para debugging
-        mainWindow.webContents.openDevTools();
+        // DevTools removido - no abrir automáticamente
       })
       .catch((err) => {
         console.error("❌ Error loading prod file", err);
@@ -596,7 +595,7 @@ function createWindow() {
             </body>
           </html>`;
         mainWindow.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(errorHtml));
-        mainWindow.webContents.openDevTools();
+        // DevTools removido - no abrir automáticamente
       });
   }
 
@@ -640,6 +639,9 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   writeLog("🚀 Electron app ready, iniciando...");
+  
+  // Remover menú de la aplicación (File, Edit, View, Window, Help)
+  Menu.setApplicationMenu(null);
   
   // Iniciar backend primero
   await startBackend();
