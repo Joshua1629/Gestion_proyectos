@@ -557,7 +557,8 @@ router.get(
       const where = [];
       const params = [];
       if (search) {
-        // Dividir por espacios, comas o punto y coma para buscar múltiples palabras clave
+        // Dividir por espacios, comas o punto y coma para buscar múltiples palabras clave.
+        // Lógica AND: la fila debe contener TODAS las palabras (en cualquier campo).
         const keywords = search
           .split(/[\s,;]+/)
           .filter((k) => k.trim().length > 0);
@@ -566,7 +567,7 @@ router.get(
             () =>
               "(titulo LIKE ? OR descripcion LIKE ? OR incumplimiento LIKE ? OR etiquetas LIKE ? OR codigo LIKE ?)"
           );
-          where.push("(" + keywordConditions.join(" OR ") + ")");
+          where.push("(" + keywordConditions.join(" AND ") + ")");
           for (const kw of keywords) {
             for (let i = 0; i < 5; i++) params.push(`%${kw}%`);
           }

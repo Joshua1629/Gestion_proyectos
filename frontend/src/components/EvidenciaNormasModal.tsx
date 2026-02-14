@@ -157,6 +157,12 @@ export default function EvidenciaNormasModal({
               placeholder="Buscar por descripción"
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void load();
+                }
+              }}
             />
             <button
               className="btn modal-filter-btn"

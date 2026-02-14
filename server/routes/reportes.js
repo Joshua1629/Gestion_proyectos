@@ -128,12 +128,31 @@ function drawFooter(doc, currentPage, totalPages) {
   const pageHeight = doc.page.height;
   const x = doc.page.margins.left;
   const w = pageWidth - doc.page.margins.left - doc.page.margins.right;
-  const y = Math.max(0, pageHeight - 30); // 30pt desde el borde inferior
+  const y = Math.max(0, pageHeight - 30); // 30pt desde el borde inferior (origen arriba)
   doc.save();
   doc
     .fontSize(9)
     .fillColor("#666")
     .text(`Página ${currentPage} de ${totalPages || ""}`, x, y, {
+      width: w,
+      align: "right",
+      lineBreak: false,
+    });
+  doc.restore();
+}
+
+// Pie de página: solo el número, abajo a la derecha (llamar en la página actual)
+function drawFooterPageNumber(doc, pageNum) {
+  const pageHeight = doc.page.height;
+  const marginBottom = 50;
+  const footerY = pageHeight - marginBottom - 10;
+  const w = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  doc.save();
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(12)
+    .fillColor("#000")
+    .text(String(pageNum), doc.page.margins.left, footerY, {
       width: w,
       align: "right",
       lineBreak: false,
@@ -681,13 +700,13 @@ function drawFinding(
     .lineWidth(1)
     .stroke();
 
-  // Encabezado del hallazgo
+  // Encabezado del hallazgo (numerado: 1. Evidencia e Incumplimiento:, 2. ..., etc.)
   doc.rect(marginX, yStart, 495, 22).fillColor("#F7F7F7").fill();
   doc
     .fillColor("#000")
     .font("Helvetica-Bold")
     .fontSize(11)
-    .text(`Evidencia e Incumplimiento:`, marginX + 8, yStart + 6);
+    .text(`${idx + 1}. Evidencia e Incumplimiento:`, marginX + 8, yStart + 6);
   // Sin badge global; el estado se mostrará para cada incumplimiento
 
   // Columna izquierda: comentario (se elimina 'Tarea' del reporte)
@@ -706,11 +725,12 @@ function drawFinding(
       .fontSize(9)
       .text(comentarioTxt, leftX, yCursor + 12, {
         width: leftW,
+        height: commentH + 4,
       });
     yCursor += 12 + commentH + 6;
   }
 
-  // Listado de normas/incumplimientos asociados
+  // Listado de normas/incumplimientos asociados (numerados 1., 2., 3....)
   if (normasMostradas.length) {
     const headerTxt = "Incumplimientos asociados:";
     const headerH = doc.heightOfString(headerTxt, { width: leftW });
@@ -720,29 +740,23 @@ function drawFinding(
       .fillColor("#000")
       .text(headerTxt, leftX, yCursor, { width: leftW });
     let y = yCursor + headerH + 2;
-    // Dibujar TODAS las normas mostradas sin verificar límite (ya se calculó el espacio necesario)
-    normasMostradas.forEach((n) => {
-      const color = severityStyle(n.clasificacion || "LEVE").color;
-      const texto = ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
-      const itemWidth = leftW - 12;
+    normasMostradas.forEach((n, index) => {
+      const num = index + 1;
+      const texto = `${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
+      const itemWidth = leftW - 18;
       const h = doc.heightOfString(texto, { width: itemWidth, align: "left" });
-      // marcador tipo "bullet" redondo más notorio
-      doc
-        .circle(leftX + 3, y + 6, 4)
-        .fillColor(color)
-        .fill();
       doc
         .fillColor("#000")
         .font("Helvetica")
         .fontSize(10)
-        .text(texto, leftX + 12, y - 2, { width: itemWidth });
-      y += h + 6; // avanzar según el alto real del texto
+        .text(`${num}. ${texto}`, leftX, y - 2, { width: leftW - 8, height: h + 4 });
+      y += h + 6;
     });
     if (linkedNormas.length > normasMostradas.length) {
       doc
         .fillColor("#666")
         .fontSize(9)
-        .text(`… y ${linkedNormas.length - normasMostradas.length} más`, leftX, y, { width: leftW });
+        .text(`… y ${linkedNormas.length - normasMostradas.length} más`, leftX, y, { width: leftW, lineBreak: false });
     }
   }
 
@@ -914,7 +928,7 @@ router.get(
       });
       doc.pipe(res);
 
-      // PORTADA
+      // PORTADA (página 1)
       drawHeader(doc, proyecto.nombre, proyecto.cliente);
       drawCover(doc, proyecto, coverImage, institucionalImage);
       doc.addPage();
@@ -964,14 +978,14 @@ router.get(
             const h = doc.heightOfString(texto, { width: textoWidth - 12, align: "left" });
             return acc + h + 6;
           }, 0) + (normasCount ? 22 : 0);
-          const pageBottomY = doc.page.height - doc.page.margins.bottom - 10;
-          // Altura dinámica basada en contenido real
+          // Dejar espacio para el pie de página (número abajo a la derecha)
+          const footerReserve = 28;
+          const pageBottomY = doc.page.height - doc.page.margins.bottom - footerReserve;
           const contentHeight = 32 + comentarioHeight + normasHeight + 15;
           const estimatedHeight = Math.max(contentHeight, 150 + 40);
-          // Usar el límite real de la página (A4 = 841pt, con margen 50 = 791pt útiles)
           if (y + estimatedHeight > pageBottomY) {
             doc.addPage();
-            y = 50; // empezar más arriba en páginas nuevas
+            y = 50;
           }
           const usedH = drawFinding(
             doc,
@@ -984,8 +998,29 @@ router.get(
           y += usedH + 15; // separación reducida para 3 evidencias por hoja
         }
       }
-      // Numeración de páginas (footer)
-   
+
+      // Añadir número de página en el pie de cada página (sobre las ya creadas, sin crear nuevas)
+      const pageRange = doc.bufferedPageRange();
+      for (let i = 0; i < pageRange.count; i++) {
+        doc.switchToPage(i);
+        const pageHeight = doc.page.height;
+        const marginBottom = 50;
+        const footerY = pageHeight - marginBottom - 10;
+        const w = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+        doc.save();
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(12)
+          .fillColor("#000")
+          .text(String(i + 1), doc.page.margins.left, footerY, {
+            width: w,
+            align: "right",
+            lineBreak: false,
+            height: 14,
+          });
+        doc.restore();
+      }
+
       doc.end();
     } catch (err) {
       console.error("reporte proyecto error:", err);

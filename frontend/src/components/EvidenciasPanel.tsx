@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type Evidencia,
   getEvidencias,
@@ -33,6 +33,9 @@ export default function EvidenciasPanel({
   const [normasCount, setNormasCount] = useState<Record<number, number>>({});
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editComentario, setEditComentario] = useState("");
+  const [savingComentarioId, setSavingComentarioId] = useState<number | null>(null);
+  const [confirmDeleteComentarioId, setConfirmDeleteComentarioId] = useState<number | null>(null);
+  const comentarioInputRef = useRef<HTMLInputElement>(null);
 
   const tareasById = useMemo(
     () => Object.fromEntries((tareas || []).map((t) => [t.id, t])),
@@ -50,9 +53,11 @@ export default function EvidenciasPanel({
     return `${base}${url.startsWith("/") ? "" : "/"}${url}`;
   }
 
-  async function load() {
-    setLoading(true);
-    setError(null);
+  async function load(silent = false) {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const res = await getEvidencias({ proyectoId, limit: 100 });
       const list: Evidencia[] = (res.items || []).map((e: Evidencia) => ({
@@ -75,9 +80,9 @@ export default function EvidenciasPanel({
       );
       setNormasCount(counts);
     } catch (e: any) {
-      setError(e?.message || "Error al cargar evidencias");
+      if (!silent) setError(e?.message || "Error al cargar evidencias");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
   useEffect(() => {
@@ -139,32 +144,48 @@ export default function EvidenciasPanel({
     }
   }
 
+  function restoreFocusToForm() {
+    setTimeout(() => {
+      comentarioInputRef.current?.focus();
+    }, 100);
+  }
+
   async function handleSaveComentario(evidenciaId: number) {
     try {
-      setLoading(true);
+      setSavingComentarioId(evidenciaId);
+      setError(null);
       await updateEvidencia(evidenciaId, { comentario: editComentario.trim() || undefined });
       setEditingId(null);
       setEditComentario("");
-      await load();
+      await load(true);
     } catch (e: any) {
       setError(e?.detail || e?.error || e?.message || "Error al actualizar comentario");
     } finally {
-      setLoading(false);
+      setSavingComentarioId(null);
+      restoreFocusToForm();
     }
   }
 
-  async function handleDeleteComentario(evidenciaId: number) {
-    if (!confirm("¿Eliminar el comentario de esta evidencia?")) return;
+  function askDeleteComentario(evidenciaId: number) {
+    setConfirmDeleteComentarioId(evidenciaId);
+  }
+
+  async function confirmDeleteComentario() {
+    const evidenciaId = confirmDeleteComentarioId;
+    if (evidenciaId == null) return;
+    setConfirmDeleteComentarioId(null);
     try {
-      setLoading(true);
+      setSavingComentarioId(evidenciaId);
+      setError(null);
       await updateEvidencia(evidenciaId, { comentario: "" });
       setEditingId(null);
       setEditComentario("");
-      await load();
+      await load(true);
     } catch (e: any) {
       setError(e?.detail || e?.error || e?.message || "Error al borrar comentario");
     } finally {
-      setLoading(false);
+      setSavingComentarioId(null);
+      restoreFocusToForm();
     }
   }
 
@@ -198,6 +219,7 @@ export default function EvidenciasPanel({
         </div>
         <div className="row">
           <input
+            ref={comentarioInputRef}
             placeholder="Comentario (opcional)"
             value={comentario}
             onChange={(e) => setComentario(e.target.value)}
@@ -278,15 +300,15 @@ export default function EvidenciasPanel({
                         <button
                           className="btn small"
                           onClick={() => handleSaveComentario(ev.id)}
-                          disabled={loading}
+                          disabled={savingComentarioId !== null}
                         >
                           Guardar
                         </button>
                         {ev.comentario && (
                           <button
                             className="btn small danger"
-                            onClick={() => handleDeleteComentario(ev.id)}
-                            disabled={loading}
+                            onClick={() => askDeleteComentario(ev.id)}
+                            disabled={savingComentarioId !== null}
                             title="Borrar comentario"
                           >
                             <Icon name="delete" size={18} />
@@ -295,6 +317,7 @@ export default function EvidenciasPanel({
                         <button
                           className="btn small"
                           onClick={() => setEditingId(null)}
+                          disabled={savingComentarioId !== null}
                         >
                           Cancelar
                         </button>
@@ -370,6 +393,48 @@ export default function EvidenciasPanel({
             setNormasCount((c) => ({ ...c, [showNormasFor]: count }))
           }
         />
+      )}
+
+      {confirmDeleteComentarioId !== null && (
+        <div
+          className="modal-backdrop"
+          onClick={() => !savingComentarioId && setConfirmDeleteComentarioId(null)}
+        >
+          <div className="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">Eliminar comentario</div>
+              <button
+                type="button"
+                className="close"
+                onClick={() => !savingComentarioId && setConfirmDeleteComentarioId(null)}
+                disabled={savingComentarioId !== null}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ margin: 0 }}>¿Eliminar el comentario de esta evidencia?</p>
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setConfirmDeleteComentarioId(null)}
+                disabled={savingComentarioId !== null}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn danger"
+                onClick={() => void confirmDeleteComentario()}
+                disabled={savingComentarioId !== null}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
