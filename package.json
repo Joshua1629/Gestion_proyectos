@@ -136,11 +136,13 @@
     "directories": {
       "output": "dist"
     },
+    "icon": "frontend/public/logoapp.png",
     "win": {
       "target": [
         "nsis"
       ],
-      "signAndEditExecutable": false
+      "signAndEditExecutable": false,
+      "icon": "frontend/public/logoapp.png"
     },
     "nsis": {
       "oneClick": false,
