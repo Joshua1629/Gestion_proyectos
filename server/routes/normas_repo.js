@@ -218,16 +218,48 @@ async function upsertNormaRepo(row) {
     if (rows2 && rows2.length > 0) {
       const id = rows2[0].id;
       await pool.query(
-        "UPDATE normas_repo SET descripcion = COALESCE(?, descripcion), incumplimiento = COALESCE(?, incumplimiento), severidad = COALESCE(?, severidad), etiquetas = COALESCE(?, etiquetas), updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        "UPDATE normas_repo SET titulo = COALESCE(?, titulo), descripcion = COALESCE(?, descripcion), categoria = COALESCE(?, categoria), subcategoria = COALESCE(?, subcategoria), incumplimiento = COALESCE(?, incumplimiento), severidad = COALESCE(?, severidad), etiquetas = COALESCE(?, etiquetas), fuente = COALESCE(?, fuente), updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         [
+          row.titulo || null,
           row.descripcion || null,
+          row.categoria || null,
+          row.subcategoria || null,
           row.incumplimiento || null,
           row.severidad || null,
           row.etiquetas || null,
-          id,
+          row.fuente || null,
+          rows2[0].id,
         ]
       );
       return { id, updated: true };
+    }
+    // Emparejar por titulo+fuente normalizados (trim + minúsculas) para conservar id y enlaces al subir Excel modificado
+    const tituloNorm = (row.titulo || "").trim().toLowerCase();
+    const fuenteNorm = (row.fuente || "").trim().toLowerCase();
+    if (tituloNorm) {
+      const [rows3] = await pool.query(
+        "SELECT id FROM normas_repo WHERE LOWER(TRIM(COALESCE(titulo,''))) = ? AND LOWER(TRIM(COALESCE(fuente,''))) = ? LIMIT 1",
+        [tituloNorm, fuenteNorm]
+      );
+      if (rows3 && rows3.length > 0) {
+        const id = rows3[0].id;
+        await pool.query(
+          "UPDATE normas_repo SET codigo = COALESCE(?, codigo), titulo = ?, descripcion = COALESCE(?, descripcion), categoria = COALESCE(?, categoria), subcategoria = COALESCE(?, subcategoria), incumplimiento = COALESCE(?, incumplimiento), severidad = COALESCE(?, severidad), etiquetas = COALESCE(?, etiquetas), fuente = COALESCE(?, fuente), updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+          [
+            row.codigo || null,
+            row.titulo != null ? String(row.titulo).trim() : null,
+            row.descripcion || null,
+            row.categoria || null,
+            row.subcategoria || null,
+            row.incumplimiento || null,
+            row.severidad || null,
+            row.etiquetas || null,
+            row.fuente != null ? String(row.fuente).trim() : null,
+            id,
+          ]
+        );
+        return { id, updated: true };
+      }
     }
   }
   const [result] = await pool.query(

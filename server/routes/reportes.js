@@ -100,11 +100,11 @@ function drawHeader(doc, proyectoNombre, clienteNombre) {
     .moveTo(50, 60)
     .lineTo(545, 60)
     .stroke();
-  // Logo empresa en esquina superior izquierda (sobre el título)
+  // Logo empresa en esquina superior izquierda (altura limitada para no solapar nombre)
   const logo = getLogoPath();
   if (logo) {
     try {
-      doc.image(logo, 50, 2, { width: 70 });
+      doc.image(logo, 50, 2, { fit: [70, 50] });
     } catch {}
   }
   // Título debajo de la franja y el logo
@@ -377,20 +377,20 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
   // Encabezados alineados a la izquierda (más cercanos al margen)
   const leftX = 50;
   const headStartY = 95;
+  const valueWidth = 300;
   let cy = headStartY;
   function heading(label, value) {
     doc
       .font("Helvetica-Bold")
       .fontSize(10)
       .fillColor("#444")
-      .text(label, leftX, cy, { width: 300, align: "left" });
+      .text(label, leftX, cy, { width: valueWidth, align: "left" });
     cy += 14;
-    doc
-      .font("Helvetica")
-      .fontSize(13)
-      .fillColor("#000")
-      .text(String(value || ""), leftX, cy, { width: 300, align: "left" });
-    cy += 20; // spacing after value
+    const valueStr = String(value || "");
+    doc.font("Helvetica").fontSize(13).fillColor("#000");
+    const valueHeight = doc.heightOfString(valueStr, { width: valueWidth });
+    doc.text(valueStr, leftX, cy, { width: valueWidth, align: "left" });
+    cy += valueHeight + 10; // altura real del valor + espacio hasta el siguiente
   }
   heading("NOMBRE DE ESTABLECIMIENTO", proyecto.nombre);
   heading("RAZON SOCIAL", proyecto.cliente);
@@ -412,9 +412,11 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
     .stroke();
   cy += 15;
 
+  const leftBoxY = Math.max(205, cy);
+  const imgY = Math.max(240, leftBoxY + 5);
+
   // Foto de portada (usar institucional si existe, si no la primera normal)
-  const imgY = 240; // bajar más la imagen de portada
-  const imgX = 260; // mantener hacia la derecha para dejar espacio a la izquierda
+  const imgX = 260;
   const imgW = 300;
   const imgH = 230;
   const mainCover =
@@ -436,7 +438,6 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
 
   // Columna izquierda con VERIFICADOR y fechas
   const leftBoxX = 50;
-  const leftBoxY = 205;
   const leftBoxW = 170;
   const leftBoxH = 195; // space for verifier + dates
   // fondo
@@ -456,14 +457,16 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
     .fillColor("#333")
     .text("VERIFICADOR", leftBoxX + 12, ly);
   ly += 14;
+  const verifierNameWidth = leftBoxW - 24 - 40; // más estrecho para que baje una palabra y sobre espacio para el sello
+  const verifierNameH = doc.heightOfString("Ing. Luis Javier Jiménez Fernández", { width: verifierNameWidth });
   doc
     .font("Helvetica")
     .fontSize(9)
     .fillColor("#000")
     .text("Ing. Luis Javier Jiménez Fernández", leftBoxX + 12, ly, {
-      width: leftBoxW - 24,
+      width: verifierNameWidth,
     });
-  ly += 26;
+  ly += verifierNameH + 8;
   doc
     .font("Helvetica")
     .fontSize(9)
@@ -555,37 +558,85 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
   drawLegend(doc, bottomY);
 }
 
-// Página 2: Equipos de Seguridad y Verificación
+// Espacio reservado para sello CFIA (medidas físicas del sello: 10,3 cm × 7,2 cm)
+// 1 cm = 72/2.54 pt ≈ 28,35 pt
+const SEAL_HEIGHT_CM = 7.2;
+const SEAL_WIDTH_CM = 10.3;
+const SEAL_HEIGHT_PT = Math.round(SEAL_HEIGHT_CM * (72 / 2.54)); // ≈ 205 pt
+const SEAL_WIDTH_PT = Math.round(SEAL_WIDTH_CM * (72 / 2.54));   // ≈ 292 pt
+
+const PAGE_CONTENT_TOP = SEAL_HEIGHT_PT;
+
+// Bloque verificador (izquierda del espacio para sello) — ancho limitado para dejar 10,3 cm al sello
+function drawVerificadorBlock(doc) {
+  const leftX = 50;
+  const topY = 25;
+  const contentWidth = 495; // A4 menos márgenes
+  const blockW = contentWidth - SEAL_WIDTH_PT - 15; // dejar ≥ 10,3 cm para el sello + separación
+  const lineH = 14;
+  let y = topY;
+
+  const logoPath = getLogoPath();
+  if (logoPath && fs.existsSync(logoPath)) {
+    try {
+      doc.image(logoPath, leftX, y, { width: 70 });
+      y += 70 + 6;
+    } catch (e) {
+      doc.font("Helvetica-Bold").fontSize(11).fillColor("#333");
+      doc.text("FERMA INGENIERÍA Y CONSULTORÍA", leftX, y, { width: blockW });
+      y += lineH + 4;
+    }
+  } else {
+    doc.font("Helvetica-Bold").fontSize(11).fillColor("#333");
+    doc.text("FERMA INGENIERÍA Y CONSULTORÍA", leftX, y, { width: blockW });
+    y += lineH + 4;
+  }
+
+  doc.font("Helvetica").fontSize(10).fillColor("#000");
+
+  // Caja VERIFICADOR
+  const boxTop = y;
+  doc.font("Helvetica-Bold").fontSize(10).fillColor("#000");
+  doc.text("VERIFICADOR", leftX + 8, y + 6);
+  y += 18;
+
+  doc.font("Helvetica").fontSize(10);
+  doc.text("Ing. Luis Javier Jiménez Fernández", leftX + 8, y);
+  y += lineH;
+  doc.text("Ingeniero en Mantenimiento Industrial", leftX + 8, y);
+  y += lineH + 4;
+  doc.text("70188-0617", leftX + 8, y);
+  y += lineH;
+  doc.text("IMI-24991", leftX + 8, y);
+  y += lineH;
+  doc.text("CAPDEE #92", leftX + 8, y);
+  y += lineH + 8;
+
+  const boxH = y - boxTop;
+  doc.roundedRect(leftX, boxTop, blockW, boxH, 4).strokeColor("#CCC").lineWidth(1).stroke();
+}
+
+// Página 2: Equipos de Seguridad y Verificación (lado a lado, dos columnas)
 function drawEquiposPage(doc) {
+  drawVerificadorBlock(doc);
+
   const marginX = 50;
   const fullW = 495;
-  const boxW = fullW; // una columna, dos cajas apiladas
-  let y = 50; // posición inicial más arriba
+  const gap = 15;
+  const boxW = (fullW - gap) / 2;
+  const leftX = marginX;
+  const rightX = marginX + boxW + gap;
+  const yStart = PAGE_CONTENT_TOP;
 
-  function drawListBox(title, items, splitOnlyForRecommendation = false) {
-    const lineH = 14; // altura de renglón compacta
-    // Calcular altura considerando que el texto entre paréntesis va en una segunda línea
-    const totalLines = items.reduce((acc, t) => {
-      const lower = String(t || "").toLowerCase();
-      const hasParen = /\(.+\)/.test(lower);
-      const isRecommendation = lower.includes("(se recomienda al menos 75% algodón)");
-      const shouldSplit = splitOnlyForRecommendation ? isRecommendation : hasParen;
-      return acc + (shouldSplit ? 2 : 1);
-    }, 0);
-    const boxH = 14 + totalLines * lineH + 8; // padding reducido
-    doc
-      .roundedRect(marginX, y, boxW, boxH, 6)
-      .strokeColor("#CFCFCF")
-      .lineWidth(1)
-      .stroke();
+  const bulletRadius = 4;
+  const textIndent = 32;
 
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(10)
-      .fillColor("#000")
-      .text(title, marginX + 10, y + 6);
+  function drawListBoxAt(boxX, y, boxWidth, title, items, splitOnlyForRecommendation = false) {
+    const itemTextWidth = boxWidth - textIndent - 8;
+    const opts = { width: itemTextWidth, lineGap: 5 };
 
-    let ly = y + 18;
+    doc.font("Helvetica").fontSize(10);
+    let totalH = 14 + 10;
     items.forEach((t) => {
       const text = String(t || "");
       const lower = text.toLowerCase();
@@ -595,7 +646,7 @@ function drawEquiposPage(doc) {
       if (splitOnlyForRecommendation && isRecommendation) {
         const idx = lower.indexOf("(se recomienda al menos 75% algodón)");
         firstLine = text.slice(0, idx).trimEnd();
-        secondLine = text.slice(idx).trim();
+        secondLine = " " + text.slice(idx).trim();
       } else if (!splitOnlyForRecommendation) {
         const m = text.match(/^(.*?)(\s*\(.*\))\s*$/);
         if (m) {
@@ -603,51 +654,89 @@ function drawEquiposPage(doc) {
           secondLine = m[2];
         }
       }
-      // punto verde para la primera línea del ítem
+      totalH += doc.heightOfString(firstLine, opts) + 4;
+      if (secondLine) totalH += doc.heightOfString(secondLine, opts) + 4;
+      totalH += 4;
+    });
+
+    const boxH = totalH;
+    doc
+      .roundedRect(boxX, y, boxWidth, boxH, 6)
+      .strokeColor("#CFCFCF")
+      .lineWidth(1)
+      .stroke();
+
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .fillColor("#000")
+      .text(title, boxX + 10, y + 6);
+
+    let ly = y + 20;
+    items.forEach((t) => {
+      const text = String(t || "");
+      const lower = text.toLowerCase();
+      const isRecommendation = lower.includes("(se recomienda al menos 75% algodón)");
+      let firstLine = text;
+      let secondLine = null;
+      if (splitOnlyForRecommendation && isRecommendation) {
+        const idx = lower.indexOf("(se recomienda al menos 75% algodón)");
+        firstLine = text.slice(0, idx).trimEnd();
+        secondLine = " " + text.slice(idx).trim();
+      } else if (!splitOnlyForRecommendation) {
+        const m = text.match(/^(.*?)(\s*\(.*\))\s*$/);
+        if (m) {
+          firstLine = m[1];
+          secondLine = m[2];
+        }
+      }
       doc
-        .circle(marginX + 12, ly + 3, 4)
+        .circle(boxX + 12, ly + 5, bulletRadius)
         .fillColor("#43A047")
         .fill();
+      const h1 = doc.heightOfString(firstLine, opts);
       doc
         .font("Helvetica")
         .fontSize(10)
         .fillColor("#000")
-        .text(firstLine, marginX + 26, ly - 2, { width: boxW - 36 });
-      ly += lineH;
-      // Si existe texto entre paréntesis, dibujarlo en el renglón siguiente sin viñeta
+        .text(firstLine, boxX + textIndent, ly - 2, opts);
+      ly += h1 + 4;
       if (secondLine) {
+        const h2 = doc.heightOfString(secondLine, opts);
         doc
           .font("Helvetica")
           .fontSize(10)
           .fillColor("#000")
-          .text(secondLine, marginX + 26, ly - 2, { width: boxW - 36 });
-        ly += lineH;
+          .text(secondLine, boxX + textIndent, ly - 2, opts);
+        ly += h2 + 4;
       }
+      ly += 4;
     });
 
-    y += boxH + 6; // espacio reducido entre cajas
+    return boxH;
   }
 
-  drawListBox("Equipos de Seguridad:", [
+  const seguridadItems = [
     "Zapatos de seguridad (Dieléctricos).",
     "Chaleco reflectivo.",
     "Camisa de algodón de manga y pantalón largo (se recomienda al menos 75% algodón).",
     "Guantes (cuando se considere necesario).",
     "Casco.",
     "Lentes (cuando se considere necesario).",
-  ], true);
-
-  drawListBox("Equipos de Verificación:", [
+  ];
+  const verificacionItems = [
     "Telurómetro de gancho.",
     "Cinta métrica laser.",
     "Multímetro de gancho.",
     "Desatornilladores aislados.",
     "Llave Ratchet 12 mm (1/2\") y 9,95 mm (3/8\").",
     "Cámara Térmica.",
-  ]);
+  ];
 
-  // devolver la posición siguiente disponible para continuar contenido
-  return y;
+  const h1 = drawListBoxAt(leftX, yStart, boxW, "Equipos de Seguridad:", seguridadItems, true);
+  const h2 = drawListBoxAt(rightX, yStart, boxW, "Equipos de Verificación:", verificacionItems);
+
+  return yStart + Math.max(h1, h2) + 4;
 }
 
 function drawFinding(
@@ -659,9 +748,8 @@ function drawFinding(
   images
 ) {
   const marginX = 50;
-  // Altura se calcula dinámicamente según comentario y número de normas
-  const imgW = 200; // zona de imágenes a la derecha
-  const imgH = 150; // reducido para 3 evidencias por hoja
+  const imgW = 200;
+  const imgH = 115; // compacto para caber 2 evidencias en hoja 2 con espacio para sello
   const gap = 10;
   // La severidad se muestra por incumplimiento, no a nivel de evidencia
 
@@ -671,20 +759,17 @@ function drawFinding(
   const comentarioTxt = String(comentarioRaw).trim();
   const hasComentario = comentarioTxt.length > 0;
   const comentarioHeight = hasComentario
-    ? doc.heightOfString(comentarioTxt, { width: leftW, align: "left" }) + 18 // +18 para label "Comentario:" y espaciado
+    ? doc.heightOfString(comentarioTxt, { width: leftW, align: "left" }) + 14
     : 0;
-  const normasMostradas = Array.isArray(linkedNormas)
-    ? linkedNormas.slice(0, 6)
-    : [];
-  // Calcular altura real de normas considerando el alto de cada texto
+  const normasMostradas = Array.isArray(linkedNormas) ? linkedNormas : [];
+  const itemTextWidthCalc = leftW - 24;
   const normasHeight = normasMostradas.reduce((acc, n) => {
     const texto = ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
-    const h = doc.heightOfString(texto, { width: leftW - 12, align: "left" });
-    return acc + h + 6;
-  }, 0) + (normasMostradas.length ? 22 : 0); // 22 ~ título header + margen
-  // Altura dinámica: solo lo necesario para el contenido (incluye comentario completo + normas completas)
-  const contentHeight = 32 + comentarioHeight + normasHeight + 20; // header + comentario + normas + padding extra
-  let blockH = Math.max(contentHeight, imgH + 40); // al menos el tamaño de la imagen
+    const h = doc.heightOfString(texto, { width: itemTextWidthCalc, align: "left" });
+    return acc + h + 4;
+  }, 0) + (normasMostradas.length ? 18 : 0);
+  const contentHeight = 28 + normasHeight + comentarioHeight + 12;
+  let blockH = Math.max(contentHeight, imgH + 36);
   // NO limitar el bloque - asegurar que todo el contenido quepa
   const pageBottom = doc.page.height - doc.page.margins.bottom;
   const availableHeight = Math.max(0, pageBottom - yStart - 6);
@@ -700,69 +785,66 @@ function drawFinding(
     .lineWidth(1)
     .stroke();
 
-  // Encabezado del hallazgo (numerado: 1. Evidencia e Incumplimiento:, 2. ..., etc.)
-  doc.rect(marginX, yStart, 495, 22).fillColor("#F7F7F7").fill();
+  doc.rect(marginX, yStart, 495, 20).fillColor("#F7F7F7").fill();
   doc
     .fillColor("#000")
     .font("Helvetica-Bold")
-    .fontSize(11)
-    .text(`${idx + 1}. Evidencia e Incumplimiento:`, marginX + 8, yStart + 6);
-  // Sin badge global; el estado se mostrará para cada incumplimiento
+    .fontSize(10)
+    .text(`${idx + 1}. Evidencia e Incumplimiento:`, marginX + 8, yStart + 5);
 
-  // Columna izquierda: comentario (se elimina 'Tarea' del reporte)
   const leftX = marginX + 12;
-  const leftY = yStart + 32;
+  const leftY = yStart + 28;
   let yCursor = leftY;
-  if (hasComentario) {
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(9)
-      .text("Comentario:", leftX, yCursor);
-    // Usar la altura completa del comentario sin recortar
-    const commentH = doc.heightOfString(comentarioTxt, { width: leftW, align: "left" });
-    doc
-      .font("Helvetica")
-      .fontSize(9)
-      .text(comentarioTxt, leftX, yCursor + 12, {
-        width: leftW,
-        height: commentH + 4,
-      });
-    yCursor += 12 + commentH + 6;
-  }
 
-  // Listado de normas/incumplimientos asociados (numerados 1., 2., 3....)
+  // Primero: Incumplimientos asociados (todos, sin límite)
   if (normasMostradas.length) {
     const headerTxt = "Incumplimientos asociados:";
     const headerH = doc.heightOfString(headerTxt, { width: leftW });
     doc
       .font("Helvetica-Bold")
-      .fontSize(10)
+      .fontSize(9)
       .fillColor("#000")
       .text(headerTxt, leftX, yCursor, { width: leftW });
+    const bulletRadius = 4;
+    const bulletIndent = 20;
+    const itemTextWidth = leftW - bulletIndent - 4;
     let y = yCursor + headerH + 2;
-    normasMostradas.forEach((n, index) => {
-      const num = index + 1;
-      const texto = `${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
-      const itemWidth = leftW - 18;
-      const h = doc.heightOfString(texto, { width: itemWidth, align: "left" });
+    normasMostradas.forEach((n) => {
+      const titulo = String(n.titulo || "").trim();
+      const fuente = n.fuente ? String(n.fuente).trim() : "";
+      const texto = fuente ? titulo + "  —  " + fuente : titulo;
+      const h = doc.heightOfString(texto, { width: itemTextWidth, align: "left" });
+      const bulletColor = severityStyle(n.clasificacion).color;
+      doc.circle(leftX + 8, y + 4, bulletRadius).fillColor(bulletColor).fill();
       doc
         .fillColor("#000")
         .font("Helvetica")
-        .fontSize(10)
-        .text(`${num}. ${texto}`, leftX, y - 2, { width: leftW - 8, height: h + 4 });
-      y += h + 6;
-    });
-    if (linkedNormas.length > normasMostradas.length) {
-      doc
-        .fillColor("#666")
         .fontSize(9)
-        .text(`… y ${linkedNormas.length - normasMostradas.length} más`, leftX, y, { width: leftW, lineBreak: false });
-    }
+        .text(texto, leftX + bulletIndent, y - 2, { width: itemTextWidth, height: h + 4 });
+      y += h + 4;
+    });
+    yCursor = y + 4;
   }
 
-  // Columna derecha: una o más imágenes
+  // Después: Comentario (debajo de incumplimientos)
+  if (hasComentario) {
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .fillColor("#000")
+      .text("Comentario:", leftX, yCursor);
+    const commentH = doc.heightOfString(comentarioTxt, { width: leftW, align: "left" });
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .text(comentarioTxt, leftX, yCursor + 10, {
+        width: leftW,
+        height: commentH + 4,
+      });
+  }
+
   const imgX = marginX + leftW + 2 * gap;
-  const imgY = yStart + 32;
+  const imgY = yStart + 28;
   // Mostrar una sola imagen (sin agrupamiento/grilla)
   const imgs =
     Array.isArray(images) && images.length
@@ -773,7 +855,7 @@ function drawFinding(
   if (imgs.length) {
     try {
       // Marco general
-      const effImgH = Math.min(imgH, Math.max(0, blockH - 40));
+      const effImgH = Math.min(imgH, Math.max(0, blockH - 36));
       // Imagen única ocupa todo el marco
       doc.image(imgs[0], imgX, imgY, {
         fit: [imgW, effImgH],
@@ -965,27 +1047,25 @@ router.get(
       // Solo crear hallazgos si hay evidencias
       if (evidList.length) {
         // Comenzar las evidencias debajo de los equipos en la página 2
-        let y = nextYAfterEquipos + 5; // espacio mínimo después de equipos
+        let y = nextYAfterEquipos + 2;
         for (let i = 0; i < evidList.length; i++) {
           const g = evidList[i];
           // Calcular altura estimada antes de dibujar para decidir salto
-          const textoWidth = 495 - 200 - 30; // ancho leftW (495 total - imgW - 3*gap)
+          const textoWidth = 495 - 200 - 30;
           const comentarioHeight = doc.heightOfString(g.comentario || "Sin comentario", { width: textoWidth });
-          const normasCount = Math.min(g.links.length, 6);
-          // Estimar altura de normas más precisa
-          const normasHeight = g.links.slice(0, 6).reduce((acc, n) => {
+          const normasHeight = (g.links || []).reduce((acc, n) => {
             const texto = ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
-            const h = doc.heightOfString(texto, { width: textoWidth - 12, align: "left" });
-            return acc + h + 6;
-          }, 0) + (normasCount ? 22 : 0);
-          // Dejar espacio para el pie de página (número abajo a la derecha)
+            const h = doc.heightOfString(texto, { width: textoWidth - 24, align: "left" });
+            return acc + h + 4;
+          }, 0) + (g.links && g.links.length ? 18 : 0);
           const footerReserve = 28;
           const pageBottomY = doc.page.height - doc.page.margins.bottom - footerReserve;
-          const contentHeight = 32 + comentarioHeight + normasHeight + 15;
-          const estimatedHeight = Math.max(contentHeight, 150 + 40);
+          const contentHeight = 28 + normasHeight + (comentarioHeight + 14) + 12;
+          const estimatedHeight = Math.max(contentHeight, 115 + 36);
           if (y + estimatedHeight > pageBottomY) {
             doc.addPage();
-            y = 50;
+            drawVerificadorBlock(doc);
+            y = PAGE_CONTENT_TOP;
           }
           const usedH = drawFinding(
             doc,
@@ -995,7 +1075,7 @@ router.get(
             g.links,
             g.images.slice(0, 1)
           );
-          y += usedH + 15; // separación reducida para 3 evidencias por hoja
+          y += usedH + 8;
         }
       }
 
