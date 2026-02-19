@@ -177,9 +177,11 @@ router.post(
           return res.status(409).json({ error: 'Duplicado detectado', duplicateId: dupRows[0].id });
         }
       }
+      const [maxRows] = await pool.query('SELECT COALESCE(MAX(sort_order),0)+1 AS next_order FROM evidencias WHERE proyecto_id = ?', [pId]);
+      const sortOrder = (maxRows && maxRows[0] && maxRows[0].next_order != null) ? maxRows[0].next_order : 1;
       const [result] = await pool.query(
-        'INSERT INTO evidencias (proyecto_id, tarea_id, categoria, evidence_type, comentario, image_path, file_hash, mime_type, size_bytes, created_by, group_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        ,[pId, tId || null, categoria || 'OK', evidenceType, comentario || null, imagePath, fileHash, mime, size, createdBy, groupKey]
+        'INSERT INTO evidencias (proyecto_id, tarea_id, categoria, evidence_type, comentario, image_path, file_hash, mime_type, size_bytes, created_by, group_key, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ,[pId, tId || null, categoria || 'OK', evidenceType, comentario || null, imagePath, fileHash, mime, size, createdBy, groupKey, sortOrder]
       );
 
       const id = result.insertId;
@@ -261,6 +263,8 @@ router.post(
       let currentCount = seqCounts[String(currentSeq)] || 0;
       const out = [];
       const createdBy = null;
+      const [maxOrderRows] = await pool.query('SELECT COALESCE(MAX(sort_order),0) AS max_order FROM evidencias WHERE proyecto_id = ?', [pId]);
+      let nextSortOrder = (maxOrderRows && maxOrderRows[0] && maxOrderRows[0].max_order != null) ? maxOrderRows[0].max_order + 1 : 1;
       for (const f of files) {
         if (currentCount >= 3) {
           currentSeq = nextSequenceSlot();
@@ -279,9 +283,10 @@ router.post(
           }
         }
         const [r] = await pool.query(
-          'INSERT INTO evidencias (proyecto_id, tarea_id, categoria, evidence_type, comentario, image_path, file_hash, mime_type, size_bytes, created_by, group_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-          ,[pId, tId || null, categoria, evidenceType, comentario || null, f.path, fileHash, f.mimetype, f.size, createdBy, groupKey]
+          'INSERT INTO evidencias (proyecto_id, tarea_id, categoria, evidence_type, comentario, image_path, file_hash, mime_type, size_bytes, created_by, group_key, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          ,[pId, tId || null, categoria, evidenceType, comentario || null, f.path, fileHash, f.mimetype, f.size, createdBy, groupKey, nextSortOrder]
         );
+        nextSortOrder++;
         const id = r.insertId;
         const relUrl = buildPublicUrl(f.path);
         const absUrl = `${req.protocol}://${req.get('host')}${relUrl.startsWith('/') ? relUrl : ('/' + relUrl)}`;
@@ -326,7 +331,7 @@ router.get(
         const [countRows] = await pool.query(`SELECT COUNT(*) as total FROM evidencias ${whereSql}`, params);
         const total = countRows[0]?.total || 0;
         const [rows] = await pool.query(
-          `SELECT * FROM evidencias ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+          `SELECT * FROM evidencias ${whereSql} ORDER BY COALESCE(sort_order, 999999) ASC, created_at ASC LIMIT ? OFFSET ?`,
           [...params, Number(limit), Number(offset)]
         );
         const items = rows.map(r => {
@@ -354,7 +359,7 @@ router.get(
       // Modo agrupado
       const [rows] = await pool.query(
         `SELECT id, proyecto_id, tarea_id, comentario, image_path, mime_type, size_bytes, created_at, group_key, evidence_type
-         FROM evidencias ${whereSql} ORDER BY created_at DESC`,
+         FROM evidencias ${whereSql} ORDER BY COALESCE(sort_order, 999999) ASC, created_at ASC`,
         params
       );
       const map = new Map();
@@ -401,6 +406,34 @@ router.get(
     }
   }
 );
+
+// PUT /api/evidencias/reorder — orden manual para reportes (orderedIds = [id1, id2, ...])
+router.put('/reorder', [
+  body('proyectoId').isInt({ min: 1 }).toInt(),
+  body('orderedIds').isArray(),
+  body('orderedIds.*').isInt({ min: 1 }).toInt()
+], checkValidation, async (req, res) => {
+  try {
+    const { proyectoId, orderedIds } = req.body;
+    if (!orderedIds || orderedIds.length === 0) return res.status(400).json({ error: 'orderedIds no puede estar vacío' });
+    const placeholders = orderedIds.map(() => '?').join(',');
+    const [rows] = await pool.query(
+      `SELECT id FROM evidencias WHERE proyecto_id = ? AND id IN (${placeholders})`,
+      [proyectoId, ...orderedIds]
+    );
+    const foundIds = new Set((rows || []).map((r) => r.id));
+    if (foundIds.size !== orderedIds.length) {
+      return res.status(400).json({ error: 'Algunos IDs no pertenecen al proyecto o no existen' });
+    }
+    for (let i = 0; i < orderedIds.length; i++) {
+      await pool.query('UPDATE evidencias SET sort_order = ? WHERE id = ? AND proyecto_id = ?', [i + 1, orderedIds[i], proyectoId]);
+    }
+    res.json({ ok: true, orderedIds });
+  } catch (err) {
+    console.error('reorder evidencias error:', err);
+    res.status(500).json({ error: 'Error al reordenar evidencias' });
+  }
+});
 
 // Nuevo endpoint agrupado por tipo de evidencia -> devuelve { tipo, groups: [...] }
 router.get('/by-tipo', [

@@ -148,6 +148,20 @@
   box-shadow: 0 6px 16px rgba(0,0,0,0.08);
 }
 
+.evidencia-card[draggable] {
+  cursor: grab;
+}
+.evidencia-card[draggable]:active {
+  cursor: grabbing;
+}
+.evidencia-card.evidencia-card--dragging {
+  opacity: 0.6;
+}
+.evidencia-card.evidencia-card--drop-target {
+  outline: 2px dashed var(--primary-light, #3b82f6);
+  outline-offset: 2px;
+}
+
 .evidencia-thumb {
   position: relative;
   height: 160px;

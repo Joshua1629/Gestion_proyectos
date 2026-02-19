@@ -202,6 +202,7 @@ async function ensureExtraTables() {
             const hasGroupKey = rows && rows.some((r) => r && r.name === 'group_key');
             const hasFileHash = rows && rows.some((r) => r && r.name === 'file_hash');
             const hasEvidenceType = rows && rows.some((r) => r && r.name === 'evidence_type');
+            const hasSortOrder = rows && rows.some((r) => r && r.name === 'sort_order');
             const ensureIndex = () => {
               db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_group_key ON evidencias(group_key)", [], () => {
                 db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_file_hash ON evidencias(file_hash)");
@@ -237,7 +238,10 @@ async function ensureExtraTables() {
                 if (hasEvidenceType) return next();
                 db.run("ALTER TABLE evidencias ADD COLUMN evidence_type TEXT DEFAULT 'GENERAL'", [], () => next());
               };
-              doEnsureFileHash(() => doEnsureEvidenceType(() => ensureIndex()));
+              doEnsureFileHash(() => doEnsureEvidenceType(() => {
+                if (hasSortOrder) return ensureIndex();
+                db.run('ALTER TABLE evidencias ADD COLUMN sort_order INTEGER', [], () => ensureIndex());
+              }));
             }
           });
         });

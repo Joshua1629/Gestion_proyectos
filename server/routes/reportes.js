@@ -1028,7 +1028,7 @@ router.get(
       }
       const whereSql = "WHERE " + where.join(" AND ");
       const [evidRows] = await pool.query(
-        `SELECT * FROM evidencias ${whereSql} ORDER BY created_at ASC`,
+        `SELECT * FROM evidencias ${whereSql} ORDER BY COALESCE(sort_order, 999999) ASC, created_at ASC`,
         params,
       );
 

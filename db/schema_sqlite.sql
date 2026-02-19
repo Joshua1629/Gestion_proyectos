@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS evidencias (
     created_by INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME,
+    sort_order INTEGER,
     FOREIGN KEY (proyecto_id) REFERENCES proyectos(id) ON DELETE CASCADE,
     FOREIGN KEY (tarea_id) REFERENCES tareas(id) ON DELETE SET NULL,
     FOREIGN KEY (created_by) REFERENCES usuarios(id)

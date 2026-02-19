@@ -5,6 +5,7 @@ import {
   uploadEvidencia,
   deleteEvidencia,
   updateEvidencia,
+  reorderEvidencias,
 } from "../services/evidencias";
 import { type Tarea } from "../services/tareas";
 import "../css/EvidenciasPanel.css";
@@ -35,6 +36,8 @@ export default function EvidenciasPanel({
   const [editComentario, setEditComentario] = useState("");
   const [savingComentarioId, setSavingComentarioId] = useState<number | null>(null);
   const [confirmDeleteComentarioId, setConfirmDeleteComentarioId] = useState<number | null>(null);
+  const [draggedId, setDraggedId] = useState<number | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<number | null>(null);
   const comentarioInputRef = useRef<HTMLInputElement>(null);
 
   const tareasById = useMemo(
@@ -189,6 +192,50 @@ export default function EvidenciasPanel({
     }
   }
 
+  function handleDragStart(e: React.DragEvent, evId: number) {
+    setDraggedId(evId);
+    e.dataTransfer.setData("text/plain", String(evId));
+    e.dataTransfer.effectAllowed = "move";
+  }
+
+  function handleDragOver(e: React.DragEvent, evId: number) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDropTargetId(evId);
+  }
+
+  function handleDragLeave() {
+    setDropTargetId(null);
+  }
+
+  async function handleDrop(e: React.DragEvent, targetEvId: number) {
+    e.preventDefault();
+    setDropTargetId(null);
+    setDraggedId(null);
+    const raw = e.dataTransfer.getData("text/plain");
+    const draggedEvId = raw ? Number(raw) : null;
+    if (draggedEvId == null || draggedEvId === targetEvId || !proyectoId) return;
+    const fromIndex = items.findIndex((i) => i.id === draggedEvId);
+    const toIndex = items.findIndex((i) => i.id === targetEvId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const reordered = [...items];
+    const [removed] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, removed);
+    setItems(reordered);
+    try {
+      setError(null);
+      await reorderEvidencias(proyectoId, reordered.map((i) => i.id));
+    } catch (err: any) {
+      setError(err?.detail || err?.error || err?.message || "Error al guardar el orden");
+      await load(true);
+    }
+  }
+
+  function handleDragEnd() {
+    setDraggedId(null);
+    setDropTargetId(null);
+  }
+
   return (
     <div className="evidencias-panel">
       <h3>📷 Evidencias fotográficas</h3>
@@ -239,7 +286,7 @@ export default function EvidenciasPanel({
           </button>
         </div>
         <div className="muted xsmall" style={{ marginTop: 4 }}>
-          Sube imágenes individualmente.
+          Sube imágenes individualmente. Arrastra las tarjetas para cambiar el orden (se aplica en el reporte PDF).
         </div>
       </form>
 
@@ -255,7 +302,16 @@ export default function EvidenciasPanel({
             <div className="empty-state">No hay evidencias</div>
           ) : (
             items.map((ev) => (
-              <div key={ev.id} className="evidencia-card">
+              <div
+                key={ev.id}
+                className={`evidencia-card ${dropTargetId === ev.id ? "evidencia-card--drop-target" : ""} ${draggedId === ev.id ? "evidencia-card--dragging" : ""}`}
+                draggable
+                onDragStart={(e) => handleDragStart(e, ev.id)}
+                onDragOver={(e) => handleDragOver(e, ev.id)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, ev.id)}
+                onDragEnd={handleDragEnd}
+              >
                 <div className="evidencia-thumb">
                   {ev.imageUrl ? (
                     <ImageWithFallback

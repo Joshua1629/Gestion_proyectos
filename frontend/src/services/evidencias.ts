@@ -137,6 +137,16 @@ export async function deleteEvidencia(id: number) {
   return appFetch(`${API}/${id}`, { method: 'DELETE', asJson: false });
 }
 
+/** Reordenar evidencias del proyecto; el orden se usa en reportes PDF. */
+export async function reorderEvidencias(proyectoId: number, orderedIds: number[]) {
+  return appFetch(`${API}/reorder`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ proyectoId, orderedIds }),
+    asJson: true
+  });
+}
+
 // Asociaciones Evidencia ⇄ Normas-Repo
 export async function listNormasRepoByEvidencia(evidenciaId: number): Promise<{ items: EvidenciaNormaRepoLink[] }> {
   return appFetch(`${API}/${evidenciaId}/normas-repo`);
