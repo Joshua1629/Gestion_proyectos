@@ -16,18 +16,52 @@ function getLogoPath() {
     path.join(__dirname, "..", "..", "frontend", "public", "logo.png"),
     path.join(__dirname, "..", "..", "frontend", "public", "logoapp.png"),
     // Rutas de producción (Electron empaquetado)
-    process.resourcesPath ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "logo.png") : null,
-    process.resourcesPath ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "logoapp.png") : null,
-    process.resourcesPath ? path.join(process.resourcesPath, "app.asar", "frontend", "public", "logo.png") : null,
-    process.resourcesPath ? path.join(process.resourcesPath, "app.asar", "frontend", "public", "logoapp.png") : null,
+    process.resourcesPath
+      ? path.join(
+          process.resourcesPath,
+          "app.asar.unpacked",
+          "frontend",
+          "public",
+          "logo.png",
+        )
+      : null,
+    process.resourcesPath
+      ? path.join(
+          process.resourcesPath,
+          "app.asar.unpacked",
+          "frontend",
+          "public",
+          "logoapp.png",
+        )
+      : null,
+    process.resourcesPath
+      ? path.join(
+          process.resourcesPath,
+          "app.asar",
+          "frontend",
+          "public",
+          "logo.png",
+        )
+      : null,
+    process.resourcesPath
+      ? path.join(
+          process.resourcesPath,
+          "app.asar",
+          "frontend",
+          "public",
+          "logoapp.png",
+        )
+      : null,
     // Rutas alternativas en extraResources
     process.resourcesPath ? path.join(process.resourcesPath, "logo.png") : null,
-    process.resourcesPath ? path.join(process.resourcesPath, "logoapp.png") : null,
+    process.resourcesPath
+      ? path.join(process.resourcesPath, "logoapp.png")
+      : null,
     // Desde el directorio del servidor (si está en extraResources)
     path.join(__dirname, "..", "..", "logo.png"),
     path.join(__dirname, "..", "..", "logoapp.png"),
   ].filter(Boolean);
-  
+
   for (const c of candidates) {
     try {
       if (c && fs.existsSync(c)) {
@@ -38,7 +72,10 @@ function getLogoPath() {
       // Continuar buscando
     }
   }
-  console.warn("⚠️ Logo no encontrado en ninguna ruta. Rutas probadas:", candidates);
+  console.warn(
+    "⚠️ Logo no encontrado en ninguna ruta. Rutas probadas:",
+    candidates,
+  );
   return null;
 }
 
@@ -50,17 +87,51 @@ function getCfiaSealPath() {
     path.join(__dirname, "..", "..", "frontend", "public", "cfia_seal.png"),
     path.join(__dirname, "..", "..", "frontend", "public", "cfia.png"),
     // Rutas de producción (Electron empaquetado)
-    process.resourcesPath ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "cfia_seal.png") : null,
-    process.resourcesPath ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "cfia.png") : null,
-    process.resourcesPath ? path.join(process.resourcesPath, "app.asar", "frontend", "public", "cfia_seal.png") : null,
-    process.resourcesPath ? path.join(process.resourcesPath, "app.asar", "frontend", "public", "cfia.png") : null,
+    process.resourcesPath
+      ? path.join(
+          process.resourcesPath,
+          "app.asar.unpacked",
+          "frontend",
+          "public",
+          "cfia_seal.png",
+        )
+      : null,
+    process.resourcesPath
+      ? path.join(
+          process.resourcesPath,
+          "app.asar.unpacked",
+          "frontend",
+          "public",
+          "cfia.png",
+        )
+      : null,
+    process.resourcesPath
+      ? path.join(
+          process.resourcesPath,
+          "app.asar",
+          "frontend",
+          "public",
+          "cfia_seal.png",
+        )
+      : null,
+    process.resourcesPath
+      ? path.join(
+          process.resourcesPath,
+          "app.asar",
+          "frontend",
+          "public",
+          "cfia.png",
+        )
+      : null,
     // Rutas alternativas
-    process.resourcesPath ? path.join(process.resourcesPath, "cfia_seal.png") : null,
+    process.resourcesPath
+      ? path.join(process.resourcesPath, "cfia_seal.png")
+      : null,
     process.resourcesPath ? path.join(process.resourcesPath, "cfia.png") : null,
     path.join(__dirname, "..", "..", "cfia_seal.png"),
     path.join(__dirname, "..", "..", "cfia.png"),
   ].filter(Boolean);
-  
+
   for (const c of candidates) {
     try {
       if (c && fs.existsSync(c)) {
@@ -79,7 +150,9 @@ function normalizePath(p) {
   try {
     return path.resolve(p).replace(/\\/g, "/").toLowerCase();
   } catch {
-    return String(p || "").replace(/\\/g, "/").toLowerCase();
+    return String(p || "")
+      .replace(/\\/g, "/")
+      .toLowerCase();
   }
 }
 
@@ -423,8 +496,8 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
     institucionImagePath && fs.existsSync(institucionImagePath)
       ? institucionImagePath
       : coverImagePath && fs.existsSync(coverImagePath)
-      ? coverImagePath
-      : null;
+        ? coverImagePath
+        : null;
   if (mainCover) {
     try {
       // Imagen de portada sin borde
@@ -458,7 +531,10 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
     .text("VERIFICADOR", leftBoxX + 12, ly);
   ly += 14;
   const verifierNameWidth = leftBoxW - 24 - 40; // más estrecho para que baje una palabra y sobre espacio para el sello
-  const verifierNameH = doc.heightOfString("Ing. Luis Javier Jiménez Fernández", { width: verifierNameWidth });
+  const verifierNameH = doc.heightOfString(
+    "Ing. Luis Javier Jiménez Fernández",
+    { width: verifierNameWidth },
+  );
   doc
     .font("Helvetica")
     .fontSize(9)
@@ -495,8 +571,8 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
     proyecto.fecha_verificacion
       ? proyecto.fecha_verificacion
       : proyecto.fecha_inicio
-      ? proyecto.fecha_inicio
-      : new Date()
+        ? proyecto.fecha_inicio
+        : new Date(),
   );
   const fechaInforme = formatFechaInformeSeguro(new Date());
   doc
@@ -551,7 +627,7 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
       "Las fotografías son representativas del incumplimiento, un mismo incumplimiento aplica para toda la instalación eléctrica.",
       noteX + 44,
       noteY,
-      { width: 175 }
+      { width: 175 },
     );
 
   // Simbología al mismo nivel pero a la izquierda
@@ -563,7 +639,7 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
 const SEAL_HEIGHT_CM = 7.2;
 const SEAL_WIDTH_CM = 10.3;
 const SEAL_HEIGHT_PT = Math.round(SEAL_HEIGHT_CM * (72 / 2.54)); // ≈ 205 pt
-const SEAL_WIDTH_PT = Math.round(SEAL_WIDTH_CM * (72 / 2.54));   // ≈ 292 pt
+const SEAL_WIDTH_PT = Math.round(SEAL_WIDTH_CM * (72 / 2.54)); // ≈ 292 pt
 
 const PAGE_CONTENT_TOP = SEAL_HEIGHT_PT;
 
@@ -613,7 +689,11 @@ function drawVerificadorBlock(doc) {
   y += lineH + 8;
 
   const boxH = y - boxTop;
-  doc.roundedRect(leftX, boxTop, blockW, boxH, 4).strokeColor("#CCC").lineWidth(1).stroke();
+  doc
+    .roundedRect(leftX, boxTop, blockW, boxH, 4)
+    .strokeColor("#CCC")
+    .lineWidth(1)
+    .stroke();
 }
 
 // Página 2: Equipos de Seguridad y Verificación (lado a lado, dos columnas)
@@ -631,7 +711,14 @@ function drawEquiposPage(doc) {
   const bulletRadius = 4;
   const textIndent = 32;
 
-  function drawListBoxAt(boxX, y, boxWidth, title, items, splitOnlyForRecommendation = false) {
+  function drawListBoxAt(
+    boxX,
+    y,
+    boxWidth,
+    title,
+    items,
+    splitOnlyForRecommendation = false,
+  ) {
     const itemTextWidth = boxWidth - textIndent - 8;
     const opts = { width: itemTextWidth, lineGap: 5 };
 
@@ -640,7 +727,9 @@ function drawEquiposPage(doc) {
     items.forEach((t) => {
       const text = String(t || "");
       const lower = text.toLowerCase();
-      const isRecommendation = lower.includes("(se recomienda al menos 75% algodón)");
+      const isRecommendation = lower.includes(
+        "(se recomienda al menos 75% algodón)",
+      );
       let firstLine = text;
       let secondLine = null;
       if (splitOnlyForRecommendation && isRecommendation) {
@@ -676,7 +765,9 @@ function drawEquiposPage(doc) {
     items.forEach((t) => {
       const text = String(t || "");
       const lower = text.toLowerCase();
-      const isRecommendation = lower.includes("(se recomienda al menos 75% algodón)");
+      const isRecommendation = lower.includes(
+        "(se recomienda al menos 75% algodón)",
+      );
       let firstLine = text;
       let secondLine = null;
       if (splitOnlyForRecommendation && isRecommendation) {
@@ -729,24 +820,30 @@ function drawEquiposPage(doc) {
     "Cinta métrica laser.",
     "Multímetro de gancho.",
     "Desatornilladores aislados.",
-    "Llave Ratchet 12 mm (1/2\") y 9,95 mm (3/8\").",
+    'Llave Ratchet 12 mm (1/2") y 9,95 mm (3/8").',
     "Cámara Térmica.",
   ];
 
-  const h1 = drawListBoxAt(leftX, yStart, boxW, "Equipos de Seguridad:", seguridadItems, true);
-  const h2 = drawListBoxAt(rightX, yStart, boxW, "Equipos de Verificación:", verificacionItems);
+  const h1 = drawListBoxAt(
+    leftX,
+    yStart,
+    boxW,
+    "Equipos de Seguridad:",
+    seguridadItems,
+    true,
+  );
+  const h2 = drawListBoxAt(
+    rightX,
+    yStart,
+    boxW,
+    "Equipos de Verificación:",
+    verificacionItems,
+  );
 
   return yStart + Math.max(h1, h2) + 4;
 }
 
-function drawFinding(
-  doc,
-  idx,
-  evidencia,
-  yStart,
-  linkedNormas,
-  images
-) {
+function drawFinding(doc, idx, evidencia, yStart, linkedNormas, images) {
   const marginX = 50;
   const imgW = 200;
   const imgH = 115; // compacto para caber 2 evidencias en hoja 2 con espacio para sello
@@ -763,11 +860,15 @@ function drawFinding(
     : 0;
   const normasMostradas = Array.isArray(linkedNormas) ? linkedNormas : [];
   const itemTextWidthCalc = leftW - 24;
-  const normasHeight = normasMostradas.reduce((acc, n) => {
-    const texto = ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
-    const h = doc.heightOfString(texto, { width: itemTextWidthCalc, align: "left" });
-    return acc + h + 4;
-  }, 0) + (normasMostradas.length ? 18 : 0);
+  const normasHeight =
+    normasMostradas.reduce((acc, n) => {
+      const texto = ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
+      const h = doc.heightOfString(texto, {
+        width: itemTextWidthCalc,
+        align: "left",
+      });
+      return acc + h + 4;
+    }, 0) + (normasMostradas.length ? 18 : 0);
   const contentHeight = 28 + normasHeight + comentarioHeight + 12;
   let blockH = Math.max(contentHeight, imgH + 36);
   // NO limitar el bloque - asegurar que todo el contenido quepa
@@ -813,14 +914,23 @@ function drawFinding(
       const titulo = String(n.titulo || "").trim();
       const fuente = n.fuente ? String(n.fuente).trim() : "";
       const texto = fuente ? titulo + "  —  " + fuente : titulo;
-      const h = doc.heightOfString(texto, { width: itemTextWidth, align: "left" });
+      const h = doc.heightOfString(texto, {
+        width: itemTextWidth,
+        align: "left",
+      });
       const bulletColor = severityStyle(n.clasificacion).color;
-      doc.circle(leftX + 8, y + 4, bulletRadius).fillColor(bulletColor).fill();
+      doc
+        .circle(leftX + 8, y + 4, bulletRadius)
+        .fillColor(bulletColor)
+        .fill();
       doc
         .fillColor("#000")
         .font("Helvetica")
         .fontSize(9)
-        .text(texto, leftX + bulletIndent, y - 2, { width: itemTextWidth, height: h + 4 });
+        .text(texto, leftX + bulletIndent, y - 2, {
+          width: itemTextWidth,
+          height: h + 4,
+        });
       y += h + 4;
     });
     yCursor = y + 4;
@@ -833,7 +943,10 @@ function drawFinding(
       .fontSize(9)
       .fillColor("#000")
       .text("Comentario:", leftX, yCursor);
-    const commentH = doc.heightOfString(comentarioTxt, { width: leftW, align: "left" });
+    const commentH = doc.heightOfString(comentarioTxt, {
+      width: leftW,
+      align: "left",
+    });
     doc
       .font("Helvetica")
       .fontSize(9)
@@ -850,8 +963,8 @@ function drawFinding(
     Array.isArray(images) && images.length
       ? images.filter((p) => p && fs.existsSync(p)).slice(0, 1)
       : evidencia.image_path && fs.existsSync(evidencia.image_path)
-      ? [evidencia.image_path]
-      : [];
+        ? [evidencia.image_path]
+        : [];
   if (imgs.length) {
     try {
       // Marco general
@@ -882,7 +995,7 @@ router.get(
     try {
       const [proyRows] = await pool.query(
         "SELECT * FROM proyectos WHERE id = ?",
-        [id]
+        [id],
       );
       if (!proyRows || proyRows.length === 0)
         return res.status(404).json({ error: "Proyecto no encontrado" });
@@ -890,20 +1003,20 @@ router.get(
 
       const [tareasRows] = await pool.query(
         "SELECT * FROM tareas WHERE proyecto_id = ?",
-        [id]
+        [id],
       );
       const totalTareas = tareasRows.length;
       const completadas = tareasRows.filter(
-        (t) => Number(t.progreso) === 100
+        (t) => Number(t.progreso) === 100,
       ).length;
       const enProgreso = tareasRows.filter(
-        (t) => Number(t.progreso) > 0 && Number(t.progreso) < 100
+        (t) => Number(t.progreso) > 0 && Number(t.progreso) < 100,
       ).length;
       const tareasMap = Object.fromEntries(tareasRows.map((t) => [t.id, t]));
 
       const [fasesRows] = await pool.query(
         "SELECT * FROM fases WHERE proyecto_id = ?",
-        [id]
+        [id],
       );
 
       // Evidencias para el reporte (usaremos como "fotos")
@@ -916,7 +1029,7 @@ router.get(
       const whereSql = "WHERE " + where.join(" AND ");
       const [evidRows] = await pool.query(
         `SELECT * FROM evidencias ${whereSql} ORDER BY created_at ASC`,
-        params
+        params,
       );
 
       // Detectar evidencias especiales: PORTADA/INSTITUCION por tipo o marcador en comentario
@@ -924,8 +1037,10 @@ router.get(
         String(ev.evidence_type || "").toUpperCase() === "PORTADA";
       const isInstitucionType = (ev) =>
         String(ev.evidence_type || "").toUpperCase() === "INSTITUCIONAL";
-      const isTagged = (ev) => /\[(INSTITUCION|PORTADA)\]/i.test(String(ev.comentario || ""));
-      const isInstitucional = (ev) => isPortadaType(ev) || isInstitucionType(ev) || isTagged(ev);
+      const isTagged = (ev) =>
+        /\[(INSTITUCION|PORTADA)\]/i.test(String(ev.comentario || ""));
+      const isInstitucional = (ev) =>
+        isPortadaType(ev) || isInstitucionType(ev) || isTagged(ev);
       const portadaEv = evidRows.find(isPortadaType) || null;
       const institucional = portadaEv || evidRows.find(isInstitucional) || null;
       // Recopilar TODAS las imágenes institucionales para excluirlas de evidencias
@@ -935,10 +1050,12 @@ router.get(
         .filter((p) => p && fs.existsSync(p));
       const institucionalImagesSet = new Set(institucionalImages);
       const institucionalImagesSetNorm = new Set(
-        institucionalImages.map((p) => normalizePath(p))
+        institucionalImages.map((p) => normalizePath(p)),
       );
       const institucionalImage =
-        (portadaEv && portadaEv.image_path && fs.existsSync(portadaEv.image_path)
+        (portadaEv &&
+        portadaEv.image_path &&
+        fs.existsSync(portadaEv.image_path)
           ? portadaEv.image_path
           : null) ||
         (institucionalImages.length ? institucionalImages[0] : null);
@@ -954,7 +1071,9 @@ router.get(
 
       // Determinar cuál imagen se usará efectivamente en la portada
       const mainCoverPath =
-        (portadaEv && portadaEv.image_path && fs.existsSync(portadaEv.image_path)
+        (portadaEv &&
+        portadaEv.image_path &&
+        fs.existsSync(portadaEv.image_path)
           ? portadaEv.image_path
           : null) ||
         (institucionalImage && fs.existsSync(institucionalImage)
@@ -974,7 +1093,7 @@ router.get(
            INNER JOIN normas_repo nr ON nr.id = enr.norma_repo_id
            WHERE enr.evidencia_id IN (${placeholders})
            ORDER BY nr.categoria, nr.titulo`,
-          ids
+          ids,
         );
         byEvid = links.reduce((acc, r) => {
           (acc[r.evidencia_id] = acc[r.evidencia_id] || []).push(r);
@@ -985,13 +1104,14 @@ router.get(
       // Normas asociadas
       const [normasRows] = await pool.query(
         `SELECT n.* FROM normas n INNER JOIN proyecto_normas pn ON pn.norma_id = n.id WHERE pn.proyecto_id = ? ORDER BY n.titulo`,
-        [id]
+        [id],
       );
 
       // Crear PDF
       res.setHeader("Content-Type", "application/pdf");
       // Usar el indicador único (codigo del proyecto) como nombre de archivo, con fallback al ID
-      const rawCode = (proyecto && proyecto.codigo) ? String(proyecto.codigo) : "";
+      const rawCode =
+        proyecto && proyecto.codigo ? String(proyecto.codigo) : "";
       const safeCode = rawCode
         .trim()
         .replace(/\s+/g, "_")
@@ -999,10 +1119,7 @@ router.get(
       const filename = safeCode
         ? `${safeCode}.pdf`
         : `reporte_proyecto_${id}.pdf`;
-      res.setHeader(
-        "Content-Disposition",
-        `inline; filename=${filename}`
-      );
+      res.setHeader("Content-Disposition", `inline; filename=${filename}`);
       const doc = new PDFDocument({
         size: "A4",
         margin: 50,
@@ -1052,15 +1169,24 @@ router.get(
           const g = evidList[i];
           // Calcular altura estimada antes de dibujar para decidir salto
           const textoWidth = 495 - 200 - 30;
-          const comentarioHeight = doc.heightOfString(g.comentario || "Sin comentario", { width: textoWidth });
-          const normasHeight = (g.links || []).reduce((acc, n) => {
-            const texto = ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
-            const h = doc.heightOfString(texto, { width: textoWidth - 24, align: "left" });
-            return acc + h + 4;
-          }, 0) + (g.links && g.links.length ? 18 : 0);
+          const comentarioHeight = doc.heightOfString(
+            g.comentario || "Sin comentario",
+            { width: textoWidth },
+          );
+          const normasHeight =
+            (g.links || []).reduce((acc, n) => {
+              const texto = ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
+              const h = doc.heightOfString(texto, {
+                width: textoWidth - 24,
+                align: "left",
+              });
+              return acc + h + 4;
+            }, 0) + (g.links && g.links.length ? 18 : 0);
           const footerReserve = 28;
-          const pageBottomY = doc.page.height - doc.page.margins.bottom - footerReserve;
-          const contentHeight = 28 + normasHeight + (comentarioHeight + 14) + 12;
+          const pageBottomY =
+            doc.page.height - doc.page.margins.bottom - footerReserve;
+          const contentHeight =
+            28 + normasHeight + (comentarioHeight + 14) + 12;
           const estimatedHeight = Math.max(contentHeight, 115 + 36);
           if (y + estimatedHeight > pageBottomY) {
             doc.addPage();
@@ -1073,7 +1199,7 @@ router.get(
             { comentario: g.comentario, tarea_id: g.tareaId },
             y,
             g.links,
-            g.images.slice(0, 1)
+            g.images.slice(0, 1),
           );
           y += usedH + 8;
         }
@@ -1086,7 +1212,8 @@ router.get(
         const pageHeight = doc.page.height;
         const marginBottom = 50;
         const footerY = pageHeight - marginBottom - 10;
-        const w = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+        const w =
+          doc.page.width - doc.page.margins.left - doc.page.margins.right;
         doc.save();
         doc
           .font("Helvetica-Bold")
@@ -1106,7 +1233,7 @@ router.get(
       console.error("reporte proyecto error:", err);
       res.status(500).json({ error: "Error generando reporte" });
     }
-  }
+  },
 );
 
 module.exports = router;

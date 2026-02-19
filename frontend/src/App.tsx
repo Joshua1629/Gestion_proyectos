@@ -82,7 +82,7 @@ function Dashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
           </div>
         </div>
       </header>
-
+          
       {/* Contenido Principal */}
       <main className="main-content">
         {appState.currentView === 'dashboard' && (

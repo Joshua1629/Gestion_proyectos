@@ -27,7 +27,8 @@
     "build:frontend": "cd frontend && npm run build",
     "postinstall": "cd frontend && npm install",
     "pack": "npm run build:frontend && electron-builder --dir",
-    "dist": "npm run build:frontend && cross-env NODE_ENV=production electron-builder --win"
+    "build:icon": "node scripts/create-icon.js",
+    "dist": "npm run build:icon && npm run build:frontend && cross-env NODE_ENV=production electron-builder --win"
   },
   "devDependencies": {
     "concurrently": "^8.0.0",
@@ -35,7 +36,8 @@
     "electron": "^25.0.0",
     "electron-builder": "^24.0.0",
     "electron-rebuild": "^3.2.9",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "png-to-ico": "^3.0.1"
   },
   "build": {
     "appId": "com.tuempresa.gestion-proyectos",
@@ -98,6 +100,7 @@
           "logo.png",
           "logoapp.png",
           "icon_256.png",
+          "icon.ico",
           "cfia_seal.png",
           "cfia.png"
         ]
@@ -136,13 +139,13 @@
     "directories": {
       "output": "dist"
     },
-    "icon": "frontend/public/logoapp.png",
+    "icon": "frontend/public/icon.ico",
     "win": {
       "target": [
         "nsis"
       ],
       "signAndEditExecutable": false,
-      "icon": "frontend/public/logoapp.png"
+      "icon": "frontend/public/icon.ico"
     },
     "nsis": {
       "oneClick": false,

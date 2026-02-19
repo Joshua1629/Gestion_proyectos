@@ -403,51 +403,70 @@ function stopBackend() {
 }
 
 function createWindow() {
-  // Resolver icono (dev vs prod)
+  // Resolver icono (dev vs prod). En Windows preferir .ico para barra de tareas.
   let iconPath = null;
   try {
-    // Lista de candidatos para el icono (en orden de prioridad)
     const iconCandidates = [];
-    
-    // En desarrollo
+    const isWin = process.platform === "win32";
+
+    // En Windows, poner .ico primero (recomendado para barra de tareas)
+    if (isWin) {
+      iconCandidates.push(path.join(__dirname, "..", "frontend", "public", "icon.ico"));
+      if (process.resourcesPath) {
+        iconCandidates.push(
+          path.join(process.resourcesPath, "frontend", "public", "icon.ico"),
+          path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "icon.ico")
+        );
+      }
+      try {
+        const appPath = app.getAppPath();
+        iconCandidates.push(
+          path.join(appPath, "resources", "frontend", "public", "icon.ico"),
+          path.join(appPath, "..", "resources", "frontend", "public", "icon.ico")
+        );
+      } catch (_) {}
+    }
+
+    // Desarrollo
     iconCandidates.push(
       path.join(__dirname, "..", "frontend", "public", "logoapp.png"),
       path.join(__dirname, "..", "frontend", "public", "icon_256.png"),
       path.join(__dirname, "..", "frontend", "public", "logo.png")
     );
-    
-    // En producción (Electron empaquetado)
+
+    // Producción
     if (process.resourcesPath) {
       iconCandidates.push(
-        // Desde extraResources/frontend/public/
         path.join(process.resourcesPath, "frontend", "public", "logoapp.png"),
         path.join(process.resourcesPath, "frontend", "public", "icon_256.png"),
         path.join(process.resourcesPath, "frontend", "public", "logo.png"),
-        // Desde app.asar.unpacked/frontend/public/
         path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "logoapp.png"),
         path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "icon_256.png"),
         path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "logo.png"),
-        // Desde la raíz de resources (fallback)
         path.join(process.resourcesPath, "logoapp.png"),
         path.join(process.resourcesPath, "icon_256.png")
       );
     }
-    
-    // Buscar el primer icono que exista
+    try {
+      const appPath = app.getAppPath();
+      iconCandidates.push(
+        path.join(appPath, "resources", "frontend", "public", "logoapp.png"),
+        path.join(appPath, "resources", "frontend", "public", "logo.png"),
+        path.join(appPath, "..", "resources", "frontend", "public", "logoapp.png"),
+        path.join(appPath, "..", "resources", "frontend", "public", "logo.png")
+      );
+    } catch (_) {}
+
     for (const candidate of iconCandidates) {
       if (candidate && fs.existsSync(candidate)) {
-        iconPath = candidate;
-        console.log(`✅ Icono de ventana encontrado en: ${iconPath}`);
+        iconPath = path.resolve(candidate);
+        console.log(`✅ Icono de ventana: ${iconPath}`);
         break;
       }
     }
-    
+
     if (!iconPath) {
-      console.warn("⚠️ Icono de ventana no encontrado en ninguna ubicación. Rutas probadas:");
-      iconCandidates.forEach(c => {
-        if (c) console.warn(`   - ${c}`);
-      });
-      console.warn("⚠️ Se usará el icono por defecto de la plataforma");
+      console.warn("⚠️ Icono no encontrado. Ejecuta 'npm run build:icon' y vuelve a hacer 'npm run dist'.");
     }
   } catch (e) {
     console.error("❌ Error al resolver icono:", e);
@@ -463,6 +482,18 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+
+  // Windows: forzar icono en ventana y barra de tareas (ruta absoluta + repetir para que Windows lo aplique)
+  if (iconPath && process.platform === "win32") {
+    mainWindow.setIcon(iconPath);
+    mainWindow.once("ready-to-show", () => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setIcon(iconPath);
+    });
+    // Windows a veces actualiza la barra de tareas tarde; forzar de nuevo
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setIcon(iconPath);
+    }, 500);
+  }
   
   // Abrir DevTools automáticamente para ver errores
   //mainWindow.webContents.openDevTools();
