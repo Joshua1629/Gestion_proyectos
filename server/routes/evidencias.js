@@ -229,8 +229,9 @@ router.post(
   checkValidation,
   async (req, res) => {
     try {
-      const files = req.files || [];
-      if (!Array.isArray(files) || files.length === 0) return res.status(400).json({ error: 'Se requiere al menos una imagen' });
+      // Invertir orden para respetar el orden de selección del usuario (primera seleccionada = primera en lista)
+      const files = Array.isArray(req.files) ? [...req.files].reverse() : [];
+      if (files.length === 0) return res.status(400).json({ error: 'Se requiere al menos una imagen' });
   const { proyectoId, tareaId, comentario } = req.body;
       const pId = Number(proyectoId);
       const tId = (tareaId === undefined || tareaId === null || tareaId === '' ? null : Number(tareaId));
