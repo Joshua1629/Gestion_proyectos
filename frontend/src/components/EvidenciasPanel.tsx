@@ -5,7 +5,7 @@ import {
   uploadEvidencia,
   deleteEvidencia,
   updateEvidencia,
-  reorderEvidencias,
+  swapEvidencias,
 } from "../services/evidencias";
 import { type Tarea } from "../services/tareas";
 import "../css/EvidenciasPanel.css";
@@ -62,7 +62,7 @@ export default function EvidenciasPanel({
       setError(null);
     }
     try {
-      const res = await getEvidencias({ proyectoId, limit: 100 });
+      const res = await getEvidencias({ proyectoId, limit: 100, order: 'recent' });
       const list: Evidencia[] = (res.items || []).map((e: Evidencia) => ({
         ...e,
         imageUrl: normalizeImageUrl(e.imageUrl),
@@ -218,15 +218,16 @@ export default function EvidenciasPanel({
     const fromIndex = items.findIndex((i) => i.id === draggedEvId);
     const toIndex = items.findIndex((i) => i.id === targetEvId);
     if (fromIndex === -1 || toIndex === -1) return;
+    // Intercambio de dos: solo se aplica al orden del reporte; en el panel se refleja el swap visual
     const reordered = [...items];
     const [removed] = reordered.splice(fromIndex, 1);
     reordered.splice(toIndex, 0, removed);
     setItems(reordered);
     try {
       setError(null);
-      await reorderEvidencias(proyectoId, reordered.map((i) => i.id));
+      await swapEvidencias(proyectoId, draggedEvId, targetEvId);
     } catch (err: any) {
-      setError(err?.detail || err?.error || err?.message || "Error al guardar el orden");
+      setError(err?.detail || err?.error || err?.message || "Error al guardar el intercambio");
       await load(true);
     }
   }
@@ -286,7 +287,7 @@ export default function EvidenciasPanel({
           </button>
         </div>
         <div className="muted xsmall" style={{ marginTop: 4 }}>
-          Sube imágenes individualmente. Arrastra las tarjetas para cambiar el orden (se aplica en el reporte PDF).
+          Sube imágenes individualmente. Panel: más reciente primero. Arrastra una tarjeta sobre otra para intercambiarlas; ese cambio se aplica solo en el reporte PDF (orden cronológico + intercambios).
         </div>
       </form>
 

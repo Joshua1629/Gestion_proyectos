@@ -331,8 +331,13 @@ router.get(
       if (!wantGroups) {
         const [countRows] = await pool.query(`SELECT COUNT(*) as total FROM evidencias ${whereSql}`, params);
         const total = countRows[0]?.total || 0;
+        // order=recent → panel: más reciente primero (created_at DESC); por defecto → orden para reporte (sort_order ASC)
+        const orderRecent = String(req.query.order || '').toLowerCase() === 'recent';
+        const orderClause = orderRecent
+          ? 'ORDER BY created_at DESC, id DESC'
+          : 'ORDER BY COALESCE(sort_order, 999999) ASC, created_at ASC';
         const [rows] = await pool.query(
-          `SELECT * FROM evidencias ${whereSql} ORDER BY COALESCE(sort_order, 999999) ASC, created_at ASC LIMIT ? OFFSET ?`,
+          `SELECT * FROM evidencias ${whereSql} ${orderClause} LIMIT ? OFFSET ?`,
           [...params, Number(limit), Number(offset)]
         );
         const items = rows.map(r => {
@@ -408,7 +413,35 @@ router.get(
   }
 );
 
-// PUT /api/evidencias/reorder — orden manual para reportes (orderedIds = [id1, id2, ...])
+// PUT /api/evidencias/swap — intercambiar orden de dos evidencias (solo afecta al reporte; orden cronológico + este cambio)
+router.put('/swap', [
+  body('proyectoId').isInt({ min: 1 }).toInt(),
+  body('id1').isInt({ min: 1 }).toInt(),
+  body('id2').isInt({ min: 1 }).toInt()
+], checkValidation, async (req, res) => {
+  try {
+    const { proyectoId, id1, id2 } = req.body;
+    if (id1 === id2) return res.status(400).json({ error: 'Los dos IDs deben ser distintos' });
+    const [rows] = await pool.query(
+      'SELECT id, sort_order FROM evidencias WHERE proyecto_id = ? AND id IN (?, ?)',
+      [proyectoId, id1, id2]
+    );
+    if (!rows || rows.length !== 2) {
+      return res.status(400).json({ error: 'Ambas evidencias deben pertenecer al proyecto' });
+    }
+    const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
+    const order1 = byId[id1]?.sort_order ?? null;
+    const order2 = byId[id2]?.sort_order ?? null;
+    await pool.query('UPDATE evidencias SET sort_order = ? WHERE id = ? AND proyecto_id = ?', [order2, id1, proyectoId]);
+    await pool.query('UPDATE evidencias SET sort_order = ? WHERE id = ? AND proyecto_id = ?', [order1, id2, proyectoId]);
+    res.json({ ok: true, id1, id2 });
+  } catch (err) {
+    console.error('swap evidencias error:', err);
+    res.status(500).json({ error: 'Error al intercambiar evidencias' });
+  }
+});
+
+// PUT /api/evidencias/reorder — orden manual completo (orderedIds = [id1, id2, ...]); se mantiene por compatibilidad
 router.put('/reorder', [
   body('proyectoId').isInt({ min: 1 }).toInt(),
   body('orderedIds').isArray(),

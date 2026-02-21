@@ -47,7 +47,7 @@ export async function uploadEvidencia(params: { file: File; proyectoId: number; 
   });
 }
 
-export async function getEvidencias(filters: { proyectoId: number; tareaId?: number; categoria?: Categoria; tipo?: string; page?: number; limit?: number }) {
+export async function getEvidencias(filters: { proyectoId: number; tareaId?: number; categoria?: Categoria; tipo?: string; page?: number; limit?: number; order?: 'recent' | 'report' }) {
   const q = new URLSearchParams();
   q.set('proyectoId', String(filters.proyectoId));
   if (filters.tareaId) q.set('tareaId', String(filters.tareaId));
@@ -55,6 +55,7 @@ export async function getEvidencias(filters: { proyectoId: number; tareaId?: num
   if (filters.tipo) q.set('tipo', String(filters.tipo));
   if (filters.page) q.set('page', String(filters.page));
   if (filters.limit) q.set('limit', String(filters.limit));
+  if (filters.order) q.set('order', filters.order);
   return appFetch(`${API}?${q.toString()}`);
 }
 
@@ -138,6 +139,15 @@ export async function deleteEvidencia(id: number) {
 }
 
 /** Reordenar evidencias del proyecto; el orden se usa en reportes PDF. */
+export async function swapEvidencias(proyectoId: number, id1: number, id2: number) {
+  return appFetch(`${API}/swap`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ proyectoId, id1, id2 }),
+    asJson: true
+  });
+}
+
 export async function reorderEvidencias(proyectoId: number, orderedIds: number[]) {
   return appFetch(`${API}/reorder`, {
     method: 'PUT',
