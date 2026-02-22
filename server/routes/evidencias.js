@@ -311,7 +311,7 @@ router.get(
   query('tipo').optional().isString().isLength({ max: 50 }),
     query('group').optional().isIn(['true','false']),
     query('page').optional().isInt({ min: 1 }).toInt(),
-    query('limit').optional().isInt({ min: 1, max: 100 }).toInt()
+    query('limit').optional().isInt({ min: 1, max: 500 }).toInt()
   ],
   checkValidation,
   async (req, res) => {

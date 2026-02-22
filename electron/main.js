@@ -496,7 +496,7 @@ function createWindow() {
   }
   
   // Abrir DevTools automáticamente para ver errores
-  //mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
   
   // También mostrar errores en una ventana de consola
   if (!isDev) {
@@ -555,6 +555,7 @@ function createWindow() {
       })
       .then(() => {
         // DevTools removido - no abrir automáticamente
+           
         // Reforzar online
         setTimeout(() => {
           try {

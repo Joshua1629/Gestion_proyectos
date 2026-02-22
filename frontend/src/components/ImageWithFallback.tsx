@@ -7,6 +7,7 @@ type Props = {
   className?: string;
   placeholder?: string; // data URL o ruta local
   preferIpc?: boolean; // en Electron: intentar primero vía IPC para evitar errores en consola
+  draggable?: boolean; // false para que no robe el drag cuando la imagen está dentro de un card draggable
 };
 
 // Carga una imagen desde URL http(s). Si falla por restricciones de red del renderer (ERR_INTERNET_DISCONNECTED),
@@ -18,6 +19,7 @@ export default function ImageWithFallback({
   className,
   placeholder,
   preferIpc = true,
+  draggable = true,
 }: Props) {
   // Iniciar sin src para evitar que el navegador dispare un GET inmediato
   const [imgSrc, setImgSrc] = useState<string | undefined>(undefined);
@@ -94,6 +96,7 @@ export default function ImageWithFallback({
       alt={alt}
       style={style}
       className={className}
+      draggable={draggable}
       onError={() => {
         void tryFallback();
       }}

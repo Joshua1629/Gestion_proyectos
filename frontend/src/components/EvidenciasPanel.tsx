@@ -34,15 +34,21 @@ export default function EvidenciasPanel({
   const [normasCount, setNormasCount] = useState<Record<number, number>>({});
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editComentario, setEditComentario] = useState("");
-  const [savingComentarioId, setSavingComentarioId] = useState<number | null>(null);
-  const [confirmDeleteComentarioId, setConfirmDeleteComentarioId] = useState<number | null>(null);
+  const [savingComentarioId, setSavingComentarioId] = useState<number | null>(
+    null,
+  );
+  const [confirmDeleteComentarioId, setConfirmDeleteComentarioId] = useState<
+    number | null
+  >(null);
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
   const comentarioInputRef = useRef<HTMLInputElement>(null);
+  const draggedIdRef = useRef<number | null>(null);
+  const dropTargetIdRef = useRef<number | null>(null);
 
   const tareasById = useMemo(
     () => Object.fromEntries((tareas || []).map((t) => [t.id, t])),
-    [tareas]
+    [tareas],
   );
 
   function normalizeImageUrl(url?: string | null) {
@@ -62,7 +68,11 @@ export default function EvidenciasPanel({
       setError(null);
     }
     try {
-      const res = await getEvidencias({ proyectoId, limit: 100, order: 'recent' });
+      const res = await getEvidencias({
+        proyectoId,
+        limit: 500,
+        order: "recent",
+      });
       const list: Evidencia[] = (res.items || []).map((e: Evidencia) => ({
         ...e,
         imageUrl: normalizeImageUrl(e.imageUrl),
@@ -79,7 +89,7 @@ export default function EvidenciasPanel({
           } catch {
             counts[ev.id] = 0;
           }
-        })
+        }),
       );
       setNormasCount(counts);
     } catch (e: any) {
@@ -109,7 +119,7 @@ export default function EvidenciasPanel({
           const prev = await getEvidencias({
             proyectoId,
             tipo: "INSTITUCIONAL",
-            limit: 100,
+            limit: 500,
           });
           for (const p of prev.items || []) {
             try {
@@ -140,7 +150,7 @@ export default function EvidenciasPanel({
       await load();
     } catch (e: any) {
       setError(
-        e?.detail || e?.error || e?.message || "Error al subir evidencia"
+        e?.detail || e?.error || e?.message || "Error al subir evidencia",
       );
     } finally {
       setLoading(false);
@@ -157,12 +167,16 @@ export default function EvidenciasPanel({
     try {
       setSavingComentarioId(evidenciaId);
       setError(null);
-      await updateEvidencia(evidenciaId, { comentario: editComentario.trim() || undefined });
+      await updateEvidencia(evidenciaId, {
+        comentario: editComentario.trim() || undefined,
+      });
       setEditingId(null);
       setEditComentario("");
       await load(true);
     } catch (e: any) {
-      setError(e?.detail || e?.error || e?.message || "Error al actualizar comentario");
+      setError(
+        e?.detail || e?.error || e?.message || "Error al actualizar comentario",
+      );
     } finally {
       setSavingComentarioId(null);
       restoreFocusToForm();
@@ -185,7 +199,9 @@ export default function EvidenciasPanel({
       setEditComentario("");
       await load(true);
     } catch (e: any) {
-      setError(e?.detail || e?.error || e?.message || "Error al borrar comentario");
+      setError(
+        e?.detail || e?.error || e?.message || "Error al borrar comentario",
+      );
     } finally {
       setSavingComentarioId(null);
       restoreFocusToForm();
@@ -194,13 +210,28 @@ export default function EvidenciasPanel({
 
   function handleDragStart(e: React.DragEvent, evId: number) {
     setDraggedId(evId);
+    draggedIdRef.current = evId;
     e.dataTransfer.setData("text/plain", String(evId));
     e.dataTransfer.effectAllowed = "move";
+    try {
+      const img = new Image();
+      img.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+      img.width = 1;
+      img.height = 1;
+      e.dataTransfer.setDragImage(img, 0, 0);
+    } catch {
+      // ignorar si setDragImage falla
+    }
+    if (typeof window !== "undefined" && (window as any).__logDrop) {
+      console.log("[Evidencias] dragStart evId:", evId);
+    }
   }
 
   function handleDragOver(e: React.DragEvent, evId: number) {
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = "move";
+    dropTargetIdRef.current = evId;
     setDropTargetId(evId);
   }
 
@@ -208,33 +239,55 @@ export default function EvidenciasPanel({
     setDropTargetId(null);
   }
 
-  async function handleDrop(e: React.DragEvent, targetEvId: number) {
+  function handleDrop(e: React.DragEvent, targetEvId: number) {
     e.preventDefault();
+    e.stopPropagation();
     setDropTargetId(null);
     setDraggedId(null);
-    const raw = e.dataTransfer.getData("text/plain");
-    const draggedEvId = raw ? Number(raw) : null;
-    if (draggedEvId == null || draggedEvId === targetEvId || !proyectoId) return;
-    const fromIndex = items.findIndex((i) => i.id === draggedEvId);
-    const toIndex = items.findIndex((i) => i.id === targetEvId);
-    if (fromIndex === -1 || toIndex === -1) return;
-    // Intercambio de dos: solo se aplica al orden del reporte; en el panel se refleja el swap visual
-    const reordered = [...items];
-    const [removed] = reordered.splice(fromIndex, 1);
-    reordered.splice(toIndex, 0, removed);
-    setItems(reordered);
-    try {
-      setError(null);
-      await swapEvidencias(proyectoId, draggedEvId, targetEvId);
-    } catch (err: any) {
-      setError(err?.detail || err?.error || err?.message || "Error al guardar el intercambio");
-      await load(true);
+    const draggedEvId = draggedIdRef.current ?? (e.dataTransfer.getData("text/plain") ? Number(e.dataTransfer.getData("text/plain")) : null);
+    draggedIdRef.current = null;
+    dropTargetIdRef.current = null;
+    if (typeof window !== "undefined" && (window as any).__logDrop) {
+      console.log("[Evidencias] drop targetEvId:", targetEvId, "draggedEvId:", draggedEvId, "proyectoId:", proyectoId);
     }
+    if (draggedEvId == null || !proyectoId) return;
+    if (targetEvId === draggedEvId) return;
+    const dId = Number(draggedEvId);
+    const tId = Number(targetEvId);
+    setItems((prev) => {
+      const fromIndex = prev.findIndex((i) => Number(i.id) === dId);
+      const toIndex = prev.findIndex((i) => Number(i.id) === tId);
+      if (fromIndex === -1 || toIndex === -1) {
+        if (typeof window !== "undefined" && (window as any).__logDrop) {
+          console.warn("[Evidencias] índices no encontrados fromIndex:", fromIndex, "toIndex:", toIndex, "ids en lista:", prev.map((i) => i.id));
+        }
+        return prev;
+      }
+      const reordered = [...prev];
+      reordered[fromIndex] = prev[toIndex];
+      reordered[toIndex] = prev[fromIndex];
+      return reordered;
+    });
+    (async () => {
+      try {
+        setError(null);
+        await swapEvidencias(proyectoId, dId, tId);
+      } catch (err: any) {
+        setError(
+          err?.detail ||
+            err?.error ||
+            err?.message ||
+            "Error al guardar el intercambio",
+        );
+      }
+    })();
   }
 
   function handleDragEnd() {
     setDraggedId(null);
     setDropTargetId(null);
+    draggedIdRef.current = null;
+    dropTargetIdRef.current = null;
   }
 
   return (
@@ -287,7 +340,7 @@ export default function EvidenciasPanel({
           </button>
         </div>
         <div className="muted xsmall" style={{ marginTop: 4 }}>
-          Sube imágenes individualmente. Panel: más reciente primero. Arrastra una tarjeta sobre otra para intercambiarlas; ese cambio se aplica solo en el reporte PDF (orden cronológico + intercambios).
+        Sube imágenes individualmente. Arrastra las tarjetas para cambiar el orden (se aplica en el reporte PDF).
         </div>
       </form>
 
@@ -298,13 +351,18 @@ export default function EvidenciasPanel({
       {loading ? (
         <div>Cargando...</div>
       ) : (
-        <div className="evidencias-grid" style={{ marginTop: 12 }}>
+        <div
+          className="evidencias-grid"
+          style={{ marginTop: 12 }}
+          onDragOver={(e) => e.preventDefault()}
+        >
           {items.length === 0 ? (
             <div className="empty-state">No hay evidencias</div>
           ) : (
             items.map((ev) => (
               <div
                 key={ev.id}
+                data-evidencia-id={ev.id}
                 className={`evidencia-card ${dropTargetId === ev.id ? "evidencia-card--drop-target" : ""} ${draggedId === ev.id ? "evidencia-card--dragging" : ""}`}
                 draggable
                 onDragStart={(e) => handleDragStart(e, ev.id)}
@@ -315,12 +373,13 @@ export default function EvidenciasPanel({
               >
                 <div className="evidencia-thumb">
                   {ev.imageUrl ? (
-                    <ImageWithFallback
-                      src={ev.imageUrl}
-                      alt={ev.comentario || "foto"}
-                      placeholder={IMG_PLACEHOLDER}
-                      preferIpc={true}
-                    />
+<ImageWithFallback
+                    src={ev.imageUrl}
+                    alt={ev.comentario || "foto"}
+                    placeholder={IMG_PLACEHOLDER}
+                    preferIpc={true}
+                    draggable={false}
+                  />
                   ) : (
                     <div className="muted small" style={{ padding: 8 }}>
                       Sin imagen
@@ -455,22 +514,32 @@ export default function EvidenciasPanel({
       {confirmDeleteComentarioId !== null && (
         <div
           className="modal-backdrop"
-          onClick={() => !savingComentarioId && setConfirmDeleteComentarioId(null)}
+          onClick={() =>
+            !savingComentarioId && setConfirmDeleteComentarioId(null)
+          }
         >
-          <div className="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal"
+            style={{ maxWidth: 400 }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <div className="modal-title">Eliminar comentario</div>
               <button
                 type="button"
                 className="close"
-                onClick={() => !savingComentarioId && setConfirmDeleteComentarioId(null)}
+                onClick={() =>
+                  !savingComentarioId && setConfirmDeleteComentarioId(null)
+                }
                 disabled={savingComentarioId !== null}
               >
                 &times;
               </button>
             </div>
             <div className="modal-body">
-              <p style={{ margin: 0 }}>¿Eliminar el comentario de esta evidencia?</p>
+              <p style={{ margin: 0 }}>
+                ¿Eliminar el comentario de esta evidencia?
+              </p>
             </div>
             <div className="modal-footer">
               <button
