@@ -343,7 +343,7 @@ export default function EvidenciasPanel({
           </button>
         </div>
         <div className="muted xsmall" style={{ marginTop: 4 }}>
-        Panel (sin portada): más reciente primero, más antigua al final. PDF: al revés (primera subida = 1.ª evidencia). Si arrastras una tarjeta sobre otra, solo esas dos cambian de posición en el panel y en el PDF.
+         Sube imágenes individualmente. Arrastra las tarjetas para cambiar el orden (se aplica en el reporte PDF).
         </div>
       </form>
 
