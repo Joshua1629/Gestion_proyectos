@@ -1027,8 +1027,20 @@ router.get(
         params.push(String(categoria));
       }
       const whereSql = "WHERE " + where.join(" AND ");
+      // Si todas las evidencias del proyecto tienen sort_order NULL, inicializar por created_at (base cronológica)
+      const [countAll] = await pool.query(`SELECT COUNT(*) AS c FROM evidencias ${whereSql}`, params);
+      const [countNull] = await pool.query(`SELECT COUNT(*) AS c FROM evidencias ${whereSql} AND sort_order IS NULL`, params);
+      const total = (countAll && countAll[0] && countAll[0].c) || 0;
+      const nullCount = (countNull && countNull[0] && countNull[0].c) || 0;
+      if (total > 0 && nullCount === total) {
+        const [ids] = await pool.query(`SELECT id FROM evidencias ${whereSql} ORDER BY created_at ASC, id ASC`, params);
+        for (let i = 0; i < (ids || []).length; i++) {
+          await pool.query("UPDATE evidencias SET sort_order = ? WHERE id = ? AND proyecto_id = ?", [i + 1, ids[i].id, id]);
+        }
+      }
+      // Orden base cronológico (sort_order); los intercambios manuales solo cambian esas dos posiciones
       const [evidRows] = await pool.query(
-        `SELECT * FROM evidencias ${whereSql} ORDER BY COALESCE(sort_order, 999999) ASC, created_at ASC`,
+        `SELECT * FROM evidencias ${whereSql} ORDER BY CAST(COALESCE(sort_order, 999999) AS INTEGER) ASC, created_at ASC`,
         params,
       );
 
@@ -1109,6 +1121,7 @@ router.get(
 
       // Crear PDF
       res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
       // Usar el indicador único (codigo del proyecto) como nombre de archivo, con fallback al ID
       const rawCode =
         proyecto && proyecto.codigo ? String(proyecto.codigo) : "";

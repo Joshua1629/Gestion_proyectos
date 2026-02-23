@@ -331,11 +331,11 @@ router.get(
       if (!wantGroups) {
         const [countRows] = await pool.query(`SELECT COUNT(*) as total FROM evidencias ${whereSql}`, params);
         const total = countRows[0]?.total || 0;
-        // order=recent → panel: más reciente primero (created_at DESC); por defecto → orden para reporte (sort_order ASC)
+        // order=recent → panel: inverso al PDF (sort_order DESC = más reciente primero); sin recent → orden reporte (sort_order ASC)
         const orderRecent = String(req.query.order || '').toLowerCase() === 'recent';
         const orderClause = orderRecent
-          ? 'ORDER BY created_at DESC, id DESC'
-          : 'ORDER BY COALESCE(sort_order, 999999) ASC, created_at ASC';
+          ? 'ORDER BY CAST(COALESCE(sort_order, 0) AS INTEGER) DESC, created_at DESC'
+          : 'ORDER BY CAST(COALESCE(sort_order, 999999) AS INTEGER) ASC, created_at ASC';
         const [rows] = await pool.query(
           `SELECT * FROM evidencias ${whereSql} ${orderClause} LIMIT ? OFFSET ?`,
           [...params, Number(limit), Number(offset)]
@@ -365,7 +365,7 @@ router.get(
       // Modo agrupado
       const [rows] = await pool.query(
         `SELECT id, proyecto_id, tarea_id, comentario, image_path, mime_type, size_bytes, created_at, group_key, evidence_type
-         FROM evidencias ${whereSql} ORDER BY COALESCE(sort_order, 999999) ASC, created_at ASC`,
+         FROM evidencias ${whereSql} ORDER BY CAST(COALESCE(sort_order, 999999) AS INTEGER) ASC, created_at ASC`,
         params
       );
       const map = new Map();
@@ -413,7 +413,7 @@ router.get(
   }
 );
 
-// PUT /api/evidencias/swap — intercambiar orden de dos evidencias (solo afecta al reporte; orden cronológico + este cambio)
+// PUT /api/evidencias/swap — intercambiar orden de dos evidencias; en el reporte solo cambian esas dos posiciones
 router.put('/swap', [
   body('proyectoId').isInt({ min: 1 }).toInt(),
   body('id1').isInt({ min: 1 }).toInt(),
@@ -429,11 +429,27 @@ router.put('/swap', [
     if (!rows || rows.length !== 2) {
       return res.status(400).json({ error: 'Ambas evidencias deben pertenecer al proyecto' });
     }
-    const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
-    const order1 = byId[id1]?.sort_order ?? null;
-    const order2 = byId[id2]?.sort_order ?? null;
-    await pool.query('UPDATE evidencias SET sort_order = ? WHERE id = ? AND proyecto_id = ?', [order2, id1, proyectoId]);
-    await pool.query('UPDATE evidencias SET sort_order = ? WHERE id = ? AND proyecto_id = ?', [order1, id2, proyectoId]);
+    const byId = {};
+    rows.forEach((r) => {
+      const id = r.id;
+      byId[id] = byId[Number(id)] = r;
+    });
+    const row1 = byId[id1] || byId[Number(id1)];
+    const row2 = byId[id2] || byId[Number(id2)];
+    let order1 = row1 && (row1.sort_order != null) ? Number(row1.sort_order) : null;
+    let order2 = row2 && (row2.sort_order != null) ? Number(row2.sort_order) : null;
+    if (order1 == null || order2 == null) {
+      const [maxRows] = await pool.query('SELECT COALESCE(MAX(sort_order),0) AS m FROM evidencias WHERE proyecto_id = ?', [proyectoId]);
+      const maxRow = maxRows && maxRows[0];
+      const base = (maxRow && maxRow.m != null) ? Number(maxRow.m) + 1 : 1;
+      if (order1 == null) order1 = base;
+      if (order2 == null) order2 = base + 1;
+    }
+    const o1 = Number(order1);
+    const o2 = Number(order2);
+    await pool.query('UPDATE evidencias SET sort_order = ? WHERE id = ? AND proyecto_id = ?', [o2, id1, proyectoId]);
+    await pool.query('UPDATE evidencias SET sort_order = ? WHERE id = ? AND proyecto_id = ?', [o1, id2, proyectoId]);
+    console.log('[evidencias/swap] aplicado: proyectoId=%s id1=%s -> sort_order=%s, id2=%s -> sort_order=%s', proyectoId, id1, o2, id2, o1);
     res.json({ ok: true, id1, id2 });
   } catch (err) {
     console.error('swap evidencias error:', err);

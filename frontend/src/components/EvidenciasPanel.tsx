@@ -42,6 +42,7 @@ export default function EvidenciasPanel({
   >(null);
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const comentarioInputRef = useRef<HTMLInputElement>(null);
   const draggedIdRef = useRef<number | null>(null);
   const dropTargetIdRef = useRef<number | null>(null);
@@ -272,6 +273,8 @@ export default function EvidenciasPanel({
       try {
         setError(null);
         await swapEvidencias(proyectoId, dId, tId);
+        setSuccessMsg("Orden guardado. Exporta de nuevo el PDF para ver el cambio.");
+        setTimeout(() => setSuccessMsg(null), 4000);
       } catch (err: any) {
         setError(
           err?.detail ||
@@ -340,12 +343,13 @@ export default function EvidenciasPanel({
           </button>
         </div>
         <div className="muted xsmall" style={{ marginTop: 4 }}>
-        Sube imágenes individualmente. Arrastra las tarjetas para cambiar el orden (se aplica en el reporte PDF).
+        Panel (sin portada): más reciente primero, más antigua al final. PDF: al revés (primera subida = 1.ª evidencia). Si arrastras una tarjeta sobre otra, solo esas dos cambian de posición en el panel y en el PDF.
         </div>
       </form>
 
       {/* Filtros eliminados */}
 
+      {successMsg && <div className="success-message" style={{ marginTop: 8, color: "var(--success, #0a0)" }}>{successMsg}</div>}
       {error && <div className="error-message">{error}</div>}
 
       {loading ? (
