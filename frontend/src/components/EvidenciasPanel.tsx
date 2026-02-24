@@ -5,12 +5,13 @@ import {
   uploadEvidencia,
   deleteEvidencia,
   updateEvidencia,
-  swapEvidencias,
+  reorderEvidencias,
 } from "../services/evidencias";
 import { type Tarea } from "../services/tareas";
 import "../css/EvidenciasPanel.css";
 import ImageWithFallback from "./ImageWithFallback";
 import EvidenciaNormasModal from "./EvidenciaNormasModal";
+import EvidenciaAbrirModal from "./EvidenciaAbrirModal";
 import Icon from "./Icon";
 import { listNormasRepoByEvidencia } from "../services/evidencias";
 export default function EvidenciasPanel({
@@ -31,6 +32,7 @@ export default function EvidenciasPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showNormasFor, setShowNormasFor] = useState<number | null>(null);
+  const [openAbrirEvidencia, setOpenAbrirEvidencia] = useState<Evidencia | null>(null);
   const [normasCount, setNormasCount] = useState<Record<number, number>>({});
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editComentario, setEditComentario] = useState("");
@@ -42,6 +44,7 @@ export default function EvidenciasPanel({
   >(null);
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
+  const [dropZoneInsertIndex, setDropZoneInsertIndex] = useState<number | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const comentarioInputRef = useRef<HTMLInputElement>(null);
   const draggedIdRef = useRef<number | null>(null);
@@ -240,47 +243,79 @@ export default function EvidenciasPanel({
     setDropTargetId(null);
   }
 
-  function handleDrop(e: React.DragEvent, targetEvId: number) {
+  /** Inserta la evidencia arrastrada en la posición insertAtIndex (0 = primera, 1 = entre 1.ª y 2.ª, etc.). */
+  function handleDropAtPosition(e: React.DragEvent, insertAtIndex: number) {
     e.preventDefault();
     e.stopPropagation();
     setDropTargetId(null);
+    setDropZoneInsertIndex(null);
     setDraggedId(null);
     const draggedEvId = draggedIdRef.current ?? (e.dataTransfer.getData("text/plain") ? Number(e.dataTransfer.getData("text/plain")) : null);
     draggedIdRef.current = null;
     dropTargetIdRef.current = null;
-    if (typeof window !== "undefined" && (window as any).__logDrop) {
-      console.log("[Evidencias] drop targetEvId:", targetEvId, "draggedEvId:", draggedEvId, "proyectoId:", proyectoId);
-    }
     if (draggedEvId == null || !proyectoId) return;
-    if (targetEvId === draggedEvId) return;
     const dId = Number(draggedEvId);
-    const tId = Number(targetEvId);
-    setItems((prev) => {
-      const fromIndex = prev.findIndex((i) => Number(i.id) === dId);
-      const toIndex = prev.findIndex((i) => Number(i.id) === tId);
-      if (fromIndex === -1 || toIndex === -1) {
-        if (typeof window !== "undefined" && (window as any).__logDrop) {
-          console.warn("[Evidencias] índices no encontrados fromIndex:", fromIndex, "toIndex:", toIndex, "ids en lista:", prev.map((i) => i.id));
-        }
-        return prev;
-      }
-      const reordered = [...prev];
-      reordered[fromIndex] = prev[toIndex];
-      reordered[toIndex] = prev[fromIndex];
-      return reordered;
-    });
+    const fromIndex = items.findIndex((i) => Number(i.id) === dId);
+    if (fromIndex === -1) return;
+    // No hacer nada si soltamos en la misma posición (antes o después del mismo ítem).
+    if (insertAtIndex === fromIndex || insertAtIndex === fromIndex + 1) return;
+    const reordered = [...items];
+    const [moved] = reordered.splice(fromIndex, 1);
+    const insertIndex = fromIndex < insertAtIndex ? insertAtIndex - 1 : insertAtIndex;
+    reordered.splice(insertIndex, 0, moved);
+    setItems(reordered);
     (async () => {
       try {
         setError(null);
-        await swapEvidencias(proyectoId, dId, tId);
-        setSuccessMsg("Orden guardado. Exporta de nuevo el PDF para ver el cambio.");
+        const orderedIds = reordered.slice().reverse().map((i) => i.id);
+        await reorderEvidencias(proyectoId, orderedIds);
+        setSuccessMsg("Orden guardado. El PDF usará este orden al exportar.");
         setTimeout(() => setSuccessMsg(null), 4000);
       } catch (err: any) {
         setError(
           err?.detail ||
             err?.error ||
             err?.message ||
-            "Error al guardar el intercambio",
+            "Error al guardar el orden",
+        );
+      }
+    })();
+  }
+
+  /** Al soltar sobre otra tarjeta: intercambiar las dos evidencias. */
+  function handleDrop(e: React.DragEvent, targetEvId: number) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropTargetId(null);
+    setDropZoneInsertIndex(null);
+    setDraggedId(null);
+    const draggedEvId = draggedIdRef.current ?? (e.dataTransfer.getData("text/plain") ? Number(e.dataTransfer.getData("text/plain")) : null);
+    draggedIdRef.current = null;
+    dropTargetIdRef.current = null;
+    if (draggedEvId == null || !proyectoId) return;
+    if (targetEvId === draggedEvId) return;
+    const dId = Number(draggedEvId);
+    const tId = Number(targetEvId);
+    const fromIndex = items.findIndex((i) => Number(i.id) === dId);
+    const toIndex = items.findIndex((i) => Number(i.id) === tId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const reordered = [...items];
+    reordered[fromIndex] = items[toIndex];
+    reordered[toIndex] = items[fromIndex];
+    setItems(reordered);
+    (async () => {
+      try {
+        setError(null);
+        const orderedIds = reordered.slice().reverse().map((i) => i.id);
+        await reorderEvidencias(proyectoId, orderedIds);
+        setSuccessMsg("Orden guardado. El PDF usará este orden al exportar.");
+        setTimeout(() => setSuccessMsg(null), 4000);
+      } catch (err: any) {
+        setError(
+          err?.detail ||
+            err?.error ||
+            err?.message ||
+            "Error al guardar el orden",
         );
       }
     })();
@@ -289,6 +324,7 @@ export default function EvidenciasPanel({
   function handleDragEnd() {
     setDraggedId(null);
     setDropTargetId(null);
+    setDropZoneInsertIndex(null);
     draggedIdRef.current = null;
     dropTargetIdRef.current = null;
   }
@@ -343,7 +379,7 @@ export default function EvidenciasPanel({
           </button>
         </div>
         <div className="muted xsmall" style={{ marginTop: 4 }}>
-         Sube imágenes individualmente. Arrastra las tarjetas para cambiar el orden (se aplica en el reporte PDF).
+         Sube imágenes individualmente. Arrastra una tarjeta: suéltala en el espacio entre dos evidencias para insertarla ahí, o sobre otra tarjeta para intercambiarlas (el orden se aplica en el reporte PDF).
         </div>
       </form>
 
@@ -363,18 +399,36 @@ export default function EvidenciasPanel({
           {items.length === 0 ? (
             <div className="empty-state">No hay evidencias</div>
           ) : (
-            items.map((ev) => (
-              <div
-                key={ev.id}
-                data-evidencia-id={ev.id}
-                className={`evidencia-card ${dropTargetId === ev.id ? "evidencia-card--drop-target" : ""} ${draggedId === ev.id ? "evidencia-card--dragging" : ""}`}
-                draggable
-                onDragStart={(e) => handleDragStart(e, ev.id)}
-                onDragOver={(e) => handleDragOver(e, ev.id)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, ev.id)}
-                onDragEnd={handleDragEnd}
-              >
+            <>
+              {(() => {
+                const cells: React.ReactNode[] = [];
+                items.forEach((ev, index) => {
+                  cells.push(
+                    <div
+                      key={`zone-${index}`}
+                      className={`evidencia-drop-zone evidencia-drop-zone--between ${dropZoneInsertIndex === index ? "evidencia-drop-zone--active" : ""}`}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        setDropZoneInsertIndex(index);
+                      }}
+                      onDragLeave={() => setDropZoneInsertIndex(null)}
+                      onDrop={(e) => handleDropAtPosition(e, index)}
+                      title="Soltar aquí para insertar entre evidencias"
+                    />
+                  );
+                  cells.push(
+                    <div
+                      key={ev.id}
+                      data-evidencia-id={ev.id}
+                      className={`evidencia-card ${dropTargetId === ev.id ? "evidencia-card--drop-target" : ""} ${draggedId === ev.id ? "evidencia-card--dragging" : ""}`}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, ev.id)}
+                      onDragOver={(e) => handleDragOver(e, ev.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, ev.id)}
+                      onDragEnd={handleDragEnd}
+                    >
                 <div className="evidencia-thumb">
                   {ev.imageUrl ? (
 <ImageWithFallback
@@ -471,14 +525,13 @@ export default function EvidenciasPanel({
                     >
                       Eliminar
                     </button>
-                    <a
+                    <button
+                      type="button"
                       className="btn small"
-                      href={ev.imageUrl}
-                      target="_blank"
-                      rel="noreferrer"
+                      onClick={() => setOpenAbrirEvidencia(ev)}
                     >
                       Abrir
-                    </a>
+                    </button>
                     <button
                       className="btn small"
                       onClick={async () => {
@@ -501,7 +554,25 @@ export default function EvidenciasPanel({
                   </div>
                 </div>
               </div>
-            ))
+                  );
+                });
+                cells.push(
+                  <div
+                    key="zone-last"
+                    className={`evidencia-drop-zone evidencia-drop-zone--between evidencia-drop-zone--last ${dropZoneInsertIndex === items.length ? "evidencia-drop-zone--active" : ""}`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      setDropZoneInsertIndex(items.length);
+                    }}
+                    onDragLeave={() => setDropZoneInsertIndex(null)}
+                    onDrop={(e) => handleDropAtPosition(e, items.length)}
+                    title="Soltar aquí para insertar al final"
+                  />
+                );
+                return cells;
+              })()}
+            </>
           )}
         </div>
       )}
@@ -512,6 +583,17 @@ export default function EvidenciasPanel({
           onUpdated={(count) =>
             setNormasCount((c) => ({ ...c, [showNormasFor]: count }))
           }
+        />
+      )}
+
+      {openAbrirEvidencia !== null && (
+        <EvidenciaAbrirModal
+          evidencia={{
+            id: openAbrirEvidencia.id,
+            imageUrl: openAbrirEvidencia.imageUrl,
+            comentario: openAbrirEvidencia.comentario,
+          }}
+          onClose={() => setOpenAbrirEvidencia(null)}
         />
       )}
 

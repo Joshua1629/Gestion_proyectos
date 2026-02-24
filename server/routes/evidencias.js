@@ -43,7 +43,8 @@ function fileFilter(req, file, cb) {
   cb(null, true);
 }
 
-const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter });
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+const upload = multer({ storage, limits: { fileSize: MAX_FILE_SIZE }, fileFilter });
 
 const checkValidation = (req, res, next) => {
   const errors = validationResult(req);
@@ -89,6 +90,38 @@ function normalizeComment(c) {
     .trim();
 }
 
+// Comprimir/redimensionar imagen para reducir peso con mínima pérdida de calidad (Sharp)
+const MAX_DIMENSION = 2400; // lado largo máximo en px
+const JPEG_QUALITY = 90;
+const WEBP_QUALITY = 90;
+async function compressEvidenceImage(filePath, mimeType) {
+  try {
+    const sharp = require('sharp');
+    let pipeline = sharp(filePath);
+    const meta = await pipeline.metadata();
+    const w = meta.width || 0;
+    const h = meta.height || 0;
+    const needResize = (w > MAX_DIMENSION || h > MAX_DIMENSION);
+    if (needResize) {
+      pipeline = pipeline.resize(MAX_DIMENSION, MAX_DIMENSION, { fit: 'inside', withoutEnlargement: true });
+    }
+    const mime = String(mimeType || '').toLowerCase();
+    if (mime.includes('jpeg') || mime.includes('jpg')) {
+      pipeline = pipeline.jpeg({ quality: JPEG_QUALITY, mozjpeg: true });
+    } else if (mime.includes('webp')) {
+      pipeline = pipeline.webp({ quality: WEBP_QUALITY });
+    } else if (mime.includes('png')) {
+      pipeline = pipeline.png({ compressionLevel: 9 });
+    }
+    const buf = await pipeline.toBuffer();
+    fs.writeFileSync(filePath, buf);
+    return { size: buf.length };
+  } catch (err) {
+    console.warn('compressEvidenceImage:', err && err.message ? err.message : err);
+    return null; // fallback: no cambiar tamaño
+  }
+}
+
 // Construye clave de grupo estable a partir de tarea+comentario
 function buildGroupKey(tareaId, comentario, sequence = 0) {
   const t = tareaId ? Number(tareaId) : 0;
@@ -127,6 +160,9 @@ router.post(
     try {
       const file = req.file;
       if (!file) return res.status(400).json({ error: 'Imagen requerida' });
+
+      const compressed = await compressEvidenceImage(file.path, file.mimetype);
+      if (compressed) file.size = compressed.size;
 
   const { proyectoId, tareaId, comentario } = req.body;
   // Si viene categoria, se acepta; si no, usar 'OK' por compatibilidad con el esquema NOT NULL
@@ -271,6 +307,8 @@ router.post(
           currentSeq = nextSequenceSlot();
           currentCount = seqCounts[String(currentSeq)] || 0;
         }
+        const compressed = await compressEvidenceImage(f.path, f.mimetype);
+        if (compressed) f.size = compressed.size;
         const groupKey = buildGroupKey(tId, comentario, currentSeq);
         currentCount++;
         seqCounts[String(currentSeq)] = currentCount;
