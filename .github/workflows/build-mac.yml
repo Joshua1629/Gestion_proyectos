@@ -19,10 +19,13 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Instalar setuptools (distutils para node-gyp)
-        run: |
-          python3 -m pip install --upgrade pip setuptools || true
-          /opt/homebrew/opt/python@3.14/bin/python3.14 -m pip install setuptools || true
+      - name: Usar Python 3.11 (node-gyp necesita distutils; 3.14 no lo trae)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fijar PYTHON para node-gyp
+        run: echo "PYTHON=$(which python3)" >> $GITHUB_ENV
 
       - name: Instalar dependencias
         run: npm ci
