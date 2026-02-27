@@ -1,9 +1,24 @@
 # Construir e instalar la app en macOS
 
-## Dos situaciones
+## Tres situaciones
 
-1. **Tienes una Mac con herramientas** (Node, Xcode, etc.): ahí generas el instalador (`.dmg` / `.app`).
-2. **Tienes una Mac sin nada** (usuario final): solo instalas la app a partir del `.dmg` o del `.app` que te pasen.
+1. **Quieres generar el .dmg desde tu PC Windows:** usa **GitHub Actions** (un Mac en la nube hace el build; tú descargas el .dmg). Ver más abajo.
+2. **Tienes una Mac con herramientas** (Node, Xcode, etc.): ahí generas el instalador con `npm run dist:mac`.
+3. **Tienes una Mac sin nada** (usuario final): solo instalas la app a partir del `.dmg` o del `.app` que te pasen.
+
+---
+
+## Generar el .dmg desde Windows (GitHub Actions)
+
+El proyecto incluye un workflow que ejecuta el build en un **Mac de GitHub**. Así puedes obtener el `.dmg` sin tener una Mac.
+
+1. **Sube el proyecto a GitHub** (si aún no está): crea un repositorio y haz push del código (incluida la carpeta `.github/workflows`).
+2. En GitHub, ve a la pestaña **Actions**.
+3. Elige el workflow **"Build Mac"** en la columna izquierda.
+4. Pulsa **"Run workflow"** (botón derecho) y confirma.
+5. Cuando termine (unos minutos), entra en la ejecución que acaba de terminar, baja a **Artifacts** y descarga **GestionProyectos-mac**. Dentro viene el `.dmg` (y/o `.zip`) listo para instalar en una Mac.
+
+No necesitas configurar secretos; el workflow usa el token por defecto de GitHub.
 
 ---
 

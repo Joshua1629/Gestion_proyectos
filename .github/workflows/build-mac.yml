@@ -1,0 +1,45 @@
+# Genera el .dmg/.app para Mac usando un runner Mac de GitHub.
+# Desde Windows: sube los cambios, ve a Actions → "Build Mac" → Run workflow, y descarga el .dmg del artifact.
+
+name: Build Mac
+
+on:
+  workflow_dispatch:  # Ejecutar manualmente desde la pestaña Actions de GitHub
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Usar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Parche Electron (openssl_fips) si hace falta
+        run: node scripts/patch-electron-gypi.js || true
+
+      - name: Rebuild nativos para Electron
+        run: npm run rebuild:native
+
+      - name: Icono para Mac (si existe script)
+        run: node scripts/create-icon-mac.js || true
+
+      - name: Build para Mac
+        run: npm run dist:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Subir .dmg como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GestionProyectos-mac
+          path: |
+            dist/*.dmg
+            dist/*.zip
