@@ -4,6 +4,8 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
+const { getBaseDir, getUploadsBase: getUploadsBaseFromLib } = require('./lib/userDataPath');
+
 // Importar funciones de inicialización de base de datos
 const { initializeDatabase, checkDatabaseExists } = require('./scripts/initDb');
 const { ensureExtraTables } = require('./scripts/ensureExtraTables');
@@ -247,32 +249,13 @@ async function initializeApp() {
   app.use('/api/normas-repo', normasRepoRouter);
     app.use('/api/reportes', reportesRouter);
 
-    // Servir uploads estáticos
-    function getUploadsBase() {
-      // Si estamos dentro de .asar (empaquetado), usar AppData
-      if (__dirname.includes('.asar') || process.env.NODE_ENV === 'production') {
-        const userDataPath = process.env.APPDATA || process.env.HOME;
-        if (!userDataPath) {
-          throw new Error('No se pudo determinar la ruta de datos del usuario para uploads');
-        }
-        const base = path.join(userDataPath, 'GestionProyectos', 'uploads');
-        if (!fs.existsSync(base)) {
-          console.log('📁 Creando directorio de uploads:', base);
-          fs.mkdirSync(base, { recursive: true });
-        }
-        console.log('📂 Directorio de uploads:', base);
-        return base;
-      }
-      // Desarrollo - usar carpeta local
-      const base = path.join(__dirname, '..', 'data', 'uploads');
-      if (!fs.existsSync(base)) {
-        console.log('📁 Creando directorio de uploads (dev):', base);
-        fs.mkdirSync(base, { recursive: true });
-      }
-      console.log('📂 Directorio de uploads (dev):', base);
-      return base;
+    // Servir uploads estáticos (rutas multiplataforma vía lib/userDataPath)
+    const uploadsDir = getUploadsBaseFromLib();
+    if (!fs.existsSync(uploadsDir)) {
+      console.log('📁 Creando directorio de uploads:', uploadsDir);
+      fs.mkdirSync(uploadsDir, { recursive: true });
     }
-    const uploadsDir = getUploadsBase();
+    console.log('📂 Directorio de uploads:', uploadsDir);
     app.use('/uploads', express.static(uploadsDir));
 
     // Servir archivos estáticos de public (logo, etc.)

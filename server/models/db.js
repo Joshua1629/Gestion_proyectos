@@ -22,32 +22,14 @@ try {
 }
 const path = require('path');
 const fs = require('fs');
-
-// Determinar la ruta de la base de datos según el entorno
-function getDatabasePath() {
-  if (process.env.NODE_ENV === 'production') {
-    // En producción, guardar la BD en la carpeta de datos del usuario
-    const userDataPath = process.env.APPDATA || process.env.HOME || __dirname;
-    const appDataDir = path.join(userDataPath, 'GestionProyectos');
-    
-    // Crear el directorio si no existe
-    if (!fs.existsSync(appDataDir)) {
-      fs.mkdirSync(appDataDir, { recursive: true });
-    }
-    
-    return path.join(appDataDir, 'gestion_proyectos.db');
-  } else {
-    // En desarrollo, usar una ruta relativa
-    return path.join(__dirname, '..', '..', 'data', 'gestion_proyectos.db');
-  }
-}
+const { getBaseDir, getDatabasePath } = require('../lib/userDataPath');
 
 const dbPath = getDatabasePath();
+const baseDir = getBaseDir();
 
-// Crear el directorio de datos si no existe (para desarrollo)
-const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+// Crear el directorio de datos si no existe (multiplataforma)
+if (!fs.existsSync(baseDir)) {
+  fs.mkdirSync(baseDir, { recursive: true });
 }
 
 // Crear conexión a SQLite

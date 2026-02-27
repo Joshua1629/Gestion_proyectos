@@ -16,6 +16,7 @@ try {
 
 const router = express.Router();
 const { optionalAuth, requireRole } = require("../middleware/auth");
+const { getUploadsBase } = require("../lib/userDataPath");
 
 const checkValidation = (req, res, next) => {
   const errors = validationResult(req);
@@ -24,14 +25,8 @@ const checkValidation = (req, res, next) => {
   next();
 };
 
-function getUploadsBase() {
-  if (process.env.NODE_ENV === "production") {
-    const userDataPath = process.env.APPDATA || process.env.HOME || __dirname;
-    const base = path.join(userDataPath, "GestionProyectos", "uploads");
-    fs.mkdirSync(base, { recursive: true });
-    return base;
-  }
-  const base = path.join(__dirname, "..", "..", "data", "uploads");
+function ensureUploadsDir() {
+  const base = getUploadsBase();
   fs.mkdirSync(base, { recursive: true });
   return base;
 }
@@ -53,7 +48,7 @@ function getCompanyLogoPath() {
     path.join(__dirname, "..", "..", "frontend", "public", "logo.png"),
     path.join(__dirname, "..", "..", "frontend", "public", "logoapp.png"),
     path.join(__dirname, "..", "..", "public", "logo.png"),
-    path.join(getUploadsBase(), "logo.png"),
+    path.join(ensureUploadsDir(), "logo.png"),
     // Rutas de producción (Electron empaquetado)
     process.resourcesPath ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "logo.png") : null,
     process.resourcesPath ? path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "logoapp.png") : null,
@@ -81,9 +76,10 @@ function getCompanyLogoPath() {
 // Storage for Excel imports
 const excelStorage = multer.diskStorage({
   destination: function (req, file, cb) {
+    const base = ensureUploadsDir();
     const now = new Date();
     const dir = path.join(
-      getUploadsBase(),
+      base,
       "normas_repo",
       "imports",
       String(now.getFullYear()),

@@ -6,27 +6,21 @@ const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
 const { body, param, query, validationResult } = require('express-validator');
 const pool = require('../models/db');
+const { getUploadsBase } = require('../lib/userDataPath');
 
 const router = express.Router();
 
-// Directorio base para uploads
-function getUploadsBase() {
-  // En desarrollo: dentro de data/uploads. En prod: en carpeta de datos del usuario
-  if (process.env.NODE_ENV === 'production') {
-    const userDataPath = process.env.APPDATA || process.env.HOME || __dirname;
-    const base = path.join(userDataPath, 'GestionProyectos', 'uploads');
-    fs.mkdirSync(base, { recursive: true });
-    return base;
-  }
-  const base = path.join(__dirname, '..', '..', 'data', 'uploads');
+function ensureUploadsDir() {
+  const base = getUploadsBase();
   fs.mkdirSync(base, { recursive: true });
   return base;
 }
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
+    const base = ensureUploadsDir();
     const now = new Date();
-    const dir = path.join(getUploadsBase(), 'evidencias', String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, '0'));
+    const dir = path.join(base, 'evidencias', String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, '0'));
     fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
@@ -54,7 +48,6 @@ const checkValidation = (req, res, next) => {
 
 // Helper: construir URL pública desde image_path
 function buildPublicUrl(imagePathAbs) {
-  // Buscar la porción después de uploads para montar como /uploads/...
   const base = getUploadsBase();
   const rel = path.relative(base, imagePathAbs).replace(/\\/g, '/');
   return `/uploads/${rel}`;

@@ -4,28 +4,24 @@ const fs = require('fs');
 const multer = require('multer');
 const { body, param, query, validationResult } = require('express-validator');
 const pool = require('../models/db');
+const { getUploadsBase } = require('../lib/userDataPath');
 
 let pdfParse = null;
 try { pdfParse = require('pdf-parse'); } catch { /* opcional */ }
 
 const router = express.Router();
 
-function getUploadsBase() {
-  if (process.env.NODE_ENV === 'production') {
-    const userDataPath = process.env.APPDATA || process.env.HOME || __dirname;
-    const base = path.join(userDataPath, 'GestionProyectos', 'uploads');
-    fs.mkdirSync(base, { recursive: true });
-    return base;
-  }
-  const base = path.join(__dirname, '..', '..', 'data', 'uploads');
+function ensureUploadsDir() {
+  const base = getUploadsBase();
   fs.mkdirSync(base, { recursive: true });
   return base;
 }
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
+    const base = ensureUploadsDir();
     const now = new Date();
-    const dir = path.join(getUploadsBase(), 'normas', String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, '0'));
+    const dir = path.join(base, 'normas', String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, '0'));
     fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },

@@ -1,21 +1,10 @@
 const sqlite3 = require("sqlite3").verbose();
-const path = require("path");
 const fs = require("fs");
-
-function getDatabasePath() {
-  if (process.env.NODE_ENV === "production") {
-    const userDataPath = process.env.APPDATA || process.env.HOME || __dirname;
-    const appDataDir = path.join(userDataPath, "GestionProyectos");
-    if (!fs.existsSync(appDataDir))
-      fs.mkdirSync(appDataDir, { recursive: true });
-    return path.join(appDataDir, "gestion_proyectos.db");
-  }
-  const dataDir = path.join(__dirname, "..", "..", "data");
-  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-  return path.join(dataDir, "gestion_proyectos.db");
-}
+const { getBaseDir, getDatabasePath } = require("../lib/userDataPath");
 
 async function ensureExtraTables() {
+  const baseDir = getBaseDir();
+  if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
   const dbPath = getDatabasePath();
   await new Promise((resolve, reject) => {
     const db = new sqlite3.Database(dbPath, (err) => {

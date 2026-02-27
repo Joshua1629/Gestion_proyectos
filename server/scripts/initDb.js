@@ -1,10 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
+const { getBaseDir, getDatabasePath } = require('../lib/userDataPath');
 
 async function initializeDatabase() {
   try {
-    // Determinar la ruta del schema SQLite
+    // Determinar la ruta del schema SQLite (desde server/scripts, db está en ../../db)
     const schemaFile = path.join(__dirname, '..', '..', 'db', 'schema_sqlite.sql');
     
     if (!fs.existsSync(schemaFile)) {
@@ -13,26 +14,10 @@ async function initializeDatabase() {
 
     const sql = fs.readFileSync(schemaFile, 'utf8');
     
-    // Determinar la ruta de la base de datos según el entorno
-    function getDatabasePath() {
-      if (process.env.NODE_ENV === 'production') {
-        const userDataPath = process.env.APPDATA || process.env.HOME || __dirname;
-        const appDataDir = path.join(userDataPath, 'GestionProyectos');
-        
-        if (!fs.existsSync(appDataDir)) {
-          fs.mkdirSync(appDataDir, { recursive: true });
-        }
-        
-        return path.join(appDataDir, 'gestion_proyectos.db');
-      } else {
-        const dataDir = path.join(__dirname, '..', '..', 'data');
-        if (!fs.existsSync(dataDir)) {
-          fs.mkdirSync(dataDir, { recursive: true });
-        }
-        return path.join(dataDir, 'gestion_proyectos.db');
-      }
+    const baseDir = getBaseDir();
+    if (!fs.existsSync(baseDir)) {
+      fs.mkdirSync(baseDir, { recursive: true });
     }
-
     const dbPath = getDatabasePath();
     
     return new Promise((resolve, reject) => {
@@ -170,16 +155,6 @@ async function initializeDatabase() {
 // Función para verificar si la base de datos existe y tiene las tablas necesarias
 async function checkDatabaseExists() {
   try {
-    function getDatabasePath() {
-      if (process.env.NODE_ENV === 'production') {
-        const userDataPath = process.env.APPDATA || process.env.HOME || __dirname;
-        const appDataDir = path.join(userDataPath, 'GestionProyectos');
-        return path.join(appDataDir, 'gestion_proyectos.db');
-      } else {
-        return path.join(__dirname, '..', '..', 'data', 'gestion_proyectos.db');
-      }
-    }
-
     const dbPath = getDatabasePath();
     
     if (!fs.existsSync(dbPath)) {

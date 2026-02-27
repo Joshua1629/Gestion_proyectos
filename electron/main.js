@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain, Menu } = require("electron");
 const path = require("path");
+const http = require("http");
+const https = require("https");
 const { exec } = require("child_process");
 const fs = require("fs");
 
@@ -10,19 +12,19 @@ let backendProcess = null;
 const isDev =
   process.env.NODE_ENV === "development" || process.env.ELECTRON_DEV === "true";
 
-// Crear archivo de log para debugging (definir ANTES de usarlo)
-const logDir = path.join(process.env.APPDATA || process.env.HOME || __dirname, 'GestionProyectos', 'logs');
-const logFile = path.join(logDir, 'electron.log');
+// Logs en userData multiplataforma (app.getPath('userData') = ~/Library/Application Support/... en Mac, %APPDATA% en Windows)
+const logDir = path.join(app.getPath("userData"), "logs");
+const logFile = path.join(logDir, "electron.log");
 if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true });
 }
 
 let logStream = null;
 try {
-  logStream = fs.createWriteStream(logFile, { flags: 'a' });
+  logStream = fs.createWriteStream(logFile, { flags: "a" });
   console.log(`✅ Logging configurado en: ${logFile}`);
 } catch (err) {
-  console.error('⚠️ No se pudo crear archivo de log:', err.message);
+  console.error("⚠️ No se pudo crear archivo de log:", err.message);
 }
 
 function writeLog(message) {
@@ -408,8 +410,9 @@ function createWindow() {
   try {
     const iconCandidates = [];
     const isWin = process.platform === "win32";
+    const isMac = process.platform === "darwin";
 
-    // En Windows, poner .ico primero (recomendado para barra de tareas)
+    // Windows: .ico primero (barra de tareas)
     if (isWin) {
       iconCandidates.push(path.join(__dirname, "..", "frontend", "public", "icon.ico"));
       if (process.resourcesPath) {
@@ -427,7 +430,24 @@ function createWindow() {
       } catch (_) {}
     }
 
-    // Desarrollo
+    // macOS: .icns primero, luego PNG
+    if (isMac) {
+      iconCandidates.push(
+        path.join(__dirname, "..", "frontend", "public", "icon.icns"),
+        path.join(__dirname, "..", "frontend", "public", "logoapp.png"),
+        path.join(__dirname, "..", "frontend", "public", "icon_256.png")
+      );
+      if (process.resourcesPath) {
+        iconCandidates.push(
+          path.join(process.resourcesPath, "frontend", "public", "icon.icns"),
+          path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "icon.icns"),
+          path.join(process.resourcesPath, "frontend", "public", "logoapp.png"),
+          path.join(process.resourcesPath, "app.asar.unpacked", "frontend", "public", "logoapp.png")
+        );
+      }
+    }
+
+    // Desarrollo (común)
     iconCandidates.push(
       path.join(__dirname, "..", "frontend", "public", "logoapp.png"),
       path.join(__dirname, "..", "frontend", "public", "icon_256.png"),
@@ -466,7 +486,8 @@ function createWindow() {
     }
 
     if (!iconPath) {
-      console.warn("⚠️ Icono no encontrado. Ejecuta 'npm run build:icon' y vuelve a hacer 'npm run dist'.");
+      const hint = isWin ? "Ejecuta 'npm run build:icon' y vuelve a hacer 'npm run dist:win'." : isMac ? "Genera icon.icns o usa logoapp.png." : "Añade un icono en frontend/public.";
+      console.warn("⚠️ Icono no encontrado. " + hint);
     }
   } catch (e) {
     console.error("❌ Error al resolver icono:", e);
@@ -546,7 +567,9 @@ function createWindow() {
   enforceOnline();
 
   if (isDev) {
-    const devUrl = "http://localhost:5173";
+    // Usar 127.0.0.1 en lugar de localhost: en Windows localhost puede resolverse a IPv6 (::1)
+    // y Vite suele escuchar solo en IPv4, lo que provoca timeout. 127.0.0.1 funciona en Windows y macOS.
+    const devUrl = "http://127.0.0.1:5173";
 
     // Esperar a que el servidor de Vite esté listo antes de cargar
     waitForUrl(devUrl, { timeoutMs: 20000, intervalMs: 300 })
@@ -695,45 +718,59 @@ function createWindow() {
 app.whenReady().then(async () => {
   writeLog("🚀 Electron app ready, iniciando...");
   
+  // Rutas multiplataforma: el servidor usa ELECTRON_USER_DATA (app.getPath('userData')) para DB y uploads
+  process.env.ELECTRON_USER_DATA = app.getPath("userData");
+  
   // Remover menú de la aplicación (File, Edit, View, Window, Help)
   Menu.setApplicationMenu(null);
   
   // Iniciar backend primero
   await startBackend();
   
+  // En dev, el backend y Vite arrancan con concurrently; darles unos segundos antes de comprobar
+  if (isDev) {
+    const devDelayMs = 3500;
+    console.log(`⏳ Modo desarrollo: esperando ${devDelayMs / 1000}s a que backend y Vite arranquen...`);
+    await new Promise((r) => setTimeout(r, devDelayMs));
+  }
+
   // Esperar y verificar que el backend esté respondiendo antes de crear la ventana
   const backendUrl = "http://127.0.0.1:3001/api/auth/health";
   console.log("⏳ Esperando a que el backend esté listo...");
-  
+
+  const httpGetOk = (url) =>
+    new Promise((resolve) => {
+      const lib = url.startsWith("https") ? https : http;
+      const req = lib.get(url, { timeout: 2000 }, (res) => {
+        resolve(res.statusCode >= 200 && res.statusCode < 400);
+      });
+      req.on("error", () => resolve(false));
+      req.on("timeout", () => {
+        req.destroy();
+        resolve(false);
+      });
+    });
+
   try {
-    // Esperar hasta 10 segundos con intentos cada 500ms
-    const maxAttempts = 20;
+    const maxAttempts = 24;
     let attempts = 0;
     let backendReady = false;
-    
+
     while (attempts < maxAttempts && !backendReady) {
-      try {
-        const healthCheck = await fetch(backendUrl, { 
-          method: 'GET',
-          signal: AbortSignal.timeout(1000) // timeout de 1 segundo por intento
-        });
-        if (healthCheck.ok) {
-          console.log("✅ Backend respondiendo correctamente");
-          backendReady = true;
-          break;
-        }
-      } catch (fetchErr) {
-        // Ignorar errores de conexión y continuar intentando
-        if (attempts % 4 === 0) {
-          console.log(`⏳ Esperando backend... (intento ${attempts + 1}/${maxAttempts})`);
-        }
+      backendReady = await httpGetOk(backendUrl);
+      if (backendReady) {
+        console.log("✅ Backend respondiendo correctamente");
+        break;
+      }
+      if (attempts % 4 === 0) {
+        console.log(`⏳ Esperando backend... (intento ${attempts + 1}/${maxAttempts})`);
       }
       attempts++;
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
-    
+
     if (!backendReady) {
-      console.warn("⚠️ Backend no respondió después de 10 segundos");
+      console.warn("⚠️ Backend no respondió después de 12 segundos");
       console.warn("⚠️ Revisa los logs [backend stdout] y [backend stderr] arriba para ver errores");
       console.warn("⚠️ Continuando de todos modos...");
     }
@@ -741,7 +778,7 @@ app.whenReady().then(async () => {
     console.warn("⚠️ Error verificando backend:", err.message);
     console.warn("⚠️ Continuando de todos modos...");
   }
-  
+
   createWindow();
 
   app.on("activate", () => {
@@ -778,56 +815,100 @@ process.on("SIGTERM", () => {
   process.exit();
 });
 
-// Utilidad: esperar a que una URL sea accesible (HTTP 200-399)
-async function waitForUrl(url, { timeoutMs = 15000, intervalMs = 250 } = {}) {
-  const start = Date.now();
-  // Node 18+ tiene fetch global; fallback simple usando http/https si no está
-  const doFetch = async () => {
-    if (typeof fetch === "function") {
-      try {
-        const res = await fetch(url, { method: "GET" });
-        return res.ok;
-      } catch {
-        return false;
-      }
+// Electron 22 usa Node 16, que no tiene fetch global. Helper para peticiones HTTP usando http(s).
+function nodeFetch(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const isHttps = urlObj.protocol === "https:";
+    const lib = isHttps ? https : http;
+    const method = (options.method || "GET").toUpperCase();
+    const headers = options.headers || {};
+    let body = options.body;
+    if (body && typeof body === "object" && !Buffer.isBuffer(body) && !(body instanceof Uint8Array)) {
+      body = typeof body === "string" ? body : JSON.stringify(body);
+      if (!headers["Content-Type"]) headers["Content-Type"] = "application/json";
     }
-    return false;
-  };
-
-  while (Date.now() - start < timeoutMs) {
-    const ok = await doFetch();
-    if (ok) return true;
-    await new Promise((r) => setTimeout(r, intervalMs));
-  }
-  throw new Error(`Timeout esperando ${url}`);
+    const reqOpts = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (isHttps ? 443 : 80),
+      path: urlObj.pathname + urlObj.search,
+      method,
+      headers,
+    };
+    const req = lib.request(reqOpts, (res) => {
+      const chunks = [];
+      res.on("data", (chunk) => chunks.push(chunk));
+      res.on("end", () => {
+        const buf = Buffer.concat(chunks);
+        const resHeaders = {};
+        for (const [k, v] of Object.entries(res.headers)) resHeaders[k.toLowerCase()] = v;
+        const contentType = (resHeaders["content-type"] || "").split(";")[0].trim();
+        let parsedBody = buf.toString("utf8");
+        if (contentType.includes("application/json")) {
+          try {
+            parsedBody = JSON.parse(parsedBody);
+          } catch (_) {}
+        }
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 400,
+          status: res.statusCode,
+          statusText: res.statusMessage || "",
+          headers: resHeaders,
+          body: parsedBody,
+          rawBuffer: buf,
+          arrayBuffer: () => Promise.resolve(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)),
+        });
+      });
+    });
+    req.on("error", reject);
+    if (body !== undefined && body !== null) {
+      req.write(typeof body === "string" ? body : Buffer.isBuffer(body) ? body : JSON.stringify(body));
+    }
+    req.end();
+  });
 }
 
-// IPC: proxy de fetch desde el renderer al proceso principal (usa Node fetch)
+// Utilidad: esperar a que una URL sea accesible (HTTP 200-399). Usa http(s).get para ser fiable en Electron (Windows/macOS).
+function waitForUrl(url, { timeoutMs = 15000, intervalMs = 250 } = {}) {
+  const start = Date.now();
+  const doCheck = () =>
+    new Promise((resolve) => {
+      const lib = url.startsWith("https") ? https : http;
+      const req = lib.get(url, { timeout: 5000 }, (res) => {
+        res.resume(); // consumir el body para cerrar la conexión correctamente
+        resolve(res.statusCode >= 200 && res.statusCode < 400);
+      });
+      req.on("error", () => resolve(false));
+      req.on("timeout", () => {
+        req.destroy();
+        resolve(false);
+      });
+    });
+
+  return (async () => {
+    while (Date.now() - start < timeoutMs) {
+      if (await doCheck()) return true;
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    throw new Error(`Timeout esperando ${url}`);
+  })();
+}
+
+// IPC: proxy de fetch desde el renderer al proceso principal (Electron 22 = Node 16, sin fetch; usamos http(s))
 ipcMain.handle("http:fetch", async (_event, { url, options }) => {
   try {
     console.log(`🌐 IPC fetch: ${options?.method || 'GET'} ${url}`);
     
-    const res = await fetch(url, options || {});
+    const res = await nodeFetch(url, options || {});
     
     console.log(`📡 IPC fetch response: ${res.status} ${res.statusText}`);
-    
-    const contentType = res.headers.get("content-type") || "";
-    const isJson = contentType.includes("application/json");
-    
-    let body;
-    try {
-      body = isJson ? await res.json() : await res.text();
-    } catch (parseErr) {
-      console.error("❌ Error parseando respuesta:", parseErr);
-      body = await res.text().catch(() => null);
-    }
     
     return {
       ok: res.ok,
       status: res.status,
       statusText: res.statusText,
-      headers: Object.fromEntries(res.headers.entries()),
-      body,
+      headers: res.headers,
+      body: res.body,
     };
   } catch (e) {
     console.error(`❌ IPC fetch error para ${url}:`, e);
@@ -851,22 +932,11 @@ ipcMain.handle("http:fetch", async (_event, { url, options }) => {
   }
 });
 
-// IPC: subida multipart via main (evita problemas de red del renderer)
+// IPC: subida multipart via main (Electron 22 = Node 16, sin fetch; usamos form-data + http)
 ipcMain.handle("http:uploadMultipart", async (_event, payload) => {
   try {
-    // Preferir 'form-data' en Node < 20 para evitar el ExperimentalWarning de buffer.File
-    // Usar undici (FormData/Blob nativos) solo en Node >= 20
-    // Prefer undici's native FormData/Blob when available (works best with fetch multipart)
-    // Even on Node 18 this is available; it may emit an ExperimentalWarning for File, which is harmless.
-    let usingUndici = typeof globalThis.FormData !== "undefined";
-
-    let form;
-    if (usingUndici) {
-      form = new globalThis.FormData();
-    } else {
-      const FormDataPkg = (await import("form-data")).default;
-      form = new FormDataPkg();
-    }
+    const FormDataPkg = (await import("form-data")).default;
+    const form = new FormDataPkg();
     const {
       url,
       method = "POST",
@@ -877,61 +947,79 @@ ipcMain.handle("http:uploadMultipart", async (_event, payload) => {
     for (const [k, v] of Object.entries(fields)) form.append(k, v);
     for (const f of files) {
       const buf = Buffer.from(f.buffer);
-      if (usingUndici) {
-        const blob = new Blob([buf], {
-          type: f.type || "application/octet-stream",
-        });
-        // En undici, tercer parámetro filename se pasa como opción separada
-        form.append(f.fieldName, blob, f.name);
-      } else {
-        form.append(f.fieldName, buf, {
-          filename: f.name,
-          contentType: f.type,
-        });
-      }
+      form.append(f.fieldName, buf, {
+        filename: f.name,
+        contentType: f.type || "application/octet-stream",
+      });
     }
-    let reqInit;
-    if (usingUndici) {
-      reqInit = { method, body: form, headers: { ...(extraHeaders || {}) } };
-    } else {
-      // Legacy form-data needs headers and Node fetch requires duplex when piping a stream body
-      const headers = { ...form.getHeaders(), ...(extraHeaders || {}) };
-      // Try to compute content-length to avoid chunking issues with some servers
-      try {
-        const contentLength = await new Promise((resolve, reject) => {
-          form.getLength((err, len) => (err ? reject(err) : resolve(len)));
+    const headers = { ...form.getHeaders(), ...(extraHeaders || {}) };
+    try {
+      const contentLength = await new Promise((resolve, reject) => {
+        form.getLength((err, len) => (err ? reject(err) : resolve(len)));
+      });
+      if (typeof contentLength === "number" && contentLength >= 0)
+        headers["Content-Length"] = String(contentLength);
+    } catch (_) {}
+    headers["Accept"] = headers["Accept"] || "application/json, */*";
+
+    const res = await new Promise((resolve, reject) => {
+      const urlObj = new URL(url);
+      const isHttps = urlObj.protocol === "https:";
+      const lib = isHttps ? https : http;
+      const reqOpts = {
+        hostname: urlObj.hostname,
+        port: urlObj.port || (isHttps ? 443 : 80),
+        path: urlObj.pathname + urlObj.search,
+        method,
+        headers,
+      };
+      const req = lib.request(reqOpts, (res) => {
+        const chunks = [];
+        res.on("data", (chunk) => chunks.push(chunk));
+        res.on("end", () => {
+          const buf = Buffer.concat(chunks);
+          const resHeaders = {};
+          for (const [k, v] of Object.entries(res.headers)) resHeaders[k.toLowerCase()] = v;
+          const contentType = (resHeaders["content-type"] || "").split(";")[0].trim();
+          let body = buf.toString("utf8");
+          if (contentType.includes("application/json")) {
+            try {
+              body = JSON.parse(body);
+            } catch (_) {}
+          }
+          resolve({
+            ok: res.statusCode >= 200 && res.statusCode < 400,
+            status: res.statusCode,
+            statusText: res.statusMessage || "",
+            headers: resHeaders,
+            body,
+          });
         });
-        if (typeof contentLength === "number" && contentLength >= 0)
-          headers["Content-Length"] = String(contentLength);
-      } catch {}
-      headers["Accept"] = headers["Accept"] || "application/json, */*";
-      reqInit = { method, body: form, headers, duplex: "half" };
-    }
-    const res = await fetch(url, reqInit);
-    const contentType = res.headers.get("content-type") || "";
-    const isJson = contentType.includes("application/json");
-    const body = isJson ? await res.json().catch(() => null) : await res.text();
+      });
+      req.on("error", reject);
+      form.pipe(req);
+    });
     return {
       ok: res.ok,
       status: res.status,
       statusText: res.statusText,
-      headers: Object.fromEntries(res.headers.entries()),
-      body,
+      headers: res.headers,
+      body: res.body,
     };
   } catch (e) {
     return { ok: false, error: e && e.message ? e.message : String(e) };
   }
 });
 
-// IPC: obtener binario como base64 (para imágenes) desde el proceso principal
+// IPC: obtener binario como base64 (para imágenes) desde el proceso principal (Node 16 sin fetch)
 ipcMain.handle("http:fetchBinary", async (_event, { url }) => {
   try {
-    const res = await fetch(url);
+    const res = await nodeFetch(url);
     if (!res.ok)
       return { ok: false, status: res.status, statusText: res.statusText };
-    const buf = Buffer.from(await res.arrayBuffer());
+    const buf = res.rawBuffer;
     const contentType =
-      res.headers.get("content-type") || "application/octet-stream";
+      (res.headers["content-type"] || "").split(";")[0].trim() || "application/octet-stream";
     const base64 = `data:${contentType};base64,${buf.toString("base64")}`;
     return { ok: true, dataUrl: base64 };
   } catch (e) {
