@@ -19,6 +19,11 @@ jobs:
           node-version: "20"
           cache: "npm"
 
+      - name: Instalar setuptools (distutils para node-gyp)
+        run: |
+          python3 -m pip install --upgrade pip setuptools || true
+          /opt/homebrew/opt/python@3.14/bin/python3.14 -m pip install setuptools || true
+
       - name: Instalar dependencias
         run: npm ci
 
