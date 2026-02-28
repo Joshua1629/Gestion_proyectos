@@ -42,6 +42,7 @@
     "rebuild:sqlite3:verbose": "cd node_modules/sqlite3 && npm run rebuild",
     "dist:win": "npm run build:icon && npm run build:frontend && cross-env NODE_ENV=production electron-builder --win",
     "dist:mac": "npm run build:frontend && cross-env NODE_ENV=production electron-builder --mac",
+    "dist:mac:x64": "npm run build:frontend && cross-env NODE_ENV=production electron-builder --mac --x64",
     "dist": "npm run build:icon && npm run build:frontend && cross-env NODE_ENV=production electron-builder --win --mac"
   },
   "devDependencies": {

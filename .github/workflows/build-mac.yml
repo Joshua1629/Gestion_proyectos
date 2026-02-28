@@ -1,10 +1,19 @@
 # Genera el .dmg/.app para Mac usando un runner Mac de GitHub.
-# Desde Windows: sube los cambios, ve a Actions → "Build Mac" → Run workflow, y descarga el .dmg del artifact.
+# Desde Windows: Actions → "Build Mac" → Run workflow → elige Arquitectura (arm64 o x64) y descarga el artifact.
 
 name: Build Mac
 
 on:
-  workflow_dispatch:  # Ejecutar manualmente desde la pestaña Actions de GitHub
+  workflow_dispatch:
+    inputs:
+      architecture:
+        description: "Arquitectura Mac"
+        required: true
+        default: "arm64"
+        type: choice
+        options:
+          - arm64
+          - x64
 
 jobs:
   build-mac:
@@ -35,19 +44,27 @@ jobs:
 
       - name: Rebuild nativos para Electron
         run: npm run rebuild:native
+        env:
+          ARCH: ${{ github.event.inputs.architecture || 'arm64' }}
 
       - name: Icono para Mac (si existe script)
         run: node scripts/create-icon-mac.js || true
 
-      - name: Build para Mac
-        run: npm run dist:mac
+      - name: Build para Mac (arm64 o x64)
+        run: |
+          if [ "${{ github.event.inputs.architecture }}" = "x64" ]; then
+            npm run dist:mac:x64
+          else
+            npm run dist:mac
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARCH: ${{ github.event.inputs.architecture || 'arm64' }}
 
       - name: Subir .dmg como artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GestionProyectos-mac
+          name: GestionProyectos-mac-${{ github.event.inputs.architecture || 'arm64' }}
           path: |
             dist/*.dmg
             dist/*.zip

@@ -15,8 +15,11 @@ El proyecto incluye un workflow que ejecuta el build en un **Mac de GitHub**. As
 1. **Sube el proyecto a GitHub** (si aún no está): crea un repositorio y haz push del código (incluida la carpeta `.github/workflows`).
 2. En GitHub, ve a la pestaña **Actions**.
 3. Elige el workflow **"Build Mac"** en la columna izquierda.
-4. Pulsa **"Run workflow"** (botón derecho) y confirma.
-5. Cuando termine (unos minutos), entra en la ejecución que acaba de terminar, baja a **Artifacts** y descarga **GestionProyectos-mac**. Dentro viene el `.dmg` (y/o `.zip`) listo para instalar en una Mac.
+4. Pulsa **"Run workflow"**; en el desplegable **"Arquitectura Mac"** elige:
+   - **arm64** → Mac con chip Apple (M1, M2, M3).
+   - **x64** → Mac con procesador Intel.
+5. Confirma con el botón verde **"Run workflow"**.
+6. Cuando termine, entra en la ejecución, baja a **Artifacts** y descarga **GestionProyectos-mac-arm64** o **GestionProyectos-mac-x64** según lo que hayas elegido. Dentro viene el `.dmg` (y/o `.zip`) listo para instalar.
 
 No necesitas configurar secretos; el workflow usa el token por defecto de GitHub.
 
