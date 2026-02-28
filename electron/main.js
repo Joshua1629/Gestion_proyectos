@@ -933,9 +933,11 @@ ipcMain.handle("http:fetch", async (_event, { url, options }) => {
 });
 
 // IPC: subida multipart via main (Electron 22 = Node 16, sin fetch; usamos form-data + http)
+// Cargar form-data desde la raíz de la app para que en .asar (Mac/Windows) no busque en electron/node_modules
 ipcMain.handle("http:uploadMultipart", async (_event, payload) => {
   try {
-    const FormDataPkg = (await import("form-data")).default;
+    const appRoot = app.getAppPath();
+    const FormDataPkg = require(path.join(appRoot, "node_modules", "form-data"));
     const form = new FormDataPkg();
     const {
       url,
