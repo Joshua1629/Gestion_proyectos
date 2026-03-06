@@ -4,7 +4,6 @@ import {
   getEvidencias,
   uploadEvidencia,
   deleteEvidencia,
-  updateEvidencia,
   reorderEvidencias,
   addComentarioEvidencia,
   updateComentarioEvidencia,
