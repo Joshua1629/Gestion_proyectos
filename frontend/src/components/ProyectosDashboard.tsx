@@ -257,7 +257,19 @@ export default function ProyectosDashboard({
     if (dateInput === null || dateInput === undefined || dateInput === "")
       return "No definida";
     try {
-      if (typeof dateInput === "number" || /^\d+$/.test(String(dateInput))) {
+      const str = String(dateInput).trim();
+      const dateOnlyMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (dateOnlyMatch) {
+        const [, y, m, d] = dateOnlyMatch;
+        const dLocal = new Date(Number(y), Number(m) - 1, Number(d));
+        if (!isNaN(dLocal.getTime()))
+          return dLocal.toLocaleDateString("es-ES", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          });
+      }
+      if (typeof dateInput === "number" || /^\d+$/.test(str)) {
         let n = Number(dateInput);
         if (String(n).length === 10) n = n * 1000;
         const dnum = new Date(n);
@@ -268,7 +280,7 @@ export default function ProyectosDashboard({
             year: "numeric",
           });
       }
-      const d = new Date(String(dateInput));
+      const d = new Date(str);
       if (!isNaN(d.getTime()))
         return d.toLocaleDateString("es-ES", {
           day: "2-digit",
@@ -306,7 +318,14 @@ export default function ProyectosDashboard({
     if (!value) return 0;
     try {
       if (typeof value === "number") return value;
-      const d = new Date(String(value));
+      const str = String(value).trim();
+      const dateOnlyMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (dateOnlyMatch) {
+        const [, y, m, d] = dateOnlyMatch;
+        const dLocal = new Date(Number(y), Number(m) - 1, Number(d));
+        return isNaN(dLocal.getTime()) ? 0 : dLocal.getTime();
+      }
+      const d = new Date(str);
       return isNaN(d.getTime()) ? 0 : d.getTime();
     } catch {
       return 0;

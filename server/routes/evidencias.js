@@ -214,6 +214,9 @@ router.post(
       );
 
       const id = result.insertId;
+      if (comentario && String(comentario).trim()) {
+        await pool.query('INSERT INTO evidencia_comentarios (evidencia_id, comentario) VALUES (?, ?)', [id, String(comentario).trim()]);
+      }
       const relUrl = buildPublicUrl(imagePath);
       const absUrl = `${req.protocol}://${req.get('host')}${relUrl.startsWith('/') ? relUrl : ('/' + relUrl)}`;
       return res.status(201).json({
@@ -320,6 +323,9 @@ router.post(
         );
         nextSortOrder++;
         const id = r.insertId;
+        if (comentario && String(comentario).trim()) {
+          await pool.query('INSERT INTO evidencia_comentarios (evidencia_id, comentario) VALUES (?, ?)', [id, String(comentario).trim()]);
+        }
         const relUrl = buildPublicUrl(f.path);
         const absUrl = `${req.protocol}://${req.get('host')}${relUrl.startsWith('/') ? relUrl : ('/' + relUrl)}`;
         out.push({ id, proyectoId: pId, tareaId: tId, categoria, tipo: evidenceType, comentario: comentario || null, imageUrl: absUrl, mimeType: f.mimetype, sizeBytes: f.size, createdBy, groupKey });
@@ -371,16 +377,35 @@ router.get(
           `SELECT * FROM evidencias ${whereSql} ${orderClause} LIMIT ? OFFSET ?`,
           [...params, Number(limit), Number(offset)]
         );
+        const ids = (rows || []).map((r) => r.id);
+        let comentariosByEvid = {};
+        if (ids.length) {
+          const placeholders = ids.map(() => '?').join(',');
+          const [comRows] = await pool.query(
+            `SELECT id, evidencia_id, comentario, created_at FROM evidencia_comentarios WHERE evidencia_id IN (${placeholders}) ORDER BY evidencia_id, created_at ASC`,
+            ids
+          );
+          (comRows || []).forEach((c) => {
+            if (!comentariosByEvid[c.evidencia_id]) comentariosByEvid[c.evidencia_id] = [];
+            comentariosByEvid[c.evidencia_id].push({ id: c.id, comentario: c.comentario, createdAt: c.created_at });
+          });
+        }
         const items = rows.map(r => {
           const relUrl = buildPublicUrl(r.image_path);
           const absUrl = `${req.protocol}://${req.get('host')}${relUrl.startsWith('/') ? relUrl : ('/' + relUrl)}`;
+          const comentarios = comentariosByEvid[r.id] || [];
+          if (comentarios.length === 0 && r.comentario) {
+            comentarios.push({ id: null, comentario: r.comentario, createdAt: r.created_at });
+          }
+          const firstComment = comentarios.length ? comentarios[0].comentario : r.comentario;
           return {
             id: r.id,
             proyectoId: r.proyecto_id,
             tareaId: r.tarea_id,
             categoria: r.categoria,
             tipo: r.evidence_type,
-            comentario: r.comentario,
+            comentario: firstComment,
+            comentarios,
             imageUrl: absUrl,
             mimeType: r.mime_type,
             sizeBytes: r.size_bytes,
@@ -628,6 +653,83 @@ router.patch(
     } catch (err) {
       console.error('update evidencia error:', err);
       res.status(500).json({ error: 'Error al actualizar evidencia' });
+    }
+  }
+);
+
+// POST /api/evidencias/:id/comentarios — agregar un comentario a la evidencia
+router.post(
+  '/:id/comentarios',
+  [
+    param('id').isInt({ min: 1 }).toInt(),
+    body('comentario').isString().trim().isLength({ min: 1, max: 1000 })
+  ],
+  checkValidation,
+  async (req, res) => {
+    const { id } = req.params;
+    const { comentario } = req.body;
+    try {
+      const [check] = await pool.query('SELECT id FROM evidencias WHERE id = ?', [id]);
+      if (!check || check.length === 0) return res.status(404).json({ error: 'Evidencia no encontrada' });
+      const [result] = await pool.query('INSERT INTO evidencia_comentarios (evidencia_id, comentario) VALUES (?, ?)', [id, String(comentario).trim()]);
+      const [rows] = await pool.query('SELECT id, evidencia_id, comentario, created_at FROM evidencia_comentarios WHERE id = ?', [result.insertId]);
+      const r = rows && rows[0];
+      res.status(201).json(r ? { id: r.id, evidenciaId: r.evidencia_id, comentario: r.comentario, createdAt: r.created_at } : {});
+    } catch (err) {
+      console.error('add comentario evidencia error:', err);
+      res.status(500).json({ error: 'Error al agregar comentario' });
+    }
+  }
+);
+
+// PATCH /api/evidencias/:id/comentarios/:comentarioId — actualizar un comentario
+router.patch(
+  '/:id/comentarios/:comentarioId',
+  [
+    param('id').isInt({ min: 1 }).toInt(),
+    param('comentarioId').isInt({ min: 1 }).toInt(),
+    body('comentario').isString().trim().isLength({ min: 1, max: 1000 })
+  ],
+  checkValidation,
+  async (req, res) => {
+    const { id, comentarioId } = req.params;
+    const { comentario } = req.body;
+    try {
+      const [result] = await pool.query(
+        'UPDATE evidencia_comentarios SET comentario = ? WHERE id = ? AND evidencia_id = ?',
+        [String(comentario).trim(), comentarioId, id]
+      );
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Comentario no encontrado' });
+      const [rows] = await pool.query('SELECT id, evidencia_id, comentario, created_at FROM evidencia_comentarios WHERE id = ?', [comentarioId]);
+      const r = rows && rows[0];
+      res.json(r ? { id: r.id, evidenciaId: r.evidencia_id, comentario: r.comentario, createdAt: r.created_at } : {});
+    } catch (err) {
+      console.error('update comentario evidencia error:', err);
+      res.status(500).json({ error: 'Error al actualizar comentario' });
+    }
+  }
+);
+
+// DELETE /api/evidencias/:id/comentarios/:comentarioId — eliminar un comentario de la evidencia
+router.delete(
+  '/:id/comentarios/:comentarioId',
+  [
+    param('id').isInt({ min: 1 }).toInt(),
+    param('comentarioId').isInt({ min: 1 }).toInt()
+  ],
+  checkValidation,
+  async (req, res) => {
+    const { id, comentarioId } = req.params;
+    try {
+      const [result] = await pool.query(
+        'DELETE FROM evidencia_comentarios WHERE id = ? AND evidencia_id = ?',
+        [comentarioId, id]
+      );
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Comentario no encontrado' });
+      res.status(204).send();
+    } catch (err) {
+      console.error('delete comentario evidencia error:', err);
+      res.status(500).json({ error: 'Error al eliminar comentario' });
     }
   }
 );

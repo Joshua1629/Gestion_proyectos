@@ -6,6 +6,9 @@ import {
   deleteEvidencia,
   updateEvidencia,
   reorderEvidencias,
+  addComentarioEvidencia,
+  updateComentarioEvidencia,
+  deleteComentarioEvidencia,
 } from "../services/evidencias";
 import { type Tarea } from "../services/tareas";
 import "../css/EvidenciasPanel.css";
@@ -34,14 +37,20 @@ export default function EvidenciasPanel({
   const [showNormasFor, setShowNormasFor] = useState<number | null>(null);
   const [openAbrirEvidencia, setOpenAbrirEvidencia] = useState<Evidencia | null>(null);
   const [normasCount, setNormasCount] = useState<Record<number, number>>({});
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [comentariosPanelEvidencia, setComentariosPanelEvidencia] = useState<Evidencia | null>(null);
+  const [deleteComentarioConfirm, setDeleteComentarioConfirm] = useState<{
+    evidenciaId: number;
+    comentarioId: number;
+  } | null>(null);
+  const [editingComentario, setEditingComentario] = useState<{
+    evidenciaId: number;
+    comentarioId: number;
+    text: string;
+  } | null>(null);
   const [editComentario, setEditComentario] = useState("");
   const [savingComentarioId, setSavingComentarioId] = useState<number | null>(
     null,
   );
-  const [confirmDeleteComentarioId, setConfirmDeleteComentarioId] = useState<
-    number | null
-  >(null);
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
   const [dropZoneInsertIndex, setDropZoneInsertIndex] = useState<number | null>(null);
@@ -66,7 +75,7 @@ export default function EvidenciasPanel({
     return `${base}${url.startsWith("/") ? "" : "/"}${url}`;
   }
 
-  async function load(silent = false) {
+  async function load(silent = false): Promise<Evidencia[]> {
     if (!silent) {
       setLoading(true);
       setError(null);
@@ -96,8 +105,10 @@ export default function EvidenciasPanel({
         }),
       );
       setNormasCount(counts);
+      return list;
     } catch (e: any) {
       if (!silent) setError(e?.message || "Error al cargar evidencias");
+      return [];
     } finally {
       if (!silent) setLoading(false);
     }
@@ -105,6 +116,17 @@ export default function EvidenciasPanel({
   useEffect(() => {
     void load();
   }, [proyectoId]);
+
+  // Bloquear scroll del fondo cuando cualquier modal/panel está abierto (Comentarios o Ver evidencia)
+  useEffect(() => {
+    if (comentariosPanelEvidencia !== null || openAbrirEvidencia !== null) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [comentariosPanelEvidencia, openAbrirEvidencia]);
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
@@ -161,54 +183,70 @@ export default function EvidenciasPanel({
     }
   }
 
-  function restoreFocusToForm() {
-    setTimeout(() => {
-      comentarioInputRef.current?.focus();
-    }, 100);
+  async function handleAddComentario(evidenciaId: number) {
+    const text = editComentario.trim();
+    if (!text) return;
+    try {
+      setError(null);
+      setSavingComentarioId(evidenciaId);
+      await addComentarioEvidencia(evidenciaId, text);
+      setEditComentario("");
+      const list = await load(true);
+      setComentariosPanelEvidencia((prev) => (prev?.id === evidenciaId ? (list.find((e) => e.id === evidenciaId) ?? prev) : prev));
+    } catch (e: any) {
+      setError(
+        e?.detail || e?.error || e?.message || "Error al agregar comentario",
+      );
+    } finally {
+      setSavingComentarioId(null);
+    }
   }
 
-  async function handleSaveComentario(evidenciaId: number) {
+  function handleStartEditComentario(evidenciaId: number, comentarioId: number, text: string) {
+    setEditingComentario({ evidenciaId, comentarioId, text });
+  }
+
+  function handleCancelEditComentario() {
+    setEditingComentario(null);
+  }
+
+  async function handleSaveEditComentario() {
+    if (!editingComentario || !editingComentario.text.trim()) return;
+    const { evidenciaId, comentarioId, text } = editingComentario;
     try {
-      setSavingComentarioId(evidenciaId);
       setError(null);
-      await updateEvidencia(evidenciaId, {
-        comentario: editComentario.trim() || undefined,
-      });
-      setEditingId(null);
-      setEditComentario("");
-      await load(true);
+      setSavingComentarioId(evidenciaId);
+      await updateComentarioEvidencia(evidenciaId, comentarioId, text);
+      setEditingComentario(null);
+      const list = await load(true);
+      setComentariosPanelEvidencia((prev) => (prev?.id === evidenciaId ? (list.find((e) => e.id === evidenciaId) ?? null) : prev));
     } catch (e: any) {
       setError(
         e?.detail || e?.error || e?.message || "Error al actualizar comentario",
       );
     } finally {
       setSavingComentarioId(null);
-      restoreFocusToForm();
     }
   }
 
-  function askDeleteComentario(evidenciaId: number) {
-    setConfirmDeleteComentarioId(evidenciaId);
+  function handleDeleteComentario(evidenciaId: number, comentarioId: number) {
+    setDeleteComentarioConfirm({ evidenciaId, comentarioId });
   }
 
-  async function confirmDeleteComentario() {
-    const evidenciaId = confirmDeleteComentarioId;
-    if (evidenciaId == null) return;
-    setConfirmDeleteComentarioId(null);
+  async function doDeleteComentario(evidenciaId: number, comentarioId: number) {
     try {
-      setSavingComentarioId(evidenciaId);
       setError(null);
-      await updateEvidencia(evidenciaId, { comentario: "" });
-      setEditingId(null);
-      setEditComentario("");
-      await load(true);
+      setDeleteComentarioConfirm(null);
+      setSavingComentarioId(evidenciaId);
+      await deleteComentarioEvidencia(evidenciaId, comentarioId);
+      const list = await load(true);
+      setComentariosPanelEvidencia((prev) => (prev?.id === evidenciaId ? (list.find((e) => e.id === evidenciaId) ?? null) : prev));
     } catch (e: any) {
       setError(
-        e?.detail || e?.error || e?.message || "Error al borrar comentario",
+        e?.detail || e?.error || e?.message || "Error al eliminar comentario",
       );
     } finally {
       setSavingComentarioId(null);
-      restoreFocusToForm();
     }
   }
 
@@ -453,63 +491,6 @@ export default function EvidenciasPanel({
                       Tarea: {tareasById[ev.tareaId]?.nombre || ev.tareaId}
                     </div>
                   )}
-                  <div className="comentario">
-                    {editingId === ev.id ? (
-                      <div className="edit-comentario-form">
-                        <input
-                          type="text"
-                          value={editComentario}
-                          onChange={(e) => setEditComentario(e.target.value)}
-                          placeholder="Comentario"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleSaveComentario(ev.id);
-                            } else if (e.key === "Escape") {
-                              setEditingId(null);
-                            }
-                          }}
-                        />
-                        <button
-                          className="btn small"
-                          onClick={() => handleSaveComentario(ev.id)}
-                          disabled={savingComentarioId !== null}
-                        >
-                          Guardar
-                        </button>
-                        {ev.comentario && (
-                          <button
-                            className="btn small danger"
-                            onClick={() => askDeleteComentario(ev.id)}
-                            disabled={savingComentarioId !== null}
-                            title="Borrar comentario"
-                          >
-                            <Icon name="delete" size={18} />
-                          </button>
-                        )}
-                        <button
-                          className="btn small"
-                          onClick={() => setEditingId(null)}
-                          disabled={savingComentarioId !== null}
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    ) : (
-                      <span
-                        style={{ cursor: "pointer" }}
-                        onClick={() => {
-                          setEditingId(ev.id);
-                          setEditComentario(ev.comentario || "");
-                        }}
-                        title="Clic para editar comentario"
-                      >
-                        {ev.comentario || "Sin comentario"}
-                        <span style={{ marginLeft: 6, opacity: 0.5 }}>✏️</span>
-                      </span>
-                    )}
-                  </div>
                   <div className="acciones">
                     <button
                       className="btn small danger"
@@ -532,25 +513,44 @@ export default function EvidenciasPanel({
                     >
                       Abrir
                     </button>
-                    <button
-                      className="btn small"
-                      onClick={async () => {
-                        // Cargar conteo si aún no
-                        if (normasCount[ev.id] === undefined) {
-                          try {
-                            const res = await listNormasRepoByEvidencia(ev.id);
-                            setNormasCount((c) => ({
-                              ...c,
-                              [ev.id]: (res.items || []).length,
-                            }));
-                          } catch {}
+                    <div className="acciones-col-comentarios-incumplimientos" style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                      <button
+                        type="button"
+                        className="btn small"
+                        onClick={() => setComentariosPanelEvidencia(ev)}
+                        title="Ver y gestionar comentarios"
+                        aria-label={
+                          (() => {
+                            const n = ev.comentarios?.length ?? (ev.comentario ? 1 : 0);
+                            return n ? `Comentarios (${n})` : "Sin comentarios";
+                          })()
                         }
-                        setShowNormasFor(ev.id);
-                      }}
-                    >
-                      Incumplimientos
-                      {` (${normasCount[ev.id] ?? 0})`}
-                    </button>
+                      >
+                        <Icon name="comment" size={14} />
+                        {(() => {
+                          const n = ev.comentarios?.length ?? (ev.comentario ? 1 : 0);
+                          return n ? ` Comentarios (${n})` : " Comentarios";
+                        })()}
+                      </button>
+                      <button
+                        className="btn small"
+                        onClick={async () => {
+                          if (normasCount[ev.id] === undefined) {
+                            try {
+                              const res = await listNormasRepoByEvidencia(ev.id);
+                              setNormasCount((c) => ({
+                                ...c,
+                                [ev.id]: (res.items || []).length,
+                              }));
+                            } catch {}
+                          }
+                          setShowNormasFor(ev.id);
+                        }}
+                      >
+                        Incumplimientos
+                        {` (${normasCount[ev.id] ?? 0})`}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -592,57 +592,198 @@ export default function EvidenciasPanel({
             id: openAbrirEvidencia.id,
             imageUrl: openAbrirEvidencia.imageUrl,
             comentario: openAbrirEvidencia.comentario,
+            comentarios: openAbrirEvidencia.comentarios,
           }}
           onClose={() => setOpenAbrirEvidencia(null)}
         />
       )}
 
-      {confirmDeleteComentarioId !== null && (
+      {comentariosPanelEvidencia !== null && (
         <div
           className="modal-backdrop"
-          onClick={() =>
-            !savingComentarioId && setConfirmDeleteComentarioId(null)
-          }
+          role="presentation"
         >
           <div
-            className="modal"
-            style={{ maxWidth: 400 }}
+            className="modal panel-comentarios"
+            style={{ maxWidth: 540, minWidth: 380 }}
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="panel-comentarios-title"
           >
             <div className="modal-header">
-              <div className="modal-title">Eliminar comentario</div>
+              <div className="modal-title" id="panel-comentarios-title">
+                Comentarios
+              </div>
               <button
                 type="button"
                 className="close"
-                onClick={() =>
-                  !savingComentarioId && setConfirmDeleteComentarioId(null)
-                }
-                disabled={savingComentarioId !== null}
+                onClick={() => !savingComentarioId && setComentariosPanelEvidencia(null)}
+                aria-label="Cerrar"
               >
                 &times;
               </button>
             </div>
-            <div className="modal-body">
-              <p style={{ margin: 0 }}>
-                ¿Eliminar el comentario de esta evidencia?
-              </p>
+            <div className="modal-body" style={{ maxHeight: "70vh", overflowY: "auto", position: "relative" }}>
+              {deleteComentarioConfirm !== null && (
+                <div
+                  className="modal-backdrop"
+                  style={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.4)" }}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="confirm-delete-comentario-title"
+                >
+                  <div
+                    className="modal"
+                    style={{ maxWidth: 320 }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="modal-body">
+                      <p id="confirm-delete-comentario-title" style={{ margin: 0 }}>
+                        ¿Eliminar este comentario?
+                      </p>
+                    </div>
+                    <div className="modal-footer" style={{ gap: 8 }}>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => setDeleteComentarioConfirm(null)}
+                        disabled={savingComentarioId !== null}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn primary"
+                        onClick={() => doDeleteComentario(deleteComentarioConfirm.evidenciaId, deleteComentarioConfirm.comentarioId)}
+                        disabled={savingComentarioId !== null}
+                      >
+                        Aceptar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {(() => {
+                const ev = comentariosPanelEvidencia;
+                const lista = ev.comentarios?.length ? ev.comentarios : ev.comentario ? [{ id: null, comentario: ev.comentario }] : [];
+                return (
+                  <>
+                    {lista.length > 0 ? (
+                      <ul className="lista-comentarios-panel">
+                        {lista.map((c, i) => {
+                          const isEditing = editingComentario?.comentarioId === c.id && editingComentario?.evidenciaId === ev.id;
+                          const commentText = (c as { comentario?: string }).comentario ?? "";
+                          return (
+                            <li key={c.id ?? `legacy-${i}`}>
+                              {isEditing ? (
+                                <>
+                                  <input
+                                    type="text"
+                                    className="form-input"
+                                    value={editingComentario.text}
+                                    onChange={(e) => setEditingComentario((prev) => prev ? { ...prev, text: e.target.value } : null)}
+                                    style={{ flex: 1, minWidth: 0, padding: "6px 8px", fontSize: 13 }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleSaveEditComentario();
+                                      if (e.key === "Escape") handleCancelEditComentario();
+                                    }}
+                                    autoFocus
+                                  />
+                                  <button
+                                    type="button"
+                                    className="btn small"
+                                    style={{ padding: "2px 8px", minHeight: "auto", flexShrink: 0 }}
+                                    onClick={() => handleSaveEditComentario()}
+                                    disabled={savingComentarioId !== null || !editingComentario.text.trim()}
+                                    title="Guardar"
+                                  >
+                                    Guardar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn small"
+                                    style={{ padding: "2px 8px", minHeight: "auto", flexShrink: 0 }}
+                                    onClick={() => handleCancelEditComentario()}
+                                    disabled={savingComentarioId !== null}
+                                    title="Cancelar"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <span style={{ flex: 1 }}>{commentText}</span>
+                                  {c.id != null && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        className="btn small"
+                                        style={{ padding: "2px 6px", minHeight: "auto", flexShrink: 0 }}
+                                        onClick={() => handleStartEditComentario(ev.id, c.id as number, commentText)}
+                                        disabled={savingComentarioId !== null}
+                                        title="Editar comentario"
+                                        aria-label="Editar comentario"
+                                      >
+                                        <Icon name="edit" size={14} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="btn small danger"
+                                        style={{ padding: "2px 6px", minHeight: "auto", flexShrink: 0 }}
+                                        onClick={() => handleDeleteComentario(ev.id, c.id as number)}
+                                        disabled={savingComentarioId !== null}
+                                        title="Eliminar comentario"
+                                        aria-label="Eliminar comentario"
+                                      >
+                                        <Icon name="delete" size={14} />
+                                      </button>
+                                    </>
+                                  )}
+                                </>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="muted small" style={{ margin: "0 0 12px 0" }}>Sin comentarios.</p>
+                    )}
+                    <div className="edit-comentario-form" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <input
+                        type="text"
+                        value={editComentario}
+                        onChange={(e) => setEditComentario(e.target.value)}
+                        placeholder="Agregar comentario..."
+                        style={{ flex: 1, minWidth: 160 }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddComentario(ev.id);
+                          } else if (e.key === "Escape") {
+                            setComentariosPanelEvidencia(null);
+                          }
+                        }}
+                      />
+                      <button
+                        className="btn small"
+                        onClick={() => handleAddComentario(ev.id)}
+                        disabled={savingComentarioId !== null || !editComentario.trim()}
+                      >
+                        Agregar
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
             <div className="modal-footer">
               <button
                 type="button"
                 className="btn"
-                onClick={() => setConfirmDeleteComentarioId(null)}
+                onClick={() => setComentariosPanelEvidencia(null)}
                 disabled={savingComentarioId !== null}
               >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="btn danger"
-                onClick={() => void confirmDeleteComentario()}
-                disabled={savingComentarioId !== null}
-              >
-                Eliminar
+                Cerrar
               </button>
             </div>
           </div>

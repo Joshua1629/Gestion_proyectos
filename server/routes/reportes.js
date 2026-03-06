@@ -530,7 +530,7 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
     .fillColor("#333")
     .text("VERIFICADOR", leftBoxX + 12, ly);
   ly += 14;
-  const verifierNameWidth = leftBoxW - 24 - 40; // más estrecho para que baje una palabra y sobre espacio para el sello
+  const verifierNameWidth = leftBoxW - 24 - 40;
   const verifierNameH = doc.heightOfString(
     "Ing. Luis Javier Jiménez Fernández",
     { width: verifierNameWidth },
@@ -542,21 +542,23 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
     .text("Ing. Luis Javier Jiménez Fernández", leftBoxX + 12, ly, {
       width: verifierNameWidth,
     });
-  ly += verifierNameH + 8;
+  ly += verifierNameH + 6;
   doc
     .font("Helvetica")
     .fontSize(9)
-    .text("70188-0617", leftBoxX + 12, ly);
+    .text("IMI-24991 / CAPDEE #92", leftBoxX + 12, ly);
   ly += 14;
+  const certText = "Certificado en NFPA 70, NFPA 70E, NFPA 101, NFPA 72.";
+  const certH = doc.heightOfString(certText, { width: leftBoxW - 24 });
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .text(certText, leftBoxX + 12, ly, { width: leftBoxW - 24 });
+  ly += certH + 6;
   doc
     .font("Helvetica")
     .fontSize(9)
-    .text("IMI-24991", leftBoxX + 12, ly);
-  ly += 14;
-  doc
-    .font("Helvetica")
-    .fontSize(9)
-    .text("CAPDEE #92", leftBoxX + 12, ly);
+    .text("Tel: 8867-0313 / 8681-5863", leftBoxX + 12, ly);
   ly += 18;
   // línea divisoria
   doc
@@ -679,13 +681,15 @@ function drawVerificadorBlock(doc) {
   doc.font("Helvetica").fontSize(10);
   doc.text("Ing. Luis Javier Jiménez Fernández", leftX + 8, y);
   y += lineH;
-  doc.text("Ingeniero en Mantenimiento Industrial", leftX + 8, y);
-  y += lineH + 4;
-  doc.text("70188-0617", leftX + 8, y);
+  doc.text("IMI-24991 / CAPDEE #92", leftX + 8, y);
   y += lineH;
-  doc.text("IMI-24991", leftX + 8, y);
-  y += lineH;
-  doc.text("CAPDEE #92", leftX + 8, y);
+  const certW = blockW - 16;
+  const certH = doc.heightOfString("Certificado en NFPA 70, NFPA 70E, NFPA 101, NFPA 72.", { width: certW });
+  doc.font("Helvetica").fontSize(9);
+  doc.text("Certificado en NFPA 70, NFPA 70E, NFPA 101, NFPA 72.", leftX + 8, y, { width: certW });
+  y += certH + 4;
+  doc.font("Helvetica").fontSize(10);
+  doc.text("Tel: 8867-0313 / 8681-5863", leftX + 8, y);
   y += lineH + 8;
 
   const boxH = y - boxTop;
@@ -850,14 +854,20 @@ function drawFinding(doc, idx, evidencia, yStart, linkedNormas, images) {
   const gap = 10;
   // La severidad se muestra por incumplimiento, no a nivel de evidencia
 
-  // Calcular alturas de texto
+  // Calcular alturas de texto (soporta múltiples comentarios como lista)
   const leftW = 495 - imgW - 3 * gap;
-  const comentarioRaw = evidencia.comentario || "";
-  const comentarioTxt = String(comentarioRaw).trim();
-  const hasComentario = comentarioTxt.length > 0;
-  const comentarioHeight = hasComentario
-    ? doc.heightOfString(comentarioTxt, { width: leftW, align: "left" }) + 14
-    : 0;
+  const comentariosArr = Array.isArray(evidencia.comentarios) && evidencia.comentarios.length
+    ? evidencia.comentarios.map((c) => String(c || "").trim()).filter(Boolean)
+    : [];
+  const hasComentarioList = comentariosArr.length > 0;
+  const comentarioTxt = hasComentarioList ? "" : String(evidencia.comentario || "").trim();
+  const hasComentario = hasComentarioList || comentarioTxt.length > 0;
+  let comentarioHeight = 0;
+  if (hasComentarioList) {
+    comentarioHeight = 14 + comentariosArr.reduce((acc, txt) => acc + doc.heightOfString(txt, { width: leftW - 24 }) + 6, 0);
+  } else if (comentarioTxt.length > 0) {
+    comentarioHeight = doc.heightOfString(comentarioTxt, { width: leftW, align: "left" }) + 14;
+  }
   const normasMostradas = Array.isArray(linkedNormas) ? linkedNormas : [];
   const itemTextWidthCalc = leftW - 24;
   const normasHeight =
@@ -936,24 +946,38 @@ function drawFinding(doc, idx, evidencia, yStart, linkedNormas, images) {
     yCursor = y + 4;
   }
 
-  // Después: Comentario (debajo de incumplimientos)
+  // Después: Comentario(s) — lista con viñetas si hay múltiples
   if (hasComentario) {
     doc
       .font("Helvetica-Bold")
       .fontSize(9)
       .fillColor("#000")
       .text("Comentario:", leftX, yCursor);
-    const commentH = doc.heightOfString(comentarioTxt, {
-      width: leftW,
-      align: "left",
-    });
-    doc
-      .font("Helvetica")
-      .fontSize(9)
-      .text(comentarioTxt, leftX, yCursor + 10, {
-        width: leftW,
-        height: commentH + 4,
+    const bulletRadius = 2.5;
+    const bulletIndent = 18;
+    const itemTextWidth = leftW - bulletIndent - 4;
+    let yCom = yCursor + 10;
+    if (hasComentarioList) {
+      comentariosArr.forEach((txt) => {
+        const h = doc.heightOfString(txt, { width: itemTextWidth, align: "left" });
+        doc
+          .circle(leftX + 6, yCom + 4, bulletRadius)
+          .fillColor("#333")
+          .fill();
+        doc
+          .font("Helvetica")
+          .fontSize(9)
+          .fillColor("#000")
+          .text(txt, leftX + bulletIndent, yCom - 2, { width: itemTextWidth });
+        yCom += h + 6;
       });
+    } else {
+      const commentH = doc.heightOfString(comentarioTxt, { width: leftW, align: "left" });
+      doc
+        .font("Helvetica")
+        .fontSize(9)
+        .text(comentarioTxt, leftX, yCom, { width: leftW, height: commentH + 4 });
+    }
   }
 
   const imgX = marginX + leftW + 2 * gap;
@@ -1093,6 +1117,21 @@ router.get(
           : null) ||
         (coverImage && fs.existsSync(coverImage) ? coverImage : null);
 
+      // Comentarios por evidencia (evidencia_comentarios)
+      let comentariosByEvidReport = {};
+      if (evidRows.length) {
+        const ids = evidRows.map((e) => e.id);
+        const placeholders = ids.map(() => "?").join(",");
+        const [comRows] = await pool.query(
+          `SELECT evidencia_id, comentario FROM evidencia_comentarios WHERE evidencia_id IN (${placeholders}) ORDER BY evidencia_id, created_at ASC`,
+          ids
+        );
+        (comRows || []).forEach((c) => {
+          if (!comentariosByEvidReport[c.evidencia_id]) comentariosByEvidReport[c.evidencia_id] = [];
+          comentariosByEvidReport[c.evidencia_id].push(String(c.comentario || "").trim());
+        });
+      }
+
       // Asociaciones Evidencia ⇄ Normas (catálogo)
       let byEvid = {};
       if (evidRows.length) {
@@ -1166,11 +1205,16 @@ router.get(
             images.push(ev.image_path);
           }
         }
+        let comentariosList = comentariosByEvidReport[ev.id] || [];
+        if (comentariosList.length === 0 && ev.comentario) comentariosList = [normComment(ev.comentario)];
+        const comentarioPrimero = comentariosList.length ? comentariosList[0] : normComment(ev.comentario);
         evidList.push({
-          comentario: normComment(ev.comentario),
+          comentario: comentarioPrimero,
+          comentarios: comentariosList,
           tareaId: ev.tarea_id || null,
           images,
           links: byEvid[ev.id] || [],
+          image_path: ev.image_path,
         });
       }
 
@@ -1209,7 +1253,7 @@ router.get(
           const usedH = drawFinding(
             doc,
             i,
-            { comentario: g.comentario, tarea_id: g.tareaId },
+            { comentario: g.comentario, comentarios: g.comentarios, tarea_id: g.tareaId, image_path: g.images[0] },
             y,
             g.links,
             g.images.slice(0, 1),

@@ -150,6 +150,16 @@ async function ensureExtraTables() {
       );
       CREATE INDEX IF NOT EXISTS idx_enr_evidencia ON evidencias_normas_repo(evidencia_id);
       CREATE INDEX IF NOT EXISTS idx_enr_norma ON evidencias_normas_repo(norma_repo_id);
+
+      -- Múltiples comentarios por evidencia
+      CREATE TABLE IF NOT EXISTS evidencia_comentarios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        evidencia_id INTEGER NOT NULL,
+        comentario TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (evidencia_id) REFERENCES evidencias(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_evidencia_comentarios_evidencia ON evidencia_comentarios(evidencia_id);
       `;
 
       db.exec(ddl, (e) => {

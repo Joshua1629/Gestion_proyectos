@@ -4,6 +4,12 @@ const API = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3001') + '/api/ev
 
 export type Categoria = 'OK' | 'LEVE' | 'CRITICO';
 
+export interface EvidenciaComentario {
+  id: number | null;
+  comentario: string;
+  createdAt?: string;
+}
+
 export interface Evidencia {
   id: number;
   proyectoId: number;
@@ -11,6 +17,7 @@ export interface Evidencia {
   categoria: Categoria;
   tipo?: string; // tipo de evidencia (INCUMPLIMIENTO, INSTITUCIONAL, TECNICA, GENERAL)
   comentario?: string | null;
+  comentarios?: EvidenciaComentario[];
   imageUrl: string;
   mimeType?: string;
   sizeBytes?: number;
@@ -155,6 +162,29 @@ export async function reorderEvidencias(proyectoId: number, orderedIds: number[]
     body: JSON.stringify({ proyectoId, orderedIds }),
     asJson: true
   });
+}
+
+/** Agregar un comentario a una evidencia (múltiples comentarios por evidencia). */
+export async function addComentarioEvidencia(evidenciaId: number, comentario: string): Promise<EvidenciaComentario> {
+  return appFetch(`${API}/${evidenciaId}/comentarios`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ comentario: comentario.trim() })
+  });
+}
+
+/** Actualizar un comentario de una evidencia. */
+export async function updateComentarioEvidencia(evidenciaId: number, comentarioId: number, comentario: string): Promise<EvidenciaComentario> {
+  return appFetch(`${API}/${evidenciaId}/comentarios/${comentarioId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ comentario: comentario.trim() })
+  });
+}
+
+/** Eliminar un comentario de una evidencia. */
+export async function deleteComentarioEvidencia(evidenciaId: number, comentarioId: number): Promise<void> {
+  return appFetch(`${API}/${evidenciaId}/comentarios/${comentarioId}`, { method: 'DELETE', asJson: false });
 }
 
 // Asociaciones Evidencia ⇄ Normas-Repo

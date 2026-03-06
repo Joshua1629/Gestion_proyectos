@@ -9,6 +9,7 @@ interface EvidenciaParaModal {
   id: number;
   imageUrl: string;
   comentario?: string | null;
+  comentarios?: { id: number | null; comentario: string }[];
 }
 
 interface Props {
@@ -129,10 +130,18 @@ export default function EvidenciaAbrirModal({ evidencia, onClose }: Props) {
               </div>
             </div>
           )}
-          {evidencia.comentario && (
-            <p className="evidencia-abrir-comentario muted small">
-              {evidencia.comentario}
-            </p>
+          {(evidencia.comentarios?.length || evidencia.comentario) && (
+            <div className="evidencia-abrir-comentario muted small">
+              {evidencia.comentarios?.length ? (
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {evidencia.comentarios.map((c, i) => (
+                    <li key={c.id ?? i}>{(c as { comentario?: string }).comentario}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ margin: 0 }}>{evidencia.comentario}</p>
+              )}
+            </div>
           )}
 
           <h4 style={{ marginTop: 16, marginBottom: 8 }}>

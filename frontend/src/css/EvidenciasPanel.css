@@ -638,6 +638,41 @@
 	.modal-footer { flex-wrap: wrap; justify-content: flex-start; }
 }
 
+/* Lista de comentarios en el panel: viñeta más pequeña y menos sangría */
+.lista-comentarios-panel {
+	list-style-type: disc;
+	padding-left: 16px;
+	margin: 0 0 12px 0;
+}
+.lista-comentarios-panel li::marker {
+	font-size: 0.6em;
+	color: #64748b;
+}
+.lista-comentarios-panel li {
+	margin-bottom: 8px;
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+}
+.lista-comentarios-panel li span {
+	min-width: 0;
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+}
+
+.comentario-resumen {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+.comentario-resumen .comentario-texto {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: 14px;
+	color: #333;
+}
+
 /* Estilos para edición de comentario */
 .edit-comentario-form {
 	display: flex;

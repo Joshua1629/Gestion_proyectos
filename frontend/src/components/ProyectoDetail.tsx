@@ -123,10 +123,21 @@ export default function ProyectoDetail({
       return "No definida";
 
     try {
-      // Si es un número o una cadena que contiene solo dígitos, interpretarlo como timestamp
-      if (typeof dateInput === "number" || /^\d+$/.test(String(dateInput))) {
+      const str = String(dateInput).trim();
+      const dateOnlyMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (dateOnlyMatch) {
+        const [, y, m, d] = dateOnlyMatch;
+        const dLocal = new Date(Number(y), Number(m) - 1, Number(d));
+        if (!isNaN(dLocal.getTime()))
+          return dLocal.toLocaleDateString("es-ES", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          });
+      }
+
+      if (typeof dateInput === "number" || /^\d+$/.test(str)) {
         let n = Number(dateInput);
-        // Si parece estar en segundos (10 dígitos), convertir a ms
         if (String(n).length === 10) n = n * 1000;
         const dnum = new Date(n);
         if (!isNaN(dnum.getTime()))
@@ -137,8 +148,7 @@ export default function ProyectoDetail({
           });
       }
 
-      // Intentar parsear como ISO u otros formatos reconocidos
-      const d = new Date(String(dateInput));
+      const d = new Date(str);
       if (!isNaN(d.getTime()))
         return d.toLocaleDateString("es-ES", {
           year: "numeric",
