@@ -412,6 +412,7 @@ router.get(
             createdBy: r.created_by,
             createdAt: r.created_at,
             updatedAt: r.updated_at,
+            sortOrder: r.sort_order != null ? Number(r.sort_order) : null,
             groupKey: r.group_key || buildGroupKey(r.tarea_id, r.comentario)
           };
         });

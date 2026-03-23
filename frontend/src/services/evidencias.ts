@@ -24,6 +24,8 @@ export interface Evidencia {
   createdBy?: number | null;
   createdAt?: string;
   updatedAt?: string;
+  /** Orden en el informe PDF (mismo criterio que el backend). */
+  sortOrder?: number | null;
   groupKey?: string;
 }
 

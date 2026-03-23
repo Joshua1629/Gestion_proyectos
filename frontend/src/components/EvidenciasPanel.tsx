@@ -8,6 +8,7 @@ import {
   addComentarioEvidencia,
   updateComentarioEvidencia,
   deleteComentarioEvidencia,
+  listNormasRepoByEvidencia,
 } from "../services/evidencias";
 import { type Tarea } from "../services/tareas";
 import "../css/EvidenciasPanel.css";
@@ -15,7 +16,60 @@ import ImageWithFallback from "./ImageWithFallback";
 import EvidenciaNormasModal from "./EvidenciaNormasModal";
 import EvidenciaAbrirModal from "./EvidenciaAbrirModal";
 import Icon from "./Icon";
-import { listNormasRepoByEvidencia } from "../services/evidencias";
+import { lockBodyScroll } from "../utils/lockBodyScroll";
+
+/** Igual que `reportes.js` (PDF): portada / institucional no entra en la numeración de hallazgos. */
+function isEvidenciaInstitucional(ev: Evidencia): boolean {
+  const tipo = String(ev.tipo || "").toUpperCase();
+  if (tipo === "PORTADA" || tipo === "INSTITUCIONAL") return true;
+  const texto = [
+    ev.comentario || "",
+    ...(ev.comentarios?.map((c) => c.comentario) || []),
+  ].join(" ");
+  return /\[(INSTITUCION|PORTADA)\]/i.test(texto);
+}
+
+/**
+ * Número 1..N como en el PDF: orden `sort_order` ASC, `created_at` ASC;
+ * solo evidencias no institucionales (misma exclusión que el reporte).
+ */
+function buildPdfReportNumberMap(items: Evidencia[]): Map<number, number> {
+  const ordered = [...items]
+    .filter((e) => !isEvidenciaInstitucional(e))
+    .sort((a, b) => {
+      const soA =
+        a.sortOrder != null && !Number.isNaN(Number(a.sortOrder))
+          ? Number(a.sortOrder)
+          : 999999;
+      const soB =
+        b.sortOrder != null && !Number.isNaN(Number(b.sortOrder))
+          ? Number(b.sortOrder)
+          : 999999;
+      if (soA !== soB) return soA - soB;
+      const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tA - tB;
+    });
+  const map = new Map<number, number>();
+  ordered.forEach((e, i) => map.set(e.id, i + 1));
+  return map;
+}
+
+/**
+ * Mismo criterio que el servidor al guardar orden: `orderedIds[i]` → sort_order i+1.
+ * Actualiza `sortOrder` en cada ítem para que la numeración PDF se recalcule al instante.
+ */
+function applyReorderSortOrder(reordered: Evidencia[]): Evidencia[] {
+  const orderedIds = reordered.slice().reverse().map((i) => i.id);
+  return reordered.map((e) => {
+    const idx = orderedIds.indexOf(e.id);
+    return {
+      ...e,
+      sortOrder: idx >= 0 ? idx + 1 : e.sortOrder,
+    };
+  });
+}
+
 export default function EvidenciasPanel({
   proyectoId,
   tareas,
@@ -61,6 +115,11 @@ export default function EvidenciasPanel({
   const tareasById = useMemo(
     () => Object.fromEntries((tareas || []).map((t) => [t.id, t])),
     [tareas],
+  );
+
+  const pdfReportNumberById = useMemo(
+    () => buildPdfReportNumberMap(items),
+    [items],
   );
 
   function normalizeImageUrl(url?: string | null) {
@@ -116,14 +175,10 @@ export default function EvidenciasPanel({
     void load();
   }, [proyectoId]);
 
-  // Bloquear scroll del fondo cuando cualquier modal/panel está abierto (Comentarios o Ver evidencia)
+  // Bloquear scroll del fondo sin saltar al inicio al cerrar modales (Comentarios / Ver evidencia)
   useEffect(() => {
     if (comentariosPanelEvidencia !== null || openAbrirEvidencia !== null) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = prev;
-      };
+      return lockBodyScroll();
     }
   }, [comentariosPanelEvidencia, openAbrirEvidencia]);
 
@@ -300,12 +355,13 @@ export default function EvidenciasPanel({
     const [moved] = reordered.splice(fromIndex, 1);
     const insertIndex = fromIndex < insertAtIndex ? insertAtIndex - 1 : insertAtIndex;
     reordered.splice(insertIndex, 0, moved);
-    setItems(reordered);
+    setItems(applyReorderSortOrder(reordered));
     (async () => {
       try {
         setError(null);
         const orderedIds = reordered.slice().reverse().map((i) => i.id);
         await reorderEvidencias(proyectoId, orderedIds);
+        await load(true);
         setSuccessMsg("Orden guardado. El PDF usará este orden al exportar.");
         setTimeout(() => setSuccessMsg(null), 4000);
       } catch (err: any) {
@@ -315,6 +371,7 @@ export default function EvidenciasPanel({
             err?.message ||
             "Error al guardar el orden",
         );
+        await load(true);
       }
     })();
   }
@@ -339,12 +396,13 @@ export default function EvidenciasPanel({
     const reordered = [...items];
     reordered[fromIndex] = items[toIndex];
     reordered[toIndex] = items[fromIndex];
-    setItems(reordered);
+    setItems(applyReorderSortOrder(reordered));
     (async () => {
       try {
         setError(null);
         const orderedIds = reordered.slice().reverse().map((i) => i.id);
         await reorderEvidencias(proyectoId, orderedIds);
+        await load(true);
         setSuccessMsg("Orden guardado. El PDF usará este orden al exportar.");
         setTimeout(() => setSuccessMsg(null), 4000);
       } catch (err: any) {
@@ -354,6 +412,7 @@ export default function EvidenciasPanel({
             err?.message ||
             "Error al guardar el orden",
         );
+        await load(true);
       }
     })();
   }
@@ -482,6 +541,14 @@ export default function EvidenciasPanel({
                   )}
                   {String(ev.tipo).toUpperCase() === "INSTITUCIONAL" && (
                     <div className="badge">Portada</div>
+                  )}
+                  {pdfReportNumberById.has(ev.id) && (
+                    <div
+                      className="evidencia-pdf-num"
+                      title={`En el PDF: ${pdfReportNumberById.get(ev.id)}. Evidencia e Incumplimiento`}
+                    >
+                      {pdfReportNumberById.get(ev.id)}
+                    </div>
                   )}
                 </div>
                 <div className="evidencia-meta">

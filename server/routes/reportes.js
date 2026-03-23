@@ -8,6 +8,10 @@ const pool = require("../models/db");
 
 const router = express.Router();
 
+/** \u00A0 = espacio no separable: mantiene juntos "NFPA 70", "NFPA 101", etc. al ajustar líneas */
+const TEXTO_CERTIFICADO_NFPA =
+  "Certificado en NFPA\u00A070, NFPA\u00A070E, NFPA\u00A0101, NFPA\u00A072.";
+
 function getLogoPath() {
   const candidates = [
     // Rutas de desarrollo
@@ -548,12 +552,13 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
     .fontSize(9)
     .text("IMI-24991 / CAPDEE #92", leftBoxX + 12, ly);
   ly += 14;
-  const certText = "Certificado en NFPA 70, NFPA 70E, NFPA 101, NFPA 72.";
-  const certH = doc.heightOfString(certText, { width: leftBoxW - 24 });
+  const certH = doc.heightOfString(TEXTO_CERTIFICADO_NFPA, {
+    width: leftBoxW - 24,
+  });
   doc
     .font("Helvetica")
     .fontSize(8)
-    .text(certText, leftBoxX + 12, ly, { width: leftBoxW - 24 });
+    .text(TEXTO_CERTIFICADO_NFPA, leftBoxX + 12, ly, { width: leftBoxW - 24 });
   ly += certH + 6;
   doc
     .font("Helvetica")
@@ -684,9 +689,9 @@ function drawVerificadorBlock(doc) {
   doc.text("IMI-24991 / CAPDEE #92", leftX + 8, y);
   y += lineH;
   const certW = blockW - 16;
-  const certH = doc.heightOfString("Certificado en NFPA 70, NFPA 70E, NFPA 101, NFPA 72.", { width: certW });
+  const certH = doc.heightOfString(TEXTO_CERTIFICADO_NFPA, { width: certW });
   doc.font("Helvetica").fontSize(9);
-  doc.text("Certificado en NFPA 70, NFPA 70E, NFPA 101, NFPA 72.", leftX + 8, y, { width: certW });
+  doc.text(TEXTO_CERTIFICADO_NFPA, leftX + 8, y, { width: certW });
   y += certH + 4;
   doc.font("Helvetica").fontSize(10);
   doc.text("Tel: 8867-0313 / 8681-5863", leftX + 8, y);

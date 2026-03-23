@@ -6,6 +6,7 @@ import {
   detachNormaRepoFromEvidencia,
   type EvidenciaNormaRepoLink,
 } from "../services/evidencias";
+import { lockBodyScroll } from "../utils/lockBodyScroll";
 
 interface Props {
   evidenciaId: number;
@@ -87,6 +88,11 @@ export default function EvidenciaNormasModal({
     void load();
   }, []); // initial
 
+  // Bloquear scroll del documento sin perder la posición al cerrar (evita volver arriba del panel)
+  useEffect(() => {
+    return lockBodyScroll();
+  }, []);
+
   async function handleSave() {
     try {
       setSaving(true);
@@ -137,10 +143,21 @@ export default function EvidenciaNormasModal({
   }
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-backdrop modal-backdrop--lock-scroll"
+      role="presentation"
+    >
+      <div
+        className="modal evidencia-normas-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="evidencia-normas-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <div className="modal-title">Añadir incumplimientos a evidencia</div>
+          <div className="modal-title" id="evidencia-normas-modal-title">
+            Añadir incumplimientos a evidencia
+          </div>
           <button
             className="close"
             onClick={() => {
@@ -150,7 +167,7 @@ export default function EvidenciaNormasModal({
             &times;
           </button>
         </div>
-        <div className="modal-body">
+        <div className="modal-body evidencia-normas-modal__body">
           <div className="modal-filters">
             <input
               className="modal-filter-input"
@@ -173,7 +190,9 @@ export default function EvidenciaNormasModal({
             </button>
           </div>
           {error && <div className="error-message">{error}</div>}
-          {loading && <div>Cargando...</div>}
+          {loading && (
+            <div className="evidencia-normas-modal__loading">Cargando...</div>
+          )}
           {!loading && (
             <div className="normas-table-wrapper">
               <table className="normas-table">
