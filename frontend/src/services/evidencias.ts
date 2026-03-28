@@ -18,6 +18,8 @@ export interface Evidencia {
   tipo?: string; // tipo de evidencia (INCUMPLIMIENTO, INSTITUCIONAL, TECNICA, GENERAL)
   comentario?: string | null;
   comentarios?: EvidenciaComentario[];
+  zonaInspeccionId?: number | null;
+  zonaInspeccionNombre?: string | null;
   imageUrl: string;
   mimeType?: string;
   sizeBytes?: number;
@@ -135,7 +137,7 @@ export async function deleteEvidenciaGroup(groupKey: string) {
   return appFetch(`${API}/groups/${encodeURIComponent(groupKey)}`, { method: 'DELETE', asJson: false });
 }
 
-export async function updateEvidencia(id: number, payload: Partial<Pick<Evidencia, 'categoria' | 'comentario'>>) {
+export async function updateEvidencia(id: number, payload: Partial<Pick<Evidencia, 'categoria' | 'comentario' | 'zonaInspeccionId'>>) {
   return appFetch(`${API}/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },

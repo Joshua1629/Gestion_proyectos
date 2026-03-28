@@ -209,8 +209,8 @@ router.post(
       const [maxRows] = await pool.query('SELECT COALESCE(MAX(sort_order),0)+1 AS next_order FROM evidencias WHERE proyecto_id = ?', [pId]);
       const sortOrder = (maxRows && maxRows[0] && maxRows[0].next_order != null) ? maxRows[0].next_order : 1;
       const [result] = await pool.query(
-        'INSERT INTO evidencias (proyecto_id, tarea_id, categoria, evidence_type, comentario, image_path, file_hash, mime_type, size_bytes, created_by, group_key, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        ,[pId, tId || null, categoria || 'OK', evidenceType, comentario || null, imagePath, fileHash, mime, size, createdBy, groupKey, sortOrder]
+        'INSERT INTO evidencias (proyecto_id, tarea_id, categoria, evidence_type, comentario, image_path, file_hash, mime_type, size_bytes, created_by, group_key, sort_order, zona_inspeccion_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ,[pId, tId || null, categoria || 'OK', evidenceType, comentario || null, imagePath, fileHash, mime, size, createdBy, groupKey, sortOrder, null]
       );
 
       const id = result.insertId;
@@ -318,8 +318,8 @@ router.post(
           }
         }
         const [r] = await pool.query(
-          'INSERT INTO evidencias (proyecto_id, tarea_id, categoria, evidence_type, comentario, image_path, file_hash, mime_type, size_bytes, created_by, group_key, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-          ,[pId, tId || null, categoria, evidenceType, comentario || null, f.path, fileHash, f.mimetype, f.size, createdBy, groupKey, nextSortOrder]
+          'INSERT INTO evidencias (proyecto_id, tarea_id, categoria, evidence_type, comentario, image_path, file_hash, mime_type, size_bytes, created_by, group_key, sort_order, zona_inspeccion_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          ,[pId, tId || null, categoria, evidenceType, comentario || null, f.path, fileHash, f.mimetype, f.size, createdBy, groupKey, nextSortOrder, null]
         );
         nextSortOrder++;
         const id = r.insertId;
@@ -359,22 +359,25 @@ router.get(
     const offset = (page - 1) * limit;
 
     try {
-      const where = ['proyecto_id = ?'];
+      const where = ['e.proyecto_id = ?'];
       const params = [proyectoId];
-      if (tareaId) { where.push('tarea_id = ?'); params.push(tareaId); }
-  if (categoria) { where.push('categoria = ?'); params.push(categoria); }
-  if (tipo) { where.push('evidence_type = ?'); params.push(String(tipo)); }
+      if (tareaId) { where.push('e.tarea_id = ?'); params.push(tareaId); }
+  if (categoria) { where.push('e.categoria = ?'); params.push(categoria); }
+  if (tipo) { where.push('e.evidence_type = ?'); params.push(String(tipo)); }
       const whereSql = where.length ? ('WHERE ' + where.join(' AND ')) : '';
       if (!wantGroups) {
-        const [countRows] = await pool.query(`SELECT COUNT(*) as total FROM evidencias ${whereSql}`, params);
+        const [countRows] = await pool.query(`SELECT COUNT(*) as total FROM evidencias e ${whereSql}`, params);
         const total = countRows[0]?.total || 0;
         // order=recent → panel: inverso al PDF (sort_order DESC = más reciente primero); sin recent → orden reporte (sort_order ASC)
         const orderRecent = String(req.query.order || '').toLowerCase() === 'recent';
         const orderClause = orderRecent
-          ? 'ORDER BY CAST(COALESCE(sort_order, 0) AS INTEGER) DESC, created_at DESC'
-          : 'ORDER BY CAST(COALESCE(sort_order, 999999) AS INTEGER) ASC, created_at ASC';
+          ? 'ORDER BY CAST(COALESCE(e.sort_order, 0) AS INTEGER) DESC, e.created_at DESC'
+          : 'ORDER BY CAST(COALESCE(e.sort_order, 999999) AS INTEGER) ASC, e.created_at ASC';
         const [rows] = await pool.query(
-          `SELECT * FROM evidencias ${whereSql} ${orderClause} LIMIT ? OFFSET ?`,
+          `SELECT e.*, z.nombre AS zona_inspeccion_nombre
+           FROM evidencias e
+           LEFT JOIN zonas_inspeccion z ON z.id = e.zona_inspeccion_id
+           ${whereSql} ${orderClause} LIMIT ? OFFSET ?`,
           [...params, Number(limit), Number(offset)]
         );
         const ids = (rows || []).map((r) => r.id);
@@ -412,6 +415,8 @@ router.get(
             createdBy: r.created_by,
             createdAt: r.created_at,
             updatedAt: r.updated_at,
+            zonaInspeccionId: r.zona_inspeccion_id != null ? Number(r.zona_inspeccion_id) : null,
+            zonaInspeccionNombre: r.zona_inspeccion_nombre || null,
             sortOrder: r.sort_order != null ? Number(r.sort_order) : null,
             groupKey: r.group_key || buildGroupKey(r.tarea_id, r.comentario)
           };
@@ -420,9 +425,10 @@ router.get(
       }
 
       // Modo agrupado
+      const whereSqlGroup = whereSql.replace(/e\./g, '');
       const [rows] = await pool.query(
         `SELECT id, proyecto_id, tarea_id, comentario, image_path, mime_type, size_bytes, created_at, group_key, evidence_type
-         FROM evidencias ${whereSql} ORDER BY CAST(COALESCE(sort_order, 999999) AS INTEGER) ASC, created_at ASC`,
+         FROM evidencias ${whereSqlGroup} ORDER BY CAST(COALESCE(sort_order, 999999) AS INTEGER) ASC, created_at ASC`,
         params
       );
       const map = new Map();
@@ -609,7 +615,8 @@ router.patch(
   [
     param('id').isInt({ min: 1 }).toInt(),
     body('categoria').optional().isIn(['OK', 'LEVE', 'CRITICO']),
-    body('comentario').optional().isString().trim().isLength({ max: 1000 })
+    body('comentario').optional().isString().trim().isLength({ max: 1000 }),
+    body('zonaInspeccionId').optional({ nullable: true }).isInt({ min: 1 }).toInt()
   ],
   checkValidation,
   async (req, res) => {
@@ -618,6 +625,8 @@ router.patch(
     // Permitir borrar comentario enviando "" explícitamente
     const comentarioProvided = 'comentario' in req.body;
     const comentarioValue = comentarioProvided ? (req.body.comentario || null) : undefined;
+    const zonaProvided = 'zonaInspeccionId' in req.body;
+    const zonaValue = zonaProvided ? (req.body.zonaInspeccionId || null) : undefined;
     try {
       // Construir query dinámicamente para soportar borrar comentario
       let query = 'UPDATE evidencias SET updated_at = CURRENT_TIMESTAMP';
@@ -629,6 +638,10 @@ router.patch(
       if (comentarioProvided) {
         query += ', comentario = ?';
         params.push(comentarioValue);
+      }
+      if (zonaProvided) {
+        query += ', zona_inspeccion_id = ?';
+        params.push(zonaValue);
       }
       query += ' WHERE id = ?';
       params.push(id);
@@ -644,6 +657,7 @@ router.patch(
         categoria: r.categoria,
         tipo: r.evidence_type,
         comentario: r.comentario,
+        zonaInspeccionId: r.zona_inspeccion_id != null ? Number(r.zona_inspeccion_id) : null,
         imageUrl: buildPublicUrl(r.image_path),
         mimeType: r.mime_type,
         sizeBytes: r.size_bytes,

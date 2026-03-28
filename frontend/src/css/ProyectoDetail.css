@@ -867,3 +867,99 @@
 /* Pequeñas utilidades */
 .tarea-actions { display:flex; gap:6px; align-items:center; }
 .error-message { margin-top: var(--spacing-lg); color: var(--accent-red); }
+
+/* Zonas de inspección */
+.zona-acciones-cell {
+  width: 190px;
+}
+.zona-acciones-group {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.zona-edit-input {
+  width: 100%;
+  height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 20px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.zona-edit-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59,130,246,.16);
+}
+.zona-btn-save {
+  background: rgba(59,130,246,0.08);
+  color: #2563eb;
+  border: 1px solid rgba(59,130,246,0.22);
+}
+.zona-btn-save:hover {
+  background: rgba(59,130,246,0.15);
+}
+.zona-btn-cancel {
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+.zona-btn-cancel:hover {
+  background: #f1f5f9;
+}
+
+/* Fila agregar zona: un poco más grande */
+.zonas-add-row .zonas-add-input {
+  height: 40px;
+  padding: 9px 12px;
+  font-size: 14px;
+}
+.zonas-add-row .zonas-add-btn {
+  min-height: 40px;
+  padding: 9px 14px;
+  font-size: 14px;
+}
+
+/* Modal confirmación dentro de la app (evita confirm nativo de Electron) */
+.proyecto-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+.proyecto-modal {
+  width: min(460px, 94vw);
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+.proyecto-modal-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.proyecto-modal-title {
+  font-weight: 700;
+  color: #111827;
+}
+.proyecto-modal-body {
+  padding: 14px 16px;
+}
+.proyecto-modal-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

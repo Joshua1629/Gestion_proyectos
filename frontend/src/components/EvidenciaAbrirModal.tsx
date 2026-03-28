@@ -10,6 +10,7 @@ interface EvidenciaParaModal {
   imageUrl: string;
   comentario?: string | null;
   comentarios?: { id: number | null; comentario: string }[];
+  zonaInspeccionNombre?: string | null;
 }
 
 interface Props {
@@ -143,6 +144,13 @@ export default function EvidenciaAbrirModal({ evidencia, onClose }: Props) {
               )}
             </div>
           )}
+
+          <p className="evidencia-abrir-comentario muted small" style={{ marginTop: 8 }}>
+            <strong>Zona asignada:</strong>{" "}
+            {evidencia.zonaInspeccionNombre?.trim()
+              ? evidencia.zonaInspeccionNombre
+              : "Sin asignar"}
+          </p>
 
           <h4 style={{ marginTop: 16, marginBottom: 8 }}>
             Incumplimientos asociados ({incumplimientos.length})

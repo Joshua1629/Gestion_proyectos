@@ -4,6 +4,7 @@ import {
   getEvidencias,
   uploadEvidencia,
   deleteEvidencia,
+  updateEvidencia,
   reorderEvidencias,
   addComentarioEvidencia,
   updateComentarioEvidencia,
@@ -11,6 +12,7 @@ import {
   listNormasRepoByEvidencia,
 } from "../services/evidencias";
 import { type Tarea } from "../services/tareas";
+import { listZonasInspeccion, type ZonaInspeccion } from "../services/proyectos";
 import "../css/EvidenciasPanel.css";
 import ImageWithFallback from "./ImageWithFallback";
 import EvidenciaNormasModal from "./EvidenciaNormasModal";
@@ -108,6 +110,9 @@ export default function EvidenciasPanel({
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
   const [dropZoneInsertIndex, setDropZoneInsertIndex] = useState<number | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [zonasInspeccion, setZonasInspeccion] = useState<ZonaInspeccion[]>([]);
+  const [zonaPickerEvidencia, setZonaPickerEvidencia] = useState<Evidencia | null>(null);
+  const [selectedZonaId, setSelectedZonaId] = useState<number | "">("");
   const comentarioInputRef = useRef<HTMLInputElement>(null);
   const draggedIdRef = useRef<number | null>(null);
   const dropTargetIdRef = useRef<number | null>(null);
@@ -173,14 +178,22 @@ export default function EvidenciasPanel({
   }
   useEffect(() => {
     void load();
+    (async () => {
+      try {
+        const res = await listZonasInspeccion(proyectoId);
+        setZonasInspeccion(Array.isArray(res?.items) ? res.items : []);
+      } catch {
+        setZonasInspeccion([]);
+      }
+    })();
   }, [proyectoId]);
 
   // Bloquear scroll del fondo sin saltar al inicio al cerrar modales (Comentarios / Ver evidencia)
   useEffect(() => {
-    if (comentariosPanelEvidencia !== null || openAbrirEvidencia !== null) {
+    if (comentariosPanelEvidencia !== null || openAbrirEvidencia !== null || zonaPickerEvidencia !== null) {
       return lockBodyScroll();
     }
-  }, [comentariosPanelEvidencia, openAbrirEvidencia]);
+  }, [comentariosPanelEvidencia, openAbrirEvidencia, zonaPickerEvidencia]);
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
@@ -301,6 +314,21 @@ export default function EvidenciasPanel({
       );
     } finally {
       setSavingComentarioId(null);
+    }
+  }
+
+  async function handleSaveZonaInspeccion() {
+    if (!zonaPickerEvidencia) return;
+    try {
+      setError(null);
+      await updateEvidencia(zonaPickerEvidencia.id, {
+        zonaInspeccionId: selectedZonaId === "" ? null : Number(selectedZonaId),
+      });
+      setZonaPickerEvidencia(null);
+      const list = await load(true);
+      setItems(list);
+    } catch (e: any) {
+      setError(e?.detail || e?.error || e?.message || "Error al actualizar zona");
     }
   }
 
@@ -439,6 +467,7 @@ export default function EvidenciasPanel({
               setFile((e.target.files && e.target.files[0]) || null)
             }
           />
+          {/*
           <select
             value={tareaId as any}
             onChange={(e) =>
@@ -452,6 +481,7 @@ export default function EvidenciasPanel({
               </option>
             ))}
           </select>
+          */}
         </div>
         <div className="row">
           <input
@@ -599,6 +629,22 @@ export default function EvidenciasPanel({
                         })()}
                       </button>
                       <button
+                        type="button"
+                        className="btn small"
+                        onClick={() => {
+                          setZonaPickerEvidencia(ev);
+                          setSelectedZonaId(
+                            ev.zonaInspeccionId != null ? Number(ev.zonaInspeccionId) : ""
+                          );
+                        }}
+                        title="Seleccionar zona de inspección"
+                      >
+                        <Icon name="place" size={14} />
+                        {ev.zonaInspeccionNombre
+                          ? ` Zona: ${ev.zonaInspeccionNombre}`
+                          : " Zona: Sin asignar"}
+                      </button>
+                      <button
                         className="btn small"
                         onClick={async () => {
                           if (normasCount[ev.id] === undefined) {
@@ -659,9 +705,85 @@ export default function EvidenciasPanel({
             imageUrl: openAbrirEvidencia.imageUrl,
             comentario: openAbrirEvidencia.comentario,
             comentarios: openAbrirEvidencia.comentarios,
+            zonaInspeccionNombre: openAbrirEvidencia.zonaInspeccionNombre,
           }}
           onClose={() => setOpenAbrirEvidencia(null)}
         />
+      )}
+
+      {zonaPickerEvidencia !== null && (
+        <div className="modal-backdrop" role="presentation">
+          <div
+            className="modal zona-inspeccion-modal"
+            style={{ maxWidth: 460 }}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="zona-inspeccion-title"
+          >
+            <div className="modal-header">
+              <div className="modal-title" id="zona-inspeccion-title">
+                Zona de inspección
+              </div>
+              <button
+                type="button"
+                className="close"
+                onClick={() => setZonaPickerEvidencia(null)}
+                aria-label="Cerrar"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="modal-body zona-inspeccion-modal-body">
+              {zonaPickerEvidencia.imageUrl && (
+                <div className="zona-inspeccion-preview">
+                  <ImageWithFallback
+                    src={zonaPickerEvidencia.imageUrl}
+                    alt="Vista previa de evidencia"
+                    placeholder={IMG_PLACEHOLDER}
+                    style={{
+                      width: "100%",
+                      maxHeight: 150,
+                      objectFit: "cover",
+                      borderRadius: 8,
+                      border: "1px solid #e2e8f0",
+                    }}
+                  />
+                </div>
+              )}
+              <label className="small muted zona-inspeccion-label">
+                Seleccione una zona para esta evidencia
+              </label>
+              <select
+                className="zona-inspeccion-select"
+                value={selectedZonaId as any}
+                onChange={(e) =>
+                  setSelectedZonaId(e.target.value === "" ? "" : Number(e.target.value))
+                }
+              >
+                <option value="">Sin asignar</option>
+                {zonasInspeccion.map((z) => (
+                  <option key={z.id} value={z.id}>
+                    {z.nombre}
+                  </option>
+                ))}
+              </select>
+              {zonasInspeccion.length === 0 && (
+                <p className="muted small" style={{ marginTop: 8 }}>
+                  No hay zonas creadas en este proyecto.
+                </p>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn" onClick={() => setZonaPickerEvidencia(null)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn primary" onClick={() => void handleSaveZonaInspeccion()}>
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {comentariosPanelEvidencia !== null && (

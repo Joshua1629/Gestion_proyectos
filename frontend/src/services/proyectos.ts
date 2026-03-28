@@ -1,4 +1,4 @@
-﻿import { appFetch } from '../utils/appFetch';
+import { appFetch } from '../utils/appFetch';
 
 const API = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3001') + '/api/proyectos';
 
@@ -39,6 +39,14 @@ export interface TareaResumen {
   prioridad: 'Baja' | 'Media' | 'Alta';
   fecha_limite?: string;
   progreso: number;
+}
+
+export interface ZonaInspeccion {
+  id: number;
+  proyecto_id: number;
+  nombre: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Obtener lista de proyectos con paginación y búsqueda
@@ -111,6 +119,31 @@ export async function updateFase(proyectoId: number, faseId: number, fase: Parti
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(fase)
+  });
+}
+
+// ===== ZONAS DE INSPECCIÓN =====
+export async function listZonasInspeccion(proyectoId: number): Promise<{ items: ZonaInspeccion[] }> {
+  return appFetch(`${API}/${proyectoId}/zonas-inspeccion`);
+}
+
+export async function createZonaInspeccion(proyectoId: number, nombre: string): Promise<ZonaInspeccion> {
+  return appFetch(`${API}/${proyectoId}/zonas-inspeccion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nombre: nombre.trim() })
+  });
+}
+
+export async function deleteZonaInspeccion(proyectoId: number, zonaId: number): Promise<void> {
+  return appFetch(`${API}/${proyectoId}/zonas-inspeccion/${zonaId}`, { method: 'DELETE', asJson: false });
+}
+
+export async function updateZonaInspeccion(proyectoId: number, zonaId: number, nombre: string): Promise<ZonaInspeccion> {
+  return appFetch(`${API}/${proyectoId}/zonas-inspeccion/${zonaId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nombre: nombre.trim() })
   });
 }
 

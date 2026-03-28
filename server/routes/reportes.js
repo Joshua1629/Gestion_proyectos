@@ -450,7 +450,13 @@ function drawLegend(doc, y) {
   });
 }
 
-function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
+function drawCover(
+  doc,
+  proyecto,
+  coverImagePath,
+  institucionImagePath,
+  zonasInspeccion = [],
+) {
   // Encabezados alineados a la izquierda (más cercanos al margen)
   const leftX = 50;
   const headStartY = 95;
@@ -603,6 +609,51 @@ function drawCover(doc, proyecto, coverImagePath, institucionImagePath) {
     .fontSize(8)
     .fillColor("#000")
     .text(fechaInforme, leftBoxX + 12, ly + 12, { width: leftBoxW - 24 });
+
+  // Zonas de inspección (usar espacio en blanco de la portada)
+  if (Array.isArray(zonasInspeccion) && zonasInspeccion.length > 0) {
+    const zonasX = 50;
+    const zonasY = leftBoxY + leftBoxH + 16;
+    const zonasTitleW = 495;
+    const colGap = 16;
+    const colW = (495 - colGap) / 2;
+    const col1X = zonasX;
+    const col2X = zonasX + colW + colGap;
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .fillColor("#111")
+      .text("Zonas de inspección:", zonasX, zonasY, { width: zonasTitleW });
+    let zy = zonasY + 18;
+    let currentCol = 1;
+    const bottomY = doc.page.height - doc.page.margins.bottom - 120;
+    const maxY = bottomY - 10;
+    for (const z of zonasInspeccion) {
+      const line = `-${String(z || "").trim()}.`;
+      if (!line || line === "-.") continue;
+      const lh = doc.heightOfString(line, {
+        width: colW,
+        align: "left",
+      });
+      if (zy + lh > maxY) {
+        if (currentCol === 1) {
+          currentCol = 2;
+          zy = zonasY + 18;
+        } else {
+          break;
+        }
+      }
+      doc
+        .font("Helvetica")
+        .fontSize(10)
+        .fillColor("#000")
+        .text(line, currentCol === 1 ? col1X : col2X, zy, {
+          width: colW,
+          align: "left",
+        });
+      zy += lh + 2;
+    }
+  }
 
   // NOTA y Simbología al pie, alineadas como en el ejemplo
   const bottomY = doc.page.height - doc.page.margins.bottom - 120; // elevar un poco para más balance
@@ -859,8 +910,15 @@ function drawFinding(doc, idx, evidencia, yStart, linkedNormas, images) {
   const gap = 10;
   // La severidad se muestra por incumplimiento, no a nivel de evidencia
 
-  // Calcular alturas de texto (soporta múltiples comentarios como lista)
+  // Calcular alturas de texto (soporta múltiples comentarios)
   const leftW = 495 - imgW - 3 * gap;
+  const zonaTxt = String(
+    evidencia.zona_inspeccion_nombre ||
+      evidencia.zonaInspeccionNombre ||
+      "",
+  ).trim();
+  const hasZona = zonaTxt.length > 0;
+  const zonaLine = hasZona ? `Zona - ${zonaTxt}` : "";
   const comentariosArr = Array.isArray(evidencia.comentarios) && evidencia.comentarios.length
     ? evidencia.comentarios.map((c) => String(c || "").trim()).filter(Boolean)
     : [];
@@ -907,6 +965,19 @@ function drawFinding(doc, idx, evidencia, yStart, linkedNormas, images) {
     .font("Helvetica-Bold")
     .fontSize(10)
     .text(`${idx + 1}. Evidencia e Incumplimiento:`, marginX + 8, yStart + 5);
+
+  if (hasZona) {
+    const rightHeaderX = marginX + 495 / 2;
+    const rightHeaderW = 495 / 2 - 8;
+    doc
+      .fillColor("#111")
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text(zonaLine, rightHeaderX, yStart + 5, {
+        width: rightHeaderW,
+        align: "center",
+      });
+  }
 
   const leftX = marginX + 12;
   const leftY = yStart + 28;
@@ -1047,6 +1118,13 @@ router.get(
         "SELECT * FROM fases WHERE proyecto_id = ?",
         [id],
       );
+      const [zonasRows] = await pool.query(
+        "SELECT nombre FROM zonas_inspeccion WHERE proyecto_id = ? ORDER BY id ASC",
+        [id],
+      );
+      const zonasInspeccion = (zonasRows || [])
+        .map((z) => String(z?.nombre || "").trim())
+        .filter(Boolean);
 
       // Evidencias para el reporte (usaremos como "fotos")
       const where = ["proyecto_id = ?"];
@@ -1068,8 +1146,15 @@ router.get(
         }
       }
       // Orden base cronológico (sort_order); los intercambios manuales solo cambian esas dos posiciones
+      const whereSqlE = whereSql
+        .replace(/\bproyecto_id\b/g, "e.proyecto_id")
+        .replace(/\bcategoria\b/g, "e.categoria");
       const [evidRows] = await pool.query(
-        `SELECT * FROM evidencias ${whereSql} ORDER BY CAST(COALESCE(sort_order, 999999) AS INTEGER) ASC, created_at ASC`,
+        `SELECT e.*, z.nombre AS zona_inspeccion_nombre
+         FROM evidencias e
+         LEFT JOIN zonas_inspeccion z ON z.id = e.zona_inspeccion_id
+         ${whereSqlE}
+         ORDER BY CAST(COALESCE(e.sort_order, 999999) AS INTEGER) ASC, e.created_at ASC`,
         params,
       );
 
@@ -1186,7 +1271,7 @@ router.get(
 
       // PORTADA (página 1)
       drawHeader(doc, proyecto.nombre, proyecto.cliente);
-      drawCover(doc, proyecto, coverImage, institucionalImage);
+      drawCover(doc, proyecto, coverImage, institucionalImage, zonasInspeccion);
       doc.addPage();
       // Página 2: Equipos (sin encabezado) y continuar evidencias debajo
       const nextYAfterEquipos = drawEquiposPage(doc);
@@ -1216,6 +1301,7 @@ router.get(
         evidList.push({
           comentario: comentarioPrimero,
           comentarios: comentariosList,
+          zonaInspeccionNombre: ev.zona_inspeccion_nombre || null,
           tareaId: ev.tarea_id || null,
           images,
           links: byEvid[ev.id] || [],
@@ -1231,10 +1317,20 @@ router.get(
           const g = evidList[i];
           // Calcular altura estimada antes de dibujar para decidir salto
           const textoWidth = 495 - 200 - 30;
-          const comentarioHeight = doc.heightOfString(
-            g.comentario || "Sin comentario",
-            { width: textoWidth },
-          );
+          const comentariosArr =
+            Array.isArray(g.comentarios) && g.comentarios.length
+              ? g.comentarios
+              : g.comentario
+                ? [g.comentario]
+                : [];
+          const comentarioHeight = comentariosArr.length
+            ? 14 +
+              comentariosArr.reduce(
+                (acc, txt) =>
+                  acc + doc.heightOfString(String(txt || ""), { width: textoWidth - 24 }) + 6,
+                0,
+              )
+            : 0;
           const normasHeight =
             (g.links || []).reduce((acc, n) => {
               const texto = ` ${n.titulo}${n.fuente ? " — " + n.fuente : ""}`;
@@ -1247,8 +1343,7 @@ router.get(
           const footerReserve = 28;
           const pageBottomY =
             doc.page.height - doc.page.margins.bottom - footerReserve;
-          const contentHeight =
-            28 + normasHeight + (comentarioHeight + 14) + 12;
+          const contentHeight = 28 + normasHeight + comentarioHeight + 12;
           const estimatedHeight = Math.max(contentHeight, 115 + 36);
           if (y + estimatedHeight > pageBottomY) {
             doc.addPage();
@@ -1258,7 +1353,13 @@ router.get(
           const usedH = drawFinding(
             doc,
             i,
-            { comentario: g.comentario, comentarios: g.comentarios, tarea_id: g.tareaId, image_path: g.images[0] },
+            {
+              comentario: g.comentario,
+              comentarios: g.comentarios,
+              zona_inspeccion_nombre: g.zonaInspeccionNombre,
+              tarea_id: g.tareaId,
+              image_path: g.images[0],
+            },
             y,
             g.links,
             g.images.slice(0, 1),

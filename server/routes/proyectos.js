@@ -310,6 +310,116 @@ router.put(
   }
 );
 
+// ===== ZONAS DE INSPECCIÓN =====
+
+// Listar zonas de inspección por proyecto
+router.get(
+  '/:id/zonas-inspeccion',
+  [param('id').isInt({ min: 1 }).toInt()],
+  checkValidation,
+  async (req, res) => {
+    const { id } = req.params;
+    try {
+      const [rows] = await pool.query(
+        'SELECT id, proyecto_id, nombre, created_at, updated_at FROM zonas_inspeccion WHERE proyecto_id = ? ORDER BY id ASC',
+        [id]
+      );
+      res.json({ items: rows || [] });
+    } catch (err) {
+      console.error('list zonas inspeccion error:', err);
+      res.status(500).json({ error: 'Error al listar zonas de inspección' });
+    }
+  }
+);
+
+// Crear zona de inspección
+router.post(
+  '/:id/zonas-inspeccion',
+  [
+    param('id').isInt({ min: 1 }).toInt(),
+    body('nombre').isString().trim().isLength({ min: 1, max: 200 })
+  ],
+  checkValidation,
+  async (req, res) => {
+    const { id } = req.params;
+    const { nombre } = req.body;
+    try {
+      const [proyectoRows] = await pool.query('SELECT id FROM proyectos WHERE id = ?', [id]);
+      if (!proyectoRows || proyectoRows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
+      const [result] = await pool.query(
+        'INSERT INTO zonas_inspeccion (proyecto_id, nombre) VALUES (?, ?)',
+        [id, String(nombre).trim()]
+      );
+      const [rows] = await pool.query(
+        'SELECT id, proyecto_id, nombre, created_at, updated_at FROM zonas_inspeccion WHERE id = ?',
+        [result.insertId]
+      );
+      res.status(201).json(rows && rows[0] ? rows[0] : {});
+    } catch (err) {
+      console.error('create zona inspeccion error:', err);
+      res.status(500).json({ error: 'Error al crear zona de inspección' });
+    }
+  }
+);
+
+// Eliminar zona de inspección
+router.delete(
+  '/:id/zonas-inspeccion/:zonaId',
+  [
+    param('id').isInt({ min: 1 }).toInt(),
+    param('zonaId').isInt({ min: 1 }).toInt()
+  ],
+  checkValidation,
+  async (req, res) => {
+    const { id, zonaId } = req.params;
+    try {
+      await pool.query(
+        'UPDATE evidencias SET zona_inspeccion_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE proyecto_id = ? AND zona_inspeccion_id = ?',
+        [id, zonaId]
+      );
+      const [result] = await pool.query(
+        'DELETE FROM zonas_inspeccion WHERE id = ? AND proyecto_id = ?',
+        [zonaId, id]
+      );
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Zona no encontrada' });
+      res.status(204).send();
+    } catch (err) {
+      console.error('delete zona inspeccion error:', err);
+      res.status(500).json({ error: 'Error al eliminar zona de inspección' });
+    }
+  }
+);
+
+// Actualizar nombre de zona de inspección
+router.put(
+  '/:id/zonas-inspeccion/:zonaId',
+  [
+    param('id').isInt({ min: 1 }).toInt(),
+    param('zonaId').isInt({ min: 1 }).toInt(),
+    body('nombre').isString().trim().isLength({ min: 1, max: 200 })
+  ],
+  checkValidation,
+  async (req, res) => {
+    const { id, zonaId } = req.params;
+    const { nombre } = req.body;
+    try {
+      const [result] = await pool.query(
+        'UPDATE zonas_inspeccion SET nombre = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND proyecto_id = ?',
+        [String(nombre).trim(), zonaId, id]
+      );
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Zona no encontrada' });
+      const [rows] = await pool.query(
+        'SELECT id, proyecto_id, nombre, created_at, updated_at FROM zonas_inspeccion WHERE id = ?',
+        [zonaId]
+      );
+      res.json(rows && rows[0] ? rows[0] : {});
+    } catch (err) {
+      console.error('update zona inspeccion error:', err);
+      res.status(500).json({ error: 'Error al actualizar zona de inspección' });
+    }
+  }
+);
+
 // Eliminar
 router.delete(
   '/:id',

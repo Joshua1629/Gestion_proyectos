@@ -2,8 +2,13 @@ import { useState, useEffect } from "react";
 import {
   type Proyecto,
   type Fase,
+  type ZonaInspeccion,
   getProyecto,
   updateFase,
+  listZonasInspeccion,
+  createZonaInspeccion,
+  deleteZonaInspeccion,
+  updateZonaInspeccion,
 } from "../services/proyectos";
 import {
   type Tarea,
@@ -36,12 +41,17 @@ export default function ProyectoDetail({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "resumen" | "fases" | "tareas" | "evidencias"
+    "resumen" | "fases" | "tareas" | "zonas" | "evidencias"
   >("resumen");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Tarea | null>(null);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [updatingIds, setUpdatingIds] = useState<number[]>([]);
+  const [zonas, setZonas] = useState<ZonaInspeccion[]>([]);
+  const [nuevaZona, setNuevaZona] = useState("");
+  const [editingZonaId, setEditingZonaId] = useState<number | null>(null);
+  const [editingZonaNombre, setEditingZonaNombre] = useState("");
+  const [deleteZonaConfirm, setDeleteZonaConfirm] = useState<ZonaInspeccion | null>(null);
 
   useEffect(() => {
     loadProyectoData();
@@ -51,9 +61,10 @@ export default function ProyectoDetail({
   const loadProyectoData = async () => {
     try {
       setLoading(true);
-      const [proyectoData, tareasData] = await Promise.all([
+      const [proyectoData, tareasData, zonasData] = await Promise.all([
         getProyecto(proyectoId),
         getTareasByProyecto(proyectoId),
+        listZonasInspeccion(proyectoId),
       ]);
 
       setProyecto(proyectoData);
@@ -63,6 +74,7 @@ export default function ProyectoDetail({
         : (tareasData?.data as Tarea[]) ?? [];
 
       setTareas(tareasArray);
+      setZonas(Array.isArray(zonasData?.items) ? zonasData.items : []);
 
       try {
         const users = await getUsuarios();
@@ -116,6 +128,22 @@ export default function ProyectoDetail({
       tareasFase.reduce((acc, t) => acc + (t.progreso || 0), 0) /
         tareasFase.length
     );
+  };
+
+  const refreshZonas = async () => {
+    const res = await listZonasInspeccion(proyectoId);
+    setZonas(Array.isArray(res?.items) ? res.items : []);
+  };
+
+  const handleAddZona = async () => {
+    if (!proyecto || !nuevaZona.trim()) return;
+    try {
+      await createZonaInspeccion(proyecto.id, nuevaZona.trim());
+      setNuevaZona("");
+      await refreshZonas();
+    } catch (err: any) {
+      setError((err && (err.detail || err.message)) || "Error al crear zona");
+    }
   };
 
   const formatDate = (dateInput?: string | number | null) => {
@@ -262,6 +290,12 @@ export default function ProyectoDetail({
           onClick={() => setActiveTab("tareas")}
         >
           <Icon name="check_circle" size={18} /> Tareas ({Array.isArray(tareas) ? tareas.length : 0})
+        </button>
+        <button
+          className={`tab-button ${activeTab === "zonas" ? "active" : ""}`}
+          onClick={() => setActiveTab("zonas")}
+        >
+          <Icon name="place" size={18} /> Zonas de inspección
         </button>
         <button
           className={`tab-button ${activeTab === "evidencias" ? "active" : ""}`}
@@ -530,6 +564,149 @@ export default function ProyectoDetail({
           </div>
         )}
 
+        {activeTab === "zonas" && (
+          <div className="zonas-section">
+            <div className="tareas-header">
+              <h3 className="section-title">
+                <span className="section-icon"><Icon name="place" size={20} /></span> Zonas de inspección
+              </h3>
+            </div>
+            <div className="edit-comentario-form zonas-add-row" style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <input
+                type="text"
+                className="zonas-add-input"
+                value={nuevaZona}
+                onChange={(e) => setNuevaZona(e.target.value)}
+                placeholder="Nombre de la zona..."
+                style={{ flex: 1, minWidth: 260 }}
+                onKeyDown={async (e) => {
+                  if (e.key !== "Enter") return;
+                  e.preventDefault();
+                  await handleAddZona();
+                }}
+              />
+              <button
+                type="button"
+                className="btn zonas-add-btn"
+                disabled={!nuevaZona.trim()}
+                onClick={async () => await handleAddZona()}
+              >
+                Agregar zona
+              </button>
+            </div>
+            <div className="normas-table-wrapper">
+              <table className="normas-table">
+                <thead>
+                  <tr>
+                    <th>Nombre de la zona</th>
+                    <th className="nowrap" style={{ width: 120 }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {zonas.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="muted small">No hay zonas de inspección registradas.</td>
+                    </tr>
+                  ) : (
+                    zonas.map((z) => (
+                      <tr key={z.id}>
+                        <td>
+                          {editingZonaId === z.id ? (
+                            <input
+                              type="text"
+                              className="zona-edit-input"
+                              value={editingZonaNombre}
+                              onChange={(e) => setEditingZonaNombre(e.target.value)}
+                              autoFocus
+                              onKeyDown={async (e) => {
+                                if (e.key === "Escape") {
+                                  setEditingZonaId(null);
+                                  setEditingZonaNombre("");
+                                  return;
+                                }
+                                if (e.key !== "Enter") return;
+                                e.preventDefault();
+                                if (!editingZonaNombre.trim()) return;
+                                try {
+                                  await updateZonaInspeccion(proyecto.id, z.id, editingZonaNombre.trim());
+                                  setEditingZonaId(null);
+                                  setEditingZonaNombre("");
+                                  const res = await listZonasInspeccion(proyecto.id);
+                                  setZonas(Array.isArray(res?.items) ? res.items : []);
+                                } catch (err: any) {
+                                  setError((err && (err.detail || err.message)) || "Error al editar zona");
+                                }
+                              }}
+                              style={{ width: "100%" }}
+                            />
+                          ) : (
+                            z.nombre
+                          )}
+                        </td>
+                        <td className="zona-acciones-cell">
+                          {editingZonaId === z.id ? (
+                            <div className="zona-acciones-group">
+                              <button
+                                type="button"
+                                className="btn small zona-btn-save"
+                                onClick={async () => {
+                                  if (!editingZonaNombre.trim()) return;
+                                  try {
+                                    await updateZonaInspeccion(proyecto.id, z.id, editingZonaNombre.trim());
+                                    setEditingZonaId(null);
+                                    setEditingZonaNombre("");
+                                    const res = await listZonasInspeccion(proyecto.id);
+                                    setZonas(Array.isArray(res?.items) ? res.items : []);
+                                  } catch (err: any) {
+                                    setError((err && (err.detail || err.message)) || "Error al editar zona");
+                                  }
+                                }}
+                              >
+                                Guardar
+                              </button>
+                              <button
+                                type="button"
+                                className="btn small zona-btn-cancel"
+                                onClick={() => {
+                                  setEditingZonaId(null);
+                                  setEditingZonaNombre("");
+                                }}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="zona-acciones-group">
+                              <button
+                                type="button"
+                                className="btn small"
+                                onClick={() => {
+                                  setEditingZonaId(z.id);
+                                  setEditingZonaNombre(z.nombre || "");
+                                }}
+                              >
+                                Editar
+                              </button>
+                              {" "}
+                          <button
+                            type="button"
+                            className="btn small danger"
+                                onClick={() => setDeleteZonaConfirm(z)}
+                          >
+                            Eliminar
+                          </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {activeTab === "evidencias" && (
           <div className="evidencias-section">
             <EvidenciasPanel proyectoId={proyecto.id} tareas={tareas} />
@@ -538,6 +715,61 @@ export default function ProyectoDetail({
 
         {/* La vista de Normas se movió a un repositorio global accesible desde el header */}
       </div>
+
+      {deleteZonaConfirm !== null && (
+        <div className="proyecto-modal-backdrop" role="presentation">
+          <div
+            className="proyecto-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-zona-title"
+          >
+            <div className="proyecto-modal-header">
+              <div className="proyecto-modal-title" id="delete-zona-title">
+                Eliminar zona de inspección
+              </div>
+              <button
+                type="button"
+                className="close"
+                onClick={() => setDeleteZonaConfirm(null)}
+                aria-label="Cerrar"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="proyecto-modal-body">
+              <p style={{ margin: 0 }}>
+                ¿Eliminar la zona <strong>{deleteZonaConfirm.nombre}</strong>?
+              </p>
+            </div>
+            <div className="proyecto-modal-footer">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setDeleteZonaConfirm(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn danger"
+                onClick={async () => {
+                  try {
+                    await deleteZonaInspeccion(proyecto.id, deleteZonaConfirm.id);
+                    setDeleteZonaConfirm(null);
+                    await refreshZonas();
+                  } catch (err: any) {
+                    setError((err && (err.detail || err.message)) || "Error al eliminar zona");
+                  }
+                }}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="tarea-form-modal">

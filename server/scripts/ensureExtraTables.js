@@ -160,6 +160,17 @@ async function ensureExtraTables() {
         FOREIGN KEY (evidencia_id) REFERENCES evidencias(id) ON DELETE CASCADE
       );
       CREATE INDEX IF NOT EXISTS idx_evidencia_comentarios_evidencia ON evidencia_comentarios(evidencia_id);
+
+      -- Zonas de inspección por proyecto
+      CREATE TABLE IF NOT EXISTS zonas_inspeccion (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        proyecto_id INTEGER NOT NULL,
+        nombre TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME,
+        FOREIGN KEY (proyecto_id) REFERENCES proyectos(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_zonas_inspeccion_proyecto ON zonas_inspeccion(proyecto_id);
       `;
 
       db.exec(ddl, (e) => {
@@ -202,10 +213,13 @@ async function ensureExtraTables() {
             const hasFileHash = rows && rows.some((r) => r && r.name === 'file_hash');
             const hasEvidenceType = rows && rows.some((r) => r && r.name === 'evidence_type');
             const hasSortOrder = rows && rows.some((r) => r && r.name === 'sort_order');
+            const hasZonaInspeccionId = rows && rows.some((r) => r && r.name === 'zona_inspeccion_id');
             const ensureIndex = () => {
               db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_group_key ON evidencias(group_key)", [], () => {
                 db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_file_hash ON evidencias(file_hash)");
-                db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_evidence_type ON evidencias(evidence_type)", [], () => db.close(() => resolve()));
+                db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_evidence_type ON evidencias(evidence_type)", [], () => {
+                  db.run("CREATE INDEX IF NOT EXISTS idx_evidencias_zona_inspeccion ON evidencias(zona_inspeccion_id)", [], () => db.close(() => resolve()));
+                });
               });
             };
             if (!hasGroupKey) {
@@ -237,9 +251,15 @@ async function ensureExtraTables() {
                 if (hasEvidenceType) return next();
                 db.run("ALTER TABLE evidencias ADD COLUMN evidence_type TEXT DEFAULT 'GENERAL'", [], () => next());
               };
+              const doEnsureZonaInspeccionId = (next) => {
+                if (hasZonaInspeccionId) return next();
+                db.run("ALTER TABLE evidencias ADD COLUMN zona_inspeccion_id INTEGER", [], () => next());
+              };
               doEnsureFileHash(() => doEnsureEvidenceType(() => {
-                if (hasSortOrder) return ensureIndex();
-                db.run('ALTER TABLE evidencias ADD COLUMN sort_order INTEGER', [], () => ensureIndex());
+                doEnsureZonaInspeccionId(() => {
+                  if (hasSortOrder) return ensureIndex();
+                  db.run('ALTER TABLE evidencias ADD COLUMN sort_order INTEGER', [], () => ensureIndex());
+                });
               }));
             }
           });
