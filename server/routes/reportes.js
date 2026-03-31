@@ -623,7 +623,7 @@ function drawCover(
       .font("Helvetica-Bold")
       .fontSize(10)
       .fillColor("#111")
-      .text("Zonas de inspección:", zonasX, zonasY, { width: zonasTitleW });
+      .text("ZONA DE INSPECCIÓN:", zonasX, zonasY, { width: zonasTitleW });
     let zy = zonasY + 18;
     let currentCol = 1;
     const bottomY = doc.page.height - doc.page.margins.bottom - 120;
